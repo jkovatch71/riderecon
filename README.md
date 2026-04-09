@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Trail App MVP
 
 This starter app includes a Next.js frontend and a FastAPI backend for the San Antonio trail conditions MVP.
