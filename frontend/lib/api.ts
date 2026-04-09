@@ -1,27 +1,36 @@
 import { Trail, TrailReport } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 
-function getApiBaseUrl() {
+/**
+ * Resolve API base URL safely for both client and server
+ */
+function getApiBaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
 
   if (envUrl) {
     return envUrl;
   }
 
-  if (typeof window === "undefined") {
-    return "http://localhost:8000";
+  // Client-side fallback (local dev only)
+  if (typeof window !== "undefined") {
+    const { protocol, hostname } = window.location;
+    const apiProtocol = protocol === "https:" ? "https:" : "http:";
+    return `${apiProtocol}//${hostname}:8000`;
   }
 
-  const { protocol, hostname } = window.location;
-  const apiProtocol = protocol === "https:" ? "https:" : "http:";
-
-  return `${apiProtocol}//${hostname}:8000`;
+  // Server-side MUST have env var set
+  throw new Error(
+    "NEXT_PUBLIC_API_URL is not set. Server-side requests require a deployed backend URL."
+  );
 }
 
-const API_URL = getApiBaseUrl();
-
+/**
+ * Generic request helper
+ */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const apiUrl = getApiBaseUrl();
+
+  const res = await fetch(`${apiUrl}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -37,6 +46,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+/**
+ * Trails
+ */
 export async function getTrails(): Promise<Trail[]> {
   return request<Trail[]>("/trails");
 }
@@ -49,15 +61,36 @@ export async function getTrailReports(id: string): Promise<TrailReport[]> {
   return request<TrailReport[]>(`/trails/${id}/reports`);
 }
 
+/**
+ * Auth headers helper
+ */
+async function authHeaders() {
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+
+  return {
+    "Content-Type": "application/json",
+    Authorization: session ? `Bearer ${session.access_token}` : ""
+  };
+}
+
+/**
+ * Reports
+ */
 export async function createReport(payload: {
   trail_id: string;
   primary_condition: string;
   hazard_tags: string[];
   note?: string;
 }) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const apiUrl = getApiBaseUrl();
 
-  const res = await fetch(`${API_URL}/reports`, {
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+
+  const res = await fetch(`${apiUrl}/reports`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -72,19 +105,14 @@ export async function createReport(payload: {
 
   return res.json();
 }
-async function authHeaders() {
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
 
-  return {
-    "Content-Type": "application/json",
-    Authorization: session ? `Bearer ${session.access_token}` : ""
-  };
-}
-
+/**
+ * Favorites
+ */
 export async function getFavorites(): Promise<string[]> {
-  const res = await fetch(`${API_URL}/favorites`, {
+  const apiUrl = getApiBaseUrl();
+
+  const res = await fetch(`${apiUrl}/favorites`, {
     headers: await authHeaders(),
     cache: "no-store"
   });
@@ -97,7 +125,9 @@ export async function getFavorites(): Promise<string[]> {
 }
 
 export async function addFavorite(trailId: string) {
-  const res = await fetch(`${API_URL}/favorites/${trailId}`, {
+  const apiUrl = getApiBaseUrl();
+
+  const res = await fetch(`${apiUrl}/favorites/${trailId}`, {
     method: "POST",
     headers: await authHeaders()
   });
@@ -110,7 +140,9 @@ export async function addFavorite(trailId: string) {
 }
 
 export async function removeFavorite(trailId: string) {
-  const res = await fetch(`${API_URL}/favorites/${trailId}`, {
+  const apiUrl = getApiBaseUrl();
+
+  const res = await fetch(`${apiUrl}/favorites/${trailId}`, {
     method: "DELETE",
     headers: await authHeaders()
   });
@@ -122,6 +154,9 @@ export async function removeFavorite(trailId: string) {
   return res.json();
 }
 
+/**
+ * Weather
+ */
 export type CurrentWeather = {
   temperature?: number | null;
   summary?: string | null;
@@ -136,7 +171,9 @@ export type RecentRain = {
 };
 
 export async function getCurrentWeather(): Promise<CurrentWeather> {
-  const res = await fetch(`${API_URL}/weather/current`, {
+  const apiUrl = getApiBaseUrl();
+
+  const res = await fetch(`${apiUrl}/weather/current`, {
     cache: "no-store"
   });
 
@@ -148,7 +185,9 @@ export async function getCurrentWeather(): Promise<CurrentWeather> {
 }
 
 export async function getRecentRain(): Promise<RecentRain> {
-  const res = await fetch(`${API_URL}/weather/recent-rain`, {
+  const apiUrl = getApiBaseUrl();
+
+  const res = await fetch(`${apiUrl}/weather/recent-rain`, {
     cache: "no-store"
   });
 
