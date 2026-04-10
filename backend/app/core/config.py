@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Trail Conditions API"
+    app_name: str = "Ride Recon API"
     app_env: str = "development"
     app_cors_origins: str = "http://localhost:3000"
     supabase_url: str = ""
