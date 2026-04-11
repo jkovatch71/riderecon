@@ -7,6 +7,7 @@ This starter app includes a Next.js frontend and a FastAPI backend for the San A
 - Frontend: Next.js + React + TypeScript + Tailwind
 - Backend: FastAPI + Python
 - Database/Auth/Storage: Supabase (optional until you wire it)
+- adding this statement for commit purposes
 
 ## Run locally
 
