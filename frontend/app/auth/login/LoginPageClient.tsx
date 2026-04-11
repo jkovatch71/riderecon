@@ -23,9 +23,15 @@ export default function LoginPageClient() {
 
     try {
       if (mode === "signup") {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: `${baseUrl}/auth/login`,
+          },
         });
 
         if (error) throw error;
