@@ -22,24 +22,29 @@ export default function CompleteProfilePageClient() {
 
   useEffect(() => {
     async function load() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (!session?.user) {
-        router.push(`/auth/login?next=${encodeURIComponent("/auth/complete-profile")}`);
-        return;
+        if (!session?.user) {
+          router.push(`/auth/login?next=${encodeURIComponent("/auth/complete-profile")}`);
+          return;
+        }
+
+        const profile = await getMyProfile();
+
+        if (profile?.username) {
+          router.push(nextPath);
+          router.refresh();
+          return;
+        }
+
+        setChecking(false);
+      } catch (err) {
+        console.error("Failed to load profile:", err);
+        setChecking(false);
       }
-
-      const profile = await getMyProfile();
-
-      if (profile?.username) {
-        router.push(nextPath);
-        router.refresh();
-        return;
-      }
-
-      setChecking(false);
     }
 
     load();

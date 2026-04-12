@@ -1,48 +1,29 @@
 import { supabase } from "@/lib/supabase";
 
-export async function getMyProfile() {
+export type MyProfile = {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_color: string | null;
+  strava_url: string | null;
+};
+
+export async function getMyProfile(): Promise<MyProfile | null> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  if (!session?.user) {
+  const userId = session?.user?.id;
+
+  if (!userId) {
     return null;
   }
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, username, display_name")
-    .eq("id", session.user.id)
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
-}
-
-export async function updateMyProfile(payload: {
-  username: string;
-  display_name: string;
-}) {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.user) {
-    throw new Error("Not signed in");
-  }
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .update({
-      username: payload.username,
-      display_name: payload.display_name,
-    })
-    .eq("id", session.user.id)
-    .select("id, username, display_name")
-    .single();
+    .select("id, username, display_name, avatar_color, strava_url")
+    .eq("id", userId)
+    .maybeSingle();
 
   if (error) {
     throw error;
@@ -58,20 +39,33 @@ export async function createMyProfile(payload: {
   strava_url?: string;
 }) {
   const {
-    data: { session }
+    data: { session },
   } = await supabase.auth.getSession();
 
-  if (!session?.user) {
-    throw new Error("You must be signed in.");
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    throw new Error("You must be signed in to create a profile.");
   }
 
-  const { error } = await supabase.from("profiles").upsert({
-    id: session.user.id,
-    username: payload.username,
-    display_name: payload.display_name || null,
-    avatar_color: payload.avatar_color || null,
-    strava_url: payload.strava_url || null
-  });
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        id: userId,
+        username: payload.username,
+        display_name: payload.display_name || null,
+        avatar_color: payload.avatar_color || null,
+        strava_url: payload.strava_url || null,
+      },
+      { onConflict: "id" }
+    )
+    .select("id, username, display_name, avatar_color, strava_url")
+    .single();
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }
