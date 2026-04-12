@@ -38,18 +38,14 @@ export default function LoginPageClient() {
 
         setMessage("Account created. Check your email to verify your account, then sign in.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
 
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        const userId = session?.user.id;
+        const userId = data.session?.user.id;
 
         const { data: profile } = await supabase
           .from("profiles")
