@@ -184,16 +184,38 @@ export async function getCurrentWeather(): Promise<CurrentWeather> {
   return res.json();
 }
 
+let recentRainCache:
+  | { data: RecentRain; fetchedAt: number }
+  | null = null;
+
+const RECENT_RAIN_TTL_MS = 5 * 60 * 1000;
+
 export async function getRecentRain(): Promise<RecentRain> {
+  const now = Date.now();
+
+  if (
+    recentRainCache &&
+    now - recentRainCache.fetchedAt < RECENT_RAIN_TTL_MS
+  ) {
+    return recentRainCache.data;
+  }
+
   const apiUrl = getApiBaseUrl();
 
   const res = await fetch(`${apiUrl}/weather/recent-rain`, {
-    cache: "no-store"
+    cache: "no-store",
   });
 
   if (!res.ok) {
     throw new Error(`Recent rain request failed: ${res.status}`);
   }
 
-  return res.json();
+  const data = await res.json();
+
+  recentRainCache = {
+    data,
+    fetchedAt: now,
+  };
+
+  return data;
 }

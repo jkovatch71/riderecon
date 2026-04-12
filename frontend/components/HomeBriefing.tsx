@@ -122,7 +122,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const greetingBase = `${getGreeting()},`;
   const greetingName = user && profile ? `${displayName}!` : null;
 
-  const isLoading = authLoading || profileLoading || loadingBriefing;
+  const isLoading = authLoading || loadingBriefing;
 
   const supportingText =
     briefing.supporting &&
