@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
 import { ReportForm } from "@/components/ReportForm";
 
 export function ReportAccess({
@@ -13,33 +11,9 @@ export function ReportAccess({
   trailId: string;
   trailName: string;
 }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, profile, authLoading, profileLoading } = useAuth();
 
-  useEffect(() => {
-    let mounted = true;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (mounted) {
-        setSession(data.session ?? null);
-        setLoading(false);
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession ?? null);
-      setLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  if (loading) {
+  if (authLoading || (user && profileLoading)) {
     return (
       <section className="card p-5">
         <div>
@@ -56,7 +30,7 @@ export function ReportAccess({
     );
   }
 
-  if (!session) {
+  if (!user) {
     return (
       <section className="card p-5">
         <div>
@@ -84,6 +58,34 @@ export function ReportAccess({
             className="btn-primary block text-center"
           >
             Sign in to report
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  if (!profile?.username) {
+    return (
+      <section className="card p-5">
+        <div>
+          <h3 className="text-xl font-semibold">Report Trail Conditions</h3>
+          <p className="mt-1 text-sm text-zinc-400">
+            Nearest trail confirmed as {trailName}
+          </p>
+        </div>
+
+        <div className="my-4 h-px bg-zinc-800" />
+
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-400">
+            Finish setting up your rider profile before submitting reports.
+          </p>
+
+          <Link
+            href={`/auth/complete-profile?next=${encodeURIComponent(`/trails/${trailId}`)}`}
+            className="btn-primary block text-center"
+          >
+            Complete profile
           </Link>
         </div>
       </section>

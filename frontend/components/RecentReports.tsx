@@ -59,7 +59,7 @@ export function RecentReports({ reports }: { reports: TrailReport[] }) {
                       {report.hazard_tags?.map((tag) => (
                         <span
                           key={tag}
-                          className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-300"
+                          className="status-pill bg-amber-500/10 text-amber-300"
                         >
                           {tag}
                         </span>

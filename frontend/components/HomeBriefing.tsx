@@ -4,13 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Trail } from "@/lib/types";
 import { buildBriefing } from "@/lib/briefing";
 import { getCurrentWeather, getFavorites, getRecentRain } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
-import { getMyProfile } from "@/lib/profiles";
-
-type Profile = {
-  username?: string | null;
-  display_name?: string | null;
-};
+import { useAuth } from "@/components/AuthProvider";
 
 type Weather = {
   temperature?: number | null;
@@ -56,49 +50,51 @@ function getWeatherDisplay(weather?: Weather | null) {
 }
 
 export function HomeBriefing({ trails }: { trails: Trail[] }) {
+  const { user, profile, authLoading, profileLoading } = useAuth();
+
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [checkedSession, setCheckedSession] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loadingBriefing, setLoadingBriefing] = useState(true);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [recentRain, setRecentRain] = useState<RecentRain | null>(null);
 
   useEffect(() => {
     async function load() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      setLoadingBriefing(true);
 
       try {
         const weatherPromise = getCurrentWeather().catch(() => null);
         const rainPromise = getRecentRain().catch(() => null);
 
-        if (!session?.user) {
+        if (!user) {
+          const [nextWeather, nextRain] = await Promise.all([
+            weatherPromise,
+            rainPromise,
+          ]);
+
           setFavoriteIds([]);
-          setProfile(null);
-          setWeather(await weatherPromise);
-          setRecentRain(await rainPromise);
-          setCheckedSession(true);
+          setWeather(nextWeather);
+          setRecentRain(nextRain);
           return;
         }
 
-        const [ids, nextProfile, nextWeather, nextRain] = await Promise.all([
+        const [ids, nextWeather, nextRain] = await Promise.all([
           getFavorites().catch(() => []),
-          getMyProfile().catch(() => null),
           weatherPromise,
           rainPromise,
         ]);
 
         setFavoriteIds(ids);
-        setProfile(nextProfile);
         setWeather(nextWeather);
         setRecentRain(nextRain);
       } finally {
-        setCheckedSession(true);
+        setLoadingBriefing(false);
       }
     }
 
+    if (authLoading || profileLoading) return;
+
     load();
-  }, []);
+  }, [user, authLoading, profileLoading]);
 
   const briefingTrails = useMemo(() => {
     if (!favoriteIds.length) {
@@ -122,52 +118,56 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
     );
   }, [briefingTrails, weather, recentRain, usingFavorites]);
 
-  const displayName =
-    profile?.display_name || profile?.username || "rider";
+  const displayName = profile?.display_name || profile?.username || "rider";
+  const greetingBase = `${getGreeting()},`;
+  const greetingName = user && profile ? `${displayName}!` : null;
 
-  const greeting = checkedSession && profile
-    ? `${getGreeting()}, ${displayName}!`
-    : `${getGreeting()}!`;
+  const isLoading = authLoading || profileLoading || loadingBriefing;
+
+  const supportingText =
+    briefing.supporting &&
+    briefing.supporting.trim() !== briefing.detail.trim()
+      ? briefing.supporting
+      : null;
 
   return (
-  <div className="mt-3 max-w-3xl">
-    <h1 className="text-page-title font-bold text-zinc-100">
-      {greeting}
-    </h1>
+    <div className="mt-2 max-w-2xl">
+      <h1 className="text-2xl font-bold leading-tight text-zinc-100">
+        <span className="whitespace-nowrap">{greetingBase}</span>{" "}
+        {greetingName ? <span>{greetingName}</span> : null}
+      </h1>
 
-    <div className="mt-3 border-t border-zinc-700" />
+      <div className="mt-3 border-t border-zinc-700" />
 
-    {!checkedSession ? (
-      <p className="mt-4 text-sm text-zinc-300">
-        Loading your trail briefing...
-      </p>
-    ) : (
-      <div className="mt-4 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
-            Based on reports + weather
+      {isLoading ? (
+        <p className="mt-4 text-sm text-zinc-300">
+          Loading your trail briefing...
+        </p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
+              Based on reports + weather
+            </p>
+
+            <p className="text-body whitespace-nowrap font-medium text-zinc-300">
+              {getWeatherDisplay(weather)}
+            </p>
+          </div>
+
+          <p className="text-section-title font-bold text-zinc-100">
+            {briefing.headline}
           </p>
 
-          <p className="text-body whitespace-nowrap font-medium text-zinc-300">
-            {getWeatherDisplay(weather)}
-          </p>
+          <p className="text-body text-zinc-300">{briefing.detail}</p>
+
+          {supportingText ? (
+            <p className="text-body pt-1 font-medium text-zinc-200">
+              {supportingText}
+            </p>
+          ) : null}
         </div>
-
-        <p className="text-section-title font-semibold text-zinc-100">
-          {briefing.headline}
-        </p>
-
-        <p className="text-body text-zinc-300">
-          {briefing.detail}
-        </p>
-
-        {briefing.supporting ? (
-          <p className="text-body pt-1 font-medium text-zinc-200">
-            {briefing.supporting}
-          </p>
-        ) : null}
-      </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
 }

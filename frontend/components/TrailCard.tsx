@@ -28,10 +28,12 @@ export function TrailCard({
       <div className="flex h-full flex-col">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1 pr-2">
-            <h3 className="text-section-title font-semibold break-words">
+            <h3 className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">
               {trail.name}
             </h3>
-            <p className="text-helper text-zinc-400">{trail.system_name}</p>
+            <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
+              {trail.system_name}
+            </p>
           </div>
 
           <div className="flex-shrink-0">

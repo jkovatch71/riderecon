@@ -7,9 +7,11 @@
 }
 
 body {
+  font-family: var(--font-rajdhani), sans-serif;
   @apply bg-zinc-950 text-zinc-100;
 }
 
+/* shared shape system */
 .card {
   @apply rounded-2xl border border-zinc-800 bg-zinc-900/70 shadow-lg;
 }
@@ -33,6 +35,11 @@ body {
 .label {
   @apply mb-1 block text-sm font-medium text-zinc-300;
 }
+
+.status-pill {
+  @apply inline-flex items-center rounded-xl px-2.5 py-1 text-xs font-semibold uppercase tracking-wide;
+}
+
 .app-text-compact {
   --text-page-title: 1.75rem;
   --text-section-title: 1.125rem;
@@ -99,4 +106,14 @@ body {
 
 .label {
   font-size: var(--text-label);
+}
+
+.font-brand {
+  font-family: var(--font-teko), sans-serif;
+  letter-spacing: 0.08em;
+}
+
+.font-trail {
+  font-family: var(--font-teko), sans-serif;
+  letter-spacing: 0.05em;
 }

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { createMyProfile, getMyProfile } from "@/lib/profiles";
+import { useAuth } from "@/components/AuthProvider";
+import { createProfileForUser } from "@/lib/profiles";
 
 const avatarColors = ["emerald", "blue", "purple", "orange", "pink", "zinc"];
 
@@ -12,7 +12,8 @@ export default function CompleteProfilePageClient() {
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/";
 
-  const [checking, setChecking] = useState(true);
+  const { user, profile, authLoading, profileLoading, refreshProfile } = useAuth();
+
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [avatarColor, setAvatarColor] = useState("emerald");
@@ -21,49 +22,38 @@ export default function CompleteProfilePageClient() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+    if (authLoading || profileLoading) return;
 
-        if (!session?.user) {
-          router.push(`/auth/login?next=${encodeURIComponent("/auth/complete-profile")}`);
-          return;
-        }
-
-        const profile = await getMyProfile();
-
-        if (profile?.username) {
-          router.push(nextPath);
-          router.refresh();
-          return;
-        }
-
-        setChecking(false);
-      } catch (err) {
-        console.error("Failed to load profile:", err);
-        setChecking(false);
-      }
+    if (!user) {
+      router.replace(
+        `/auth/login?next=${encodeURIComponent(`/auth/complete-profile?next=${encodeURIComponent(nextPath)}`)}`
+      );
+      return;
     }
 
-    load();
-  }, [router, nextPath]);
+    if (profile?.username) {
+      router.replace(nextPath);
+      router.refresh();
+    }
+  }, [authLoading, profileLoading, user, profile, nextPath, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!user?.id) return;
+
     setSaving(true);
     setMessage(null);
 
     try {
-      await createMyProfile({
+      await createProfileForUser(user.id, {
         username: username.trim(),
         display_name: displayName.trim(),
         avatar_color: avatarColor,
         strava_url: stravaUrl.trim(),
       });
 
-      router.push(nextPath);
+      await refreshProfile();
+      router.replace(nextPath);
       router.refresh();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unable to save profile.";
@@ -73,7 +63,7 @@ export default function CompleteProfilePageClient() {
     }
   }
 
-  if (checking) {
+  if (authLoading || profileLoading) {
     return (
       <main className="mx-auto max-w-md py-10">
         <div className="card p-6">
@@ -82,6 +72,9 @@ export default function CompleteProfilePageClient() {
       </main>
     );
   }
+
+  if (!user) return null;
+  if (profile?.username) return null;
 
   return (
     <main className="mx-auto max-w-md py-10">

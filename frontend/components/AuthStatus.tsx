@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
-import { getMyProfile } from "@/lib/profiles";
+import { useAuth } from "@/components/AuthProvider";
 
 type Profile = {
   username?: string | null;
@@ -26,71 +24,7 @@ function initialsFor(displayName?: string | null, username?: string | null) {
 
 export function AuthStatus() {
   const pathname = usePathname();
-
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadSession() {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-
-      const nextSession = data.session ?? null;
-      setSession(nextSession);
-
-      if (nextSession?.user) {
-        try {
-          const nextProfile = await getMyProfile();
-          if (mounted) {
-            setProfile(nextProfile);
-          }
-        } catch {
-          if (mounted) {
-            setProfile(null);
-          }
-        }
-      } else {
-        setProfile(null);
-      }
-
-      setLoading(false);
-    }
-
-    loadSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      if (!mounted) return;
-
-      setSession(nextSession ?? null);
-
-      if (nextSession?.user) {
-        try {
-          const nextProfile = await getMyProfile();
-          if (mounted) {
-            setProfile(nextProfile);
-          }
-        } catch {
-          if (mounted) {
-            setProfile(null);
-          }
-        }
-      } else {
-        setProfile(null);
-      }
-
-      setLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+  const { user, profile, authLoading, profileLoading } = useAuth();
 
   const loginHref = `/auth/login?next=${encodeURIComponent(pathname || "/")}`;
 
@@ -99,27 +33,50 @@ export function AuthStatus() {
   }, [profile]);
 
   return (
-    <div className="mb-6 flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
-          RIDE RECON_
-        </p>
-      </div>
+    <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 relative overflow-hidden">
+  <div
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-0 opacity-[0.06]"
+    style={{
+      backgroundImage: `
+        linear-gradient(to right, rgba(255,255,255,0.18) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.18) 1px, transparent 1px)
+      `,
+      backgroundSize: "18px 18px",
+    }}
+  />
 
-      {loading ? null : session ? (
-        <Link
-          href="/profile"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950 text-sm font-semibold text-zinc-100 transition hover:border-emerald-500"
-          aria-label="Profile"
-          title="Profile"
-        >
-          {initials}
-        </Link>
-      ) : (
-        <Link href={loginHref} className="btn-primary">
-          Sign in
-        </Link>
-      )}
+  <div
+    aria-hidden="true"
+    className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full bg-emerald-400/80"
+  />
+
+  <div className="relative flex items-center justify-between pl-3">
+    <div className="leading-tight">
+      <p className="font-brand text-lg font-semibold uppercase text-emerald-300">
+        RIDE RECON
+        <span className="ml-0.5 inline-block animate-pulse">_</span>
+      </p>
+      <p className="mt-1 font-sans text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+        Real-time decisions
+      </p>
     </div>
+
+    {authLoading || profileLoading ? null : user ? (
+      <Link
+        href="/profile"
+        className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 text-sm font-semibold text-zinc-100 transition hover:border-emerald-500"
+        aria-label="Profile"
+        title="Profile"
+      >
+        {initials}
+      </Link>
+    ) : (
+      <Link href={loginHref} className="btn-primary">
+        Sign in
+      </Link>
+    )}
+  </div>
+</div>
   );
 }

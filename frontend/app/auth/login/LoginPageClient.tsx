@@ -38,27 +38,14 @@ export default function LoginPageClient() {
 
         setMessage("Account created. Check your email to verify your account, then sign in.");
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
 
-        const userId = data.session?.user.id;
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id, username")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (profile?.username) {
-          router.push(nextPath);
-        } else {
-          router.push(`/auth/complete-profile?next=${encodeURIComponent(nextPath)}`);
-        }
-
+        router.replace(nextPath);
         router.refresh();
       }
     } catch (err) {

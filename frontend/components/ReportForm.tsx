@@ -139,8 +139,8 @@ export function ReportForm({
                   aria-pressed={active}
                   className={
                     active
-                      ? "rounded-full border border-amber-500 bg-amber-500/15 px-4 py-2 text-sm font-medium text-amber-300 transition"
-                      : "rounded-full border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-700"
+                      ? "rounded-xl border border-amber-500 bg-amber-500/15 px-4 py-2 text-sm font-medium text-amber-300 transition"
+                      : "rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-700"
                   }
                 >
                   {tag}

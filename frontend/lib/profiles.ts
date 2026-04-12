@@ -8,17 +8,7 @@ export type MyProfile = {
   strava_url: string | null;
 };
 
-export async function getMyProfile(): Promise<MyProfile | null> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const userId = session?.user?.id;
-
-  if (!userId) {
-    return null;
-  }
-
+export async function getProfileByUserId(userId: string): Promise<MyProfile | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_color, strava_url")
@@ -32,22 +22,12 @@ export async function getMyProfile(): Promise<MyProfile | null> {
   return data;
 }
 
-export async function createMyProfile(payload: {
+export async function createProfileForUser(userId: string, payload: {
   username: string;
   display_name?: string;
   avatar_color?: string;
   strava_url?: string;
 }) {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const userId = session?.user?.id;
-
-  if (!userId) {
-    throw new Error("You must be signed in to create a profile.");
-  }
-
   const { data, error } = await supabase
     .from("profiles")
     .upsert(
@@ -70,22 +50,12 @@ export async function createMyProfile(payload: {
   return data;
 }
 
-export async function updateMyProfile(payload: {
+export async function updateProfileForUser(userId: string, payload: {
   username?: string;
   display_name?: string;
   avatar_color?: string;
   strava_url?: string;
 }) {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const userId = session?.user?.id;
-
-  if (!userId) {
-    throw new Error("You must be signed in to update your profile.");
-  }
-
   const updates: Record<string, string | null> = {};
 
   if (payload.username !== undefined) {

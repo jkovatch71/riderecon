@@ -66,8 +66,10 @@ export default async function TrailDetailPage({ params }: { params: { id: string
       <section className="card p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">{trail.name}</h1>
-            <p className="text-zinc-400">{trail.system_name}</p>
+            <h1 className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">{trail.name}</h1>
+            <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
+              {trail.system_name}
+            </p>
           </div>
 
           <StatusPill

@@ -277,13 +277,15 @@ export function TrailMapPlaceholder({
                 >
                   <Popup>
                     <div className="space-y-1">
-                      <p className="font-semibold text-zinc-900">
+                      <p className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">
                         {trail.name}
                         {isFavorite ? " ★" : ""}
                       </p>
 
                       {trail.system_name ? (
-                        <p className="text-sm text-zinc-700">{trail.system_name}</p>
+                        <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
+                          {trail.system_name}
+                        </p>
                       ) : null}
 
                       <p className="text-sm text-zinc-800">

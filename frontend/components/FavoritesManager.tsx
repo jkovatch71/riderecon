@@ -90,8 +90,10 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
             className="flex items-center justify-between rounded-xl border border-zinc-700 px-4 py-3"
           >
             <div className="min-w-0 flex-1 pr-4">
-              <p className="font-medium text-zinc-100">{trail.name}</p>
-              <p className="text-sm text-zinc-400">{trail.system_name}</p>
+              <p className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">{trail.name}</p>
+              <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
+              {trail.system_name}
+            </p>
             </div>
 
             <button

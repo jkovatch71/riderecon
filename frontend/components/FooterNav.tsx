@@ -36,7 +36,7 @@ export function FooterNav() {
                 {item.label}
               </span>
               <div
-                className={`mt-1 h-1 w-6 rounded-full transition ${
+                className={`mt-1 h-1 w-6 rounded-xl transition ${
                   active ? "bg-emerald-300" : "bg-transparent"
                 }`}
               />
