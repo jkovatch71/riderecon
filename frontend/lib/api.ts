@@ -88,8 +88,8 @@ export async function createReport(
     note?: string;
   },
   accessToken?: string
-) {
-  return request("/reports", {
+): Promise<{ message: string }> {
+  return request<{ message: string }>("/reports", {
     method: "POST",
     headers: authHeaders(accessToken, true),
     body: JSON.stringify(payload),
