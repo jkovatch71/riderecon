@@ -193,6 +193,8 @@ const RECENT_RAIN_TTL_MS = 5 * 60 * 1000;
 export async function getRecentRain(): Promise<RecentRain> {
   const now = Date.now();
 
+  console.log("Calling recent-rain endpoint...");
+  
   if (
     recentRainCache &&
     now - recentRainCache.fetchedAt < RECENT_RAIN_TTL_MS

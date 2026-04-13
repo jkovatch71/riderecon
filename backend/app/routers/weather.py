@@ -1,10 +1,43 @@
 from fastapi import APIRouter, HTTPException
 import httpx
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from app.core.config import settings
 
 router = APIRouter(prefix="/weather", tags=["weather"])
+
+
+CACHE_TTL_SECONDS = 300  # 5 minutes
+
+_weather_cache: dict[str, dict[str, Any]] = {
+    "current": {"data": None, "expires_at": None},
+    "recent_rain": {"data": None, "expires_at": None},
+}
+
+
+def get_cached_value(key: str):
+    entry = _weather_cache.get(key)
+    if not entry:
+        return None
+
+    expires_at = entry.get("expires_at")
+    data = entry.get("data")
+
+    if not expires_at or data is None:
+        return None
+
+    if datetime.now(timezone.utc) >= expires_at:
+        return None
+
+    return data
+
+
+def set_cached_value(key: str, data: dict[str, Any]):
+    _weather_cache[key] = {
+        "data": data,
+        "expires_at": datetime.now(timezone.utc) + timedelta(seconds=CACHE_TTL_SECONDS),
+    }
 
 
 def phrase_for_description(description: str) -> str:
@@ -30,6 +63,10 @@ def phrase_for_description(description: str) -> str:
 
 @router.get("/current")
 async def get_current_weather():
+    cached = get_cached_value("current")
+    if cached is not None:
+        return cached
+
     if not settings.openweather_api_key:
         raise HTTPException(status_code=500, detail="OPENWEATHER_API_KEY is missing")
 
@@ -57,15 +94,23 @@ async def get_current_weather():
     weather_items = data.get("weather", [])
     raw_description = weather_items[0].get("description") if weather_items else None
 
-    return {
+    payload = {
         "temperature": temp,
         "summary": phrase_for_description(raw_description) if raw_description else None,
         "raw_summary": raw_description,
+        "cached_at": datetime.now(timezone.utc).isoformat(),
     }
+
+    set_cached_value("current", payload)
+    return payload
 
 
 @router.get("/recent-rain")
 async def get_recent_rain():
+    cached = get_cached_value("recent_rain")
+    if cached is not None:
+        return cached
+
     if settings.weather_lat is None or settings.weather_lon is None:
         raise HTTPException(status_code=500, detail="WEATHER_LAT/WEATHER_LON are missing")
 
@@ -120,12 +165,16 @@ async def get_recent_rain():
         total_inches = total_mm / 25.4
         exceeds_threshold = total_inches >= settings.weather_rain_threshold_inches
 
-        return {
+        payload = {
             "window_hours": hours,
             "rain_inches": round(total_inches, 3),
             "threshold_inches": settings.weather_rain_threshold_inches,
             "exceeds_threshold": exceeds_threshold,
+            "cached_at": datetime.now(timezone.utc).isoformat(),
         }
+
+        set_cached_value("recent_rain", payload)
+        return payload
 
     except HTTPException:
         raise
