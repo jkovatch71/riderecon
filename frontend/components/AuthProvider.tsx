@@ -73,22 +73,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    async function initialize() {
+    async function syncSession() {
       try {
         const {
-          data: { session: initialSession },
+          data: { session: nextSession },
         } = await supabase.auth.getSession();
 
         if (!active) return;
 
-        const initialUser = initialSession?.user ?? null;
+        const nextUser = nextSession?.user ?? null;
 
-        setSession(initialSession ?? null);
-        setUser(initialUser);
+        setSession(nextSession ?? null);
+        setUser(nextUser);
+        setAuthLoading(false);
 
-        await loadProfile(initialUser);
+        await loadProfile(nextUser);
       } catch (error) {
-        console.error("Failed to initialize auth:", error);
+        console.error("Failed to sync auth session:", error);
 
         if (!active) return;
 
@@ -96,14 +97,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setProfile(null);
         setProfileLoading(false);
-      } finally {
-        if (active) {
-          setAuthLoading(false);
-        }
+        setAuthLoading(false);
       }
     }
 
-    initialize();
+    syncSession();
 
     const {
       data: { subscription },
@@ -114,17 +112,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setSession(nextSession ?? null);
       setUser(nextUser);
-
-      if (active) {
-        setAuthLoading(false);
-      }
+      setAuthLoading(false);
 
       await loadProfile(nextUser);
     });
 
+    async function handleAppResume() {
+      if (document.visibilityState === "visible") {
+        await syncSession();
+      }
+    }
+
+    window.addEventListener("focus", handleAppResume);
+    document.addEventListener("visibilitychange", handleAppResume);
+
     return () => {
       active = false;
       subscription.unsubscribe();
+      window.removeEventListener("focus", handleAppResume);
+      document.removeEventListener("visibilitychange", handleAppResume);
     };
   }, [loadProfile]);
 

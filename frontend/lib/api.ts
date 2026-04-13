@@ -104,6 +104,10 @@ export async function createReport(
  * - always fetch fresh data
  */
 export async function getFavorites(accessToken?: string): Promise<string[]> {
+  if (!accessToken) {
+    return [];
+  }
+
   const apiUrl = getApiBaseUrl();
 
   const res = await fetch(`${apiUrl}/favorites`, {

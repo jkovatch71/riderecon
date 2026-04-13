@@ -1,20 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import type { Trail } from "@/lib/types";
 import { addFavorite, getFavorites, removeFavorite } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
 export function FavoritesManager({ trails }: { trails: Trail[] }) {
-  const { user, authLoading } = useAuth();
+  const { user, session, authLoading } = useAuth();
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
 
+  const accessToken = session?.access_token;
+
   const loadFavorites = useCallback(async () => {
-    if (!user) {
+    if (!user || !accessToken) {
       setFavoriteIds([]);
       setLoading(false);
       return;
@@ -23,23 +24,12 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
     setLoading(true);
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const accessToken = session?.access_token;
-
-      if (!accessToken) {
-        setFavoriteIds([]);
-        return;
-      }
-
       const ids: string[] = await getFavorites(accessToken).catch(() => []);
       setFavoriteIds(ids);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, accessToken]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -53,9 +43,11 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
       }
     }
 
+    window.addEventListener("focus", loadFavorites);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      window.removeEventListener("focus", loadFavorites);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [loadFavorites]);
@@ -73,14 +65,7 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
   }, [trails, favoriteSet]);
 
   async function toggleFavorite(trailId: string) {
-    if (!user) return;
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    const accessToken = session?.access_token;
-    if (!accessToken) return;
+    if (!user || !accessToken) return;
 
     setSavingId(trailId);
 
@@ -97,7 +82,7 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
     }
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return <p className="text-sm text-zinc-400">Loading favorites...</p>;
   }
 
