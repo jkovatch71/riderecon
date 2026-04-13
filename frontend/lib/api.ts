@@ -1,5 +1,6 @@
-import { Trail, TrailReport } from "@/lib/types";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { Trail, TrailReport } from "@/lib/types";
 
 /**
  * Resolve API base URL safely for both client and server
@@ -34,9 +35,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(init?.headers || {})
+      ...(init?.headers || {}),
     },
-    cache: "no-store"
+    cache: "no-store",
   });
 
   if (!res.ok) {
@@ -64,22 +65,15 @@ export async function getTrailReports(id: string): Promise<TrailReport[]> {
 /**
  * Auth headers helper
  */
-async function authHeaders(includeJsonContentType = false): Promise<HeadersInit> {
+async function authHeaders() {
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const headers: Record<string, string> = {};
-
-  if (includeJsonContentType) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  if (session?.access_token) {
-    headers.Authorization = `Bearer ${session.access_token}`;
-  }
-
-  return headers;
+  return {
+    "Content-Type": "application/json",
+    Authorization: session ? `Bearer ${session.access_token}` : "",
+  };
 }
 
 /**
@@ -93,9 +87,16 @@ export async function createReport(payload: {
 }) {
   const apiUrl = getApiBaseUrl();
 
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   const res = await fetch(`${apiUrl}/reports`, {
     method: "POST",
-    headers: await authHeaders(true),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: session ? `Bearer ${session.access_token}` : "",
+    },
     body: JSON.stringify(payload),
   });
 
@@ -110,8 +111,15 @@ export async function createReport(payload: {
  * Favorites
  */
 export async function getFavorites(): Promise<string[]> {
-  const apiUrl = getApiBaseUrl();
+  // Check if favorites are already stored in localStorage
+  const storedFavorites = localStorage.getItem("favorites");
 
+  if (storedFavorites) {
+    return JSON.parse(storedFavorites); // Return stored favorites from localStorage
+  }
+
+  // Fallback to API call if not found in localStorage
+  const apiUrl = getApiBaseUrl();
   const res = await fetch(`${apiUrl}/favorites`, {
     headers: await authHeaders(),
     cache: "no-store",
@@ -121,7 +129,12 @@ export async function getFavorites(): Promise<string[]> {
     throw new Error(`Favorites request failed: ${res.status}`);
   }
 
-  return res.json();
+  const favorites = await res.json();
+
+  // Store favorites in localStorage
+  localStorage.setItem("favorites", JSON.stringify(favorites));
+
+  return favorites;
 }
 
 export async function addFavorite(trailId: string) {
@@ -135,6 +148,10 @@ export async function addFavorite(trailId: string) {
   if (!res.ok) {
     throw new Error(`Add favorite failed: ${res.status}`);
   }
+
+  // Persist the favorite in localStorage after adding
+  const updatedFavorites = await getFavorites(); // Re-fetch updated list
+  localStorage.setItem("favorites", JSON.stringify(updatedFavorites));
 
   return res.json();
 }
@@ -150,6 +167,10 @@ export async function removeFavorite(trailId: string) {
   if (!res.ok) {
     throw new Error(`Remove favorite failed: ${res.status}`);
   }
+
+  // Persist the removal in localStorage
+  const updatedFavorites = await getFavorites(); // Re-fetch updated list
+  localStorage.setItem("favorites", JSON.stringify(updatedFavorites));
 
   return res.json();
 }
@@ -174,7 +195,7 @@ export async function getCurrentWeather(): Promise<CurrentWeather> {
   const apiUrl = getApiBaseUrl();
 
   const res = await fetch(`${apiUrl}/weather/current`, {
-    cache: "no-store"
+    cache: "no-store",
   });
 
   if (!res.ok) {
@@ -192,7 +213,7 @@ const RECENT_RAIN_TTL_MS = 5 * 60 * 1000;
 
 export async function getRecentRain(): Promise<RecentRain> {
   const now = Date.now();
-  
+
   if (
     recentRainCache &&
     now - recentRainCache.fetchedAt < RECENT_RAIN_TTL_MS

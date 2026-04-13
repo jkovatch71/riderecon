@@ -55,26 +55,19 @@ function getWeatherDisplay(weather?: Weather | null) {
 }
 
 export function HomeBriefing({ trails }: { trails: Trail[] }) {
-  const { user, authLoading } = useAuth();
+  const { user, profile, authLoading } = useAuth();
 
-  // State variables for fetching and caching
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [checkedSession, setCheckedSession] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [recentRain, setRecentRain] = useState<RecentRain | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
 
-  // Mounted flag to prevent mismatch during SSR
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
-
-  // Cache for recent rain data (to prevent too frequent calls)
-  let recentRainCache: { data: RecentRain; fetchedAt: number } | null = null;
-  const RECENT_RAIN_TTL_MS = 5 * 60 * 1000;
 
   useEffect(() => {
     async function load() {
@@ -114,7 +107,6 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
     if (!authLoading) load();
   }, [user?.id, authLoading]);
 
-  // Compute the briefing trails, either from favorites or all trails
   const briefingTrails = useMemo(() => {
     const favoriteSet = new Set(favoriteIds);
     const favorites = trails.filter((trail) => favoriteSet.has(trail.id));
@@ -122,7 +114,6 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
     return favorites.length ? favorites : trails;
   }, [trails, favoriteIds]);
 
-  // Build the briefing message
   const briefing = useMemo(() => {
     return buildBriefing(
       briefingTrails,
@@ -132,7 +123,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
     );
   }, [briefingTrails, weather, recentRain, favoriteIds]);
 
-  // Greeting logic, showing a different greeting after mount
+  // Ensure profile data is available before rendering greeting
   const displayName = profile?.display_name || profile?.username || "rider";
   const greetingBase = hasMounted ? `${getGreeting()},` : "Trail briefing";
   const greetingName = hasMounted && displayName ? `${displayName}!` : null;
