@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { House, Heart, Settings, NotebookPen } from "lucide-react";
+import {
+  House,
+  Map,
+  Heart,
+  Settings,
+  NotebookPen,
+} from "lucide-react";
 
 const items = [
   { href: "/", label: "Home", icon: House },
+  { href: "/trails", label: "Trails", icon: Map },
   { href: "/favorites", label: "Favorites", icon: Heart },
   { href: "/preferences", label: "Preferences", icon: Settings },
   { href: "/blog", label: "Blog", icon: NotebookPen },
@@ -16,16 +23,17 @@ export function FooterNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
-      <div className="mx-auto grid max-w-5xl grid-cols-4">
+      <div className="mx-auto grid max-w-5xl grid-cols-5">
         {items.map((item) => {
-          const active = pathname === item.href;
+          const active =
+            pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center px-3 py-2 text-xs transition ${
+              className={`flex flex-col items-center justify-center px-2 py-2 text-xs transition ${
                 active
                   ? "text-emerald-300"
                   : "text-zinc-400 hover:text-zinc-200"
