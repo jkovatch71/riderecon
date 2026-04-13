@@ -125,7 +125,7 @@ export function TrailMapPlaceholder({
   trails: Trail[];
   selectedTrailId?: string | null;
 }) {
-  const { user, authLoading } = useAuth();
+  const { user, session, authLoading } = useAuth();
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [locateTrigger, setLocateTrigger] = useState(0);
@@ -133,15 +133,17 @@ export function TrailMapPlaceholder({
 
   const markerRefs = useRef<Record<string, LeafletCircleMarker | null>>({});
 
+  const accessToken = session?.access_token;
+
   const loadFavorites = useCallback(async () => {
-    if (!user) {
+    if (!user || !accessToken) {
       setFavoriteIds([]);
       return;
     }
 
-    const ids: string[] = await getFavorites().catch(() => []);
+    const ids: string[] = await getFavorites(accessToken).catch(() => []);
     setFavoriteIds(ids);
-  }, [user]);
+  }, [user, accessToken]);
 
   useEffect(() => {
     if (authLoading) return;

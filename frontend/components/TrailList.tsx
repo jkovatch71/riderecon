@@ -5,6 +5,7 @@ import { Trail } from "@/lib/types";
 import { TrailCard } from "@/components/TrailCard";
 import { getFavorites } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/lib/supabase";
 
 export function TrailList({ trails }: { trails: Trail[] }) {
   const { user, authLoading } = useAuth();
@@ -17,7 +18,18 @@ export function TrailList({ trails }: { trails: Trail[] }) {
       return;
     }
 
-    const ids: string[] = await getFavorites().catch(() => []);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const accessToken = session?.access_token;
+
+    if (!accessToken) {
+      setFavoriteIds([]);
+      return;
+    }
+
+    const ids: string[] = await getFavorites(accessToken).catch(() => []);
     setFavoriteIds(ids);
   }, [user]);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import type { Trail } from "@/lib/types";
 import { addFavorite, getFavorites, removeFavorite } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
@@ -22,7 +23,18 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
     setLoading(true);
 
     try {
-      const ids: string[] = await getFavorites().catch(() => []);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        setFavoriteIds([]);
+        return;
+      }
+
+      const ids: string[] = await getFavorites(accessToken).catch(() => []);
       setFavoriteIds(ids);
     } finally {
       setLoading(false);
@@ -63,14 +75,21 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
   async function toggleFavorite(trailId: string) {
     if (!user) return;
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const accessToken = session?.access_token;
+    if (!accessToken) return;
+
     setSavingId(trailId);
 
     try {
       if (favoriteSet.has(trailId)) {
-        await removeFavorite(trailId);
+        await removeFavorite(trailId, accessToken);
         setFavoriteIds((prev) => prev.filter((id) => id !== trailId));
       } else {
-        await addFavorite(trailId);
+        await addFavorite(trailId, accessToken);
         setFavoriteIds((prev) => [...prev, trailId]);
       }
     } finally {

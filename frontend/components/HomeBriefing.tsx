@@ -50,13 +50,15 @@ function getWeatherDisplay(weather?: Weather | null) {
 }
 
 export function HomeBriefing({ trails }: { trails: Trail[] }) {
-  const { user, profile, authLoading } = useAuth();
+  const { user, profile, session, authLoading } = useAuth();
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [recentRain, setRecentRain] = useState<RecentRain | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
+
+  const accessToken = session?.access_token;
 
   useEffect(() => {
     setHasMounted(true);
@@ -70,7 +72,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
         const weatherPromise = getCurrentWeather().catch(() => null);
         const rainPromise = getRecentRain().catch(() => null);
 
-        if (!user) {
+        if (!user || !accessToken) {
           const [nextWeather, nextRain] = await Promise.all([
             weatherPromise,
             rainPromise,
@@ -83,7 +85,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
         }
 
         const [ids, nextWeather, nextRain] = await Promise.all([
-          getFavorites().catch((): string[] => []),
+          getFavorites(accessToken).catch((): string[] => []),
           weatherPromise,
           rainPromise,
         ]);
@@ -98,7 +100,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
 
     if (authLoading) return;
     load();
-  }, [user?.id, authLoading]);
+  }, [user?.id, accessToken, authLoading]);
 
   const briefingTrails = useMemo(() => {
     if (!favoriteIds.length) return trails;

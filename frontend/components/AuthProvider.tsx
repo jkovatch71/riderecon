@@ -115,11 +115,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(nextSession ?? null);
       setUser(nextUser);
 
-      await loadProfile(nextUser);
-
       if (active) {
         setAuthLoading(false);
       }
+
+      await loadProfile(nextUser);
     });
 
     return () => {
