@@ -6,6 +6,11 @@ import { buildBriefing } from "@/lib/briefing";
 import { getCurrentWeather, getFavorites, getRecentRain } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
+type Profile = {
+  username?: string | null;
+  display_name?: string | null;
+};
+
 type Weather = {
   temperature?: number | null;
   summary?: string | null;
@@ -50,12 +55,26 @@ function getWeatherDisplay(weather?: Weather | null) {
 }
 
 export function HomeBriefing({ trails }: { trails: Trail[] }) {
-  const { user, profile, authLoading, profileLoading } = useAuth();
+  const { user, authLoading } = useAuth();
 
+  // State variables for fetching and caching
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [loadingBriefing, setLoadingBriefing] = useState(true);
+  const [checkedSession, setCheckedSession] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [recentRain, setRecentRain] = useState<RecentRain | null>(null);
+  const [loadingBriefing, setLoadingBriefing] = useState(false);
+
+  // Mounted flag to prevent mismatch during SSR
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  // Cache for recent rain data (to prevent too frequent calls)
+  let recentRainCache: { data: RecentRain; fetchedAt: number } | null = null;
+  const RECENT_RAIN_TTL_MS = 5 * 60 * 1000;
 
   useEffect(() => {
     async function load() {
@@ -74,6 +93,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
           setFavoriteIds([]);
           setWeather(nextWeather);
           setRecentRain(nextRain);
+          setCheckedSession(true);
           return;
         }
 
@@ -91,48 +111,37 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
       }
     }
 
-    if (authLoading || profileLoading) return;
+    if (!authLoading) load();
+  }, [user?.id, authLoading]);
 
-    load();
-  }, [user, authLoading, profileLoading]);
-
+  // Compute the briefing trails, either from favorites or all trails
   const briefingTrails = useMemo(() => {
-    if (!favoriteIds.length) {
-      return trails;
-    }
-
     const favoriteSet = new Set(favoriteIds);
     const favorites = trails.filter((trail) => favoriteSet.has(trail.id));
 
     return favorites.length ? favorites : trails;
   }, [trails, favoriteIds]);
 
-  const usingFavorites = favoriteIds.length > 0 && briefingTrails.length > 0;
-
+  // Build the briefing message
   const briefing = useMemo(() => {
     return buildBriefing(
       briefingTrails,
       weather ?? undefined,
       recentRain ?? undefined,
-      usingFavorites
+      favoriteIds.length > 0
     );
-  }, [briefingTrails, weather, recentRain, usingFavorites]);
+  }, [briefingTrails, weather, recentRain, favoriteIds]);
 
+  // Greeting logic, showing a different greeting after mount
   const displayName = profile?.display_name || profile?.username || "rider";
-  const greetingBase = `${getGreeting()},`;
-  const greetingName = user && profile ? `${displayName}!` : null;
+  const greetingBase = hasMounted ? `${getGreeting()},` : "Trail briefing";
+  const greetingName = hasMounted && displayName ? `${displayName}!` : null;
 
   const isLoading = authLoading || loadingBriefing;
 
-  const supportingText =
-    briefing.supporting &&
-    briefing.supporting.trim() !== briefing.detail.trim()
-      ? briefing.supporting
-      : null;
-
   return (
-    <div className="mt-2 max-w-2xl">
-      <h1 className="text-2xl font-bold leading-tight text-zinc-100">
+    <div className="mt-3 max-w-3xl">
+      <h1 className="text-page-title font-bold text-zinc-100">
         <span className="whitespace-nowrap">{greetingBase}</span>{" "}
         {greetingName ? <span>{greetingName}</span> : null}
       </h1>
@@ -155,17 +164,17 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
             </p>
           </div>
 
-          <p className="text-section-title font-bold text-zinc-100">
+          <p className="text-section-title font-semibold text-zinc-100">
             {briefing.headline}
           </p>
 
           <p className="text-body text-zinc-300">{briefing.detail}</p>
 
-          {supportingText ? (
+          {briefing.supporting && (
             <p className="text-body pt-1 font-medium text-zinc-200">
-              {supportingText}
+              {briefing.supporting}
             </p>
-          ) : null}
+          )}
         </div>
       )}
     </div>
