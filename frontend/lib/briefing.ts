@@ -182,7 +182,7 @@ export function buildBriefing(
     }
 
     return {
-      headline: "Rideable today",
+      headline: "Good to go!",
       detail: weatherDetail ? `${detail} ${weatherDetail}` : detail,
       supporting: "Get out there and shred.",
       status: "rideable",

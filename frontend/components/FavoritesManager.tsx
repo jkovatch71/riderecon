@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Trail } from "@/lib/types";
 import { addFavorite, getFavorites, removeFavorite } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
@@ -11,42 +11,63 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
 
-  useEffect(() => {
-    async function load() {
+  const loadFavorites = useCallback(async () => {
+    setLoading(true);
+
+    try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      setHasSession(!!session?.user);
+      const signedIn = !!session?.user;
+      setHasSession(signedIn);
 
-      if (!session?.user) {
+      if (!signedIn) {
         setFavoriteIds([]);
-        setLoading(false);
         return;
       }
 
-      try {
-        const ids = await getFavorites();
-        setFavoriteIds(ids);
-      } finally {
-        setLoading(false);
+      const ids: string[] = await getFavorites().catch(() => []);
+      setFavoriteIds(ids);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFavorites();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      loadFavorites();
+    });
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        loadFavorites();
       }
     }
 
-    load();
-  }, []);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [loadFavorites]);
 
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 
   const sortedTrails = useMemo(() => {
-  return [...trails].sort((a, b) => {
-    const aFav = favoriteSet.has(a.id);
-    const bFav = favoriteSet.has(b.id);
+    return [...trails].sort((a, b) => {
+      const aFav = favoriteSet.has(a.id);
+      const bFav = favoriteSet.has(b.id);
 
-    if (aFav === bFav) return 0;
-    return aFav ? -1 : 1;
-  });
-}, [trails, favoriteSet]);
+      if (aFav === bFav) return 0;
+      return aFav ? -1 : 1;
+    });
+  }, [trails, favoriteSet]);
 
   async function toggleFavorite(trailId: string) {
     if (!hasSession) return;
@@ -90,10 +111,12 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
             className="flex items-center justify-between rounded-xl border border-zinc-700 px-4 py-3"
           >
             <div className="min-w-0 flex-1 pr-4">
-              <p className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">{trail.name}</p>
+              <p className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">
+                {trail.name}
+              </p>
               <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
-              {trail.system_name}
-            </p>
+                {trail.system_name}
+              </p>
             </div>
 
             <button
@@ -114,7 +137,9 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
                   stroke="currentColor"
                   strokeWidth="1.8"
                   className={`h-6 w-6 transition-colors duration-200 ${
-                    isFavorite ? "text-red-500" : "text-zinc-500 hover:text-zinc-300"
+                    isFavorite
+                      ? "text-red-500"
+                      : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
                   <path

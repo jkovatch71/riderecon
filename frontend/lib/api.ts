@@ -110,16 +110,34 @@ export async function createReport(payload: {
 /**
  * Favorites
  */
-export async function getFavorites(): Promise<string[]> {
-  // Check if favorites are already stored in localStorage
-  const storedFavorites = localStorage.getItem("favorites");
+const FAVORITES_CACHE_KEY = "favorites-cache";
+const FAVORITES_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
-  if (storedFavorites) {
-    return JSON.parse(storedFavorites); // Return stored favorites from localStorage
+type FavoritesCache = {
+  data: string[];
+  fetchedAt: number;
+};
+
+export async function getFavorites(): Promise<string[]> {
+  if (typeof window !== "undefined") {
+    const raw = window.localStorage.getItem(FAVORITES_CACHE_KEY);
+
+    if (raw) {
+      try {
+        const cached: FavoritesCache = JSON.parse(raw);
+        const isFresh = Date.now() - cached.fetchedAt < FAVORITES_TTL_MS;
+
+        if (isFresh && Array.isArray(cached.data)) {
+          return cached.data;
+        }
+      } catch {
+        window.localStorage.removeItem(FAVORITES_CACHE_KEY);
+      }
+    }
   }
 
-  // Fallback to API call if not found in localStorage
   const apiUrl = getApiBaseUrl();
+
   const res = await fetch(`${apiUrl}/favorites`, {
     headers: await authHeaders(),
     cache: "no-store",
@@ -129,10 +147,16 @@ export async function getFavorites(): Promise<string[]> {
     throw new Error(`Favorites request failed: ${res.status}`);
   }
 
-  const favorites = await res.json();
+  const favorites: string[] = await res.json();
 
-  // Store favorites in localStorage
-  localStorage.setItem("favorites", JSON.stringify(favorites));
+  if (typeof window !== "undefined") {
+    const payload: FavoritesCache = {
+      data: favorites,
+      fetchedAt: Date.now(),
+    };
+
+    window.localStorage.setItem(FAVORITES_CACHE_KEY, JSON.stringify(payload));
+  }
 
   return favorites;
 }
@@ -149,11 +173,13 @@ export async function addFavorite(trailId: string) {
     throw new Error(`Add favorite failed: ${res.status}`);
   }
 
-  // Persist the favorite in localStorage after adding
-  const updatedFavorites = await getFavorites(); // Re-fetch updated list
-  localStorage.setItem("favorites", JSON.stringify(updatedFavorites));
+  const result = await res.json();
 
-  return res.json();
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(FAVORITES_CACHE_KEY);
+  }
+
+  return result;
 }
 
 export async function removeFavorite(trailId: string) {
@@ -168,11 +194,13 @@ export async function removeFavorite(trailId: string) {
     throw new Error(`Remove favorite failed: ${res.status}`);
   }
 
-  // Persist the removal in localStorage
-  const updatedFavorites = await getFavorites(); // Re-fetch updated list
-  localStorage.setItem("favorites", JSON.stringify(updatedFavorites));
+  const result = await res.json();
 
-  return res.json();
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(FAVORITES_CACHE_KEY);
+  }
+
+  return result;
 }
 
 /**
