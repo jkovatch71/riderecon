@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { Trail } from "@/lib/types";
 import { getFavorites } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
 import { getConditionColor } from "@/lib/utils";
+import { useAuth } from "@/components/AuthProvider";
 import {
   CircleMarker,
   MapContainer,
@@ -13,7 +13,7 @@ import {
   useMap,
 } from "react-leaflet";
 import { LatLngBounds, type CircleMarker as LeafletCircleMarker } from "leaflet";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function markerColor(condition?: string) {
   const color = getConditionColor(condition);
@@ -125,39 +125,42 @@ export function TrailMapPlaceholder({
   trails: Trail[];
   selectedTrailId?: string | null;
 }) {
+  const { user, authLoading } = useAuth();
+
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [locateTrigger, setLocateTrigger] = useState(0);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
   const markerRefs = useRef<Record<string, LeafletCircleMarker | null>>({});
 
+  const loadFavorites = useCallback(async () => {
+    if (!user) {
+      setFavoriteIds([]);
+      return;
+    }
+
+    const ids: string[] = await getFavorites().catch(() => []);
+    setFavoriteIds(ids);
+  }, [user]);
+
   useEffect(() => {
-    let mounted = true;
+    if (authLoading) return;
+    loadFavorites();
+  }, [authLoading, loadFavorites]);
 
-    async function loadFavorites() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.user) {
-        if (mounted) setFavoriteIds([]);
-        return;
-      }
-
-      try {
-        const ids = await getFavorites();
-        if (mounted) setFavoriteIds(ids);
-      } catch {
-        if (mounted) setFavoriteIds([]);
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        loadFavorites();
       }
     }
 
-    loadFavorites();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      mounted = false;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [loadFavorites]);
 
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 

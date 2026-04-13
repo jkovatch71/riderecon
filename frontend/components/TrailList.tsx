@@ -1,51 +1,55 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Trail } from "@/lib/types";
 import { TrailCard } from "@/components/TrailCard";
 import { getFavorites } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
 
 export function TrailList({ trails }: { trails: Trail[] }) {
+  const { user, authLoading } = useAuth();
+
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [hasSession, setHasSession] = useState(false);
+
+  const loadFavorites = useCallback(async () => {
+    if (!user) {
+      setFavoriteIds([]);
+      return;
+    }
+
+    const ids: string[] = await getFavorites().catch(() => []);
+    setFavoriteIds(ids);
+  }, [user]);
 
   useEffect(() => {
-    async function load() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    if (authLoading) return;
+    loadFavorites();
+  }, [authLoading, loadFavorites]);
 
-      setHasSession(!!session?.user);
-
-      if (!session?.user) {
-        setFavoriteIds([]);
-        return;
-      }
-
-      try {
-        const ids = await getFavorites();
-        setFavoriteIds(ids);
-      } catch {
-        setFavoriteIds([]);
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        loadFavorites();
       }
     }
 
-    load();
-  }, []);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [loadFavorites]);
+
+  const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 
   const sortedTrails = useMemo(() => {
     return [...trails].sort((a, b) => {
-      const aFav = favoriteIds.includes(a.id);
-      const bFav = favoriteIds.includes(b.id);
+      const aFav = favoriteSet.has(a.id);
+      const bFav = favoriteSet.has(b.id);
 
-      // Favorites first
       if (aFav && !bFav) return -1;
       if (!aFav && bFav) return 1;
 
-      // Then by last updated (newest first)
       const aTime = a.summary?.last_updated_at || "";
       const bTime = b.summary?.last_updated_at || "";
 
@@ -54,15 +58,15 @@ const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
   }, [trails, favoriteSet]);
 
   return (
-  <div className="grid gap-4 md:grid-cols-2">
-    {sortedTrails.map((trail) => (
-      <TrailCard
-        key={trail.id}
-        trail={trail}
-        fullHeight={true}
-        showMapLink={true}
-      />
-    ))}
-  </div>
-);
+    <div className="grid gap-4 md:grid-cols-2">
+      {sortedTrails.map((trail) => (
+        <TrailCard
+          key={trail.id}
+          trail={trail}
+          fullHeight={true}
+          showMapLink={true}
+        />
+      ))}
+    </div>
+  );
 }

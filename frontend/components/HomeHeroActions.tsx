@@ -1,62 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
 
-export function HomeHeroActions({
-  view,
-  setView,
-}: {
-  view: "list" | "map";
-  setView: (view: "list" | "map") => void;
-}) {
-  const [signedIn, setSignedIn] = useState(false);
+export function HomeHeroActions() {
+  const { user, authLoading } = useAuth();
 
-  useEffect(() => {
-    let mounted = true;
+  if (authLoading) {
+    return (
+      <div className="mt-4 flex flex-wrap gap-3">
+        <div className="h-10 w-36 rounded-xl border border-zinc-800 bg-zinc-900/70" />
+        <div className="h-10 w-32 rounded-xl border border-zinc-800 bg-zinc-900/70" />
+      </div>
+    );
+  }
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (mounted) {
-        setSignedIn(!!data.session?.user);
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSignedIn(!!session?.user);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+  if (user) {
+    return (
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Link href="/favorites" className="btn-primary">
+          Manage Favorites
+        </Link>
+        <Link href="/profile" className="btn-secondary">
+          View Profile
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex gap-3">
-      <button
-        type="button"
-        onClick={() => setView("list")}
-        className={view === "list" ? "btn-primary" : "btn-secondary"}
-      >
-        List view
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setView("map")}
-        className={view === "map" ? "btn-primary" : "btn-secondary"}
-      >
-        Map view
-      </button>
-
-      {!signedIn ? (
-        <Link href="/auth/login" className="btn-secondary">
-          Sign in
-        </Link>
-      ) : null}
+    <div className="mt-4 flex flex-wrap gap-3">
+      <Link href="/auth/login?next=/" className="btn-primary">
+        Sign In
+      </Link>
+      <Link href="/favorites" className="btn-secondary">
+        Browse Favorites
+      </Link>
     </div>
   );
 }

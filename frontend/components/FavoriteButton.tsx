@@ -2,44 +2,36 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { addFavorite, getFavorites, removeFavorite } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
 
 export function FavoriteButton({ trailId }: { trailId: string }) {
+  const { user, session, authLoading } = useAuth();
+
   const [isFavorite, setIsFavorite] = useState(false);
-  const [hasSession, setHasSession] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const accessToken = session?.access_token;
+
   const loadFavoriteState = useCallback(async () => {
+    if (authLoading) return;
+
     setLoading(true);
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const signedIn = !!session?.user;
-      setHasSession(signedIn);
-
-      if (!signedIn) {
+      if (!user || !accessToken) {
         setIsFavorite(false);
         return;
       }
 
-      const favoriteIds: string[] = await getFavorites().catch(() => []);
+      const favoriteIds: string[] = await getFavorites(accessToken).catch(() => []);
       setIsFavorite(favoriteIds.includes(trailId));
     } finally {
       setLoading(false);
     }
-  }, [trailId]);
+  }, [trailId, user, accessToken, authLoading]);
 
   useEffect(() => {
     loadFavoriteState();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      loadFavoriteState();
-    });
 
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
@@ -50,7 +42,6 @@ export function FavoriteButton({ trailId }: { trailId: string }) {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      subscription.unsubscribe();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [loadFavoriteState]);
@@ -59,18 +50,18 @@ export function FavoriteButton({ trailId }: { trailId: string }) {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!hasSession) return;
+    if (!user || !accessToken) return;
 
     if (isFavorite) {
-      await removeFavorite(trailId);
+      await removeFavorite(trailId, accessToken);
       setIsFavorite(false);
     } else {
-      await addFavorite(trailId);
+      await addFavorite(trailId, accessToken);
       setIsFavorite(true);
     }
   }
 
-  if (loading || !hasSession) {
+  if (loading || !user) {
     return null;
   }
 

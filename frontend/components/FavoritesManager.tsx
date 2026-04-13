@@ -3,45 +3,37 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Trail } from "@/lib/types";
 import { addFavorite, getFavorites, removeFavorite } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
 
 export function FavoritesManager({ trails }: { trails: Trail[] }) {
+  const { user, session, authLoading } = useAuth();
+
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [hasSession, setHasSession] = useState(false);
+
+  const accessToken = session?.access_token;
 
   const loadFavorites = useCallback(async () => {
+    if (authLoading) return;
+
     setLoading(true);
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const signedIn = !!session?.user;
-      setHasSession(signedIn);
-
-      if (!signedIn) {
+      if (!user || !accessToken) {
         setFavoriteIds([]);
         return;
       }
 
-      const ids: string[] = await getFavorites().catch(() => []);
+      const ids: string[] = await getFavorites(accessToken).catch(() => []);
       setFavoriteIds(ids);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user, accessToken, authLoading]);
 
   useEffect(() => {
     loadFavorites();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      loadFavorites();
-    });
 
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
@@ -52,7 +44,6 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      subscription.unsubscribe();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [loadFavorites]);
@@ -70,16 +61,16 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
   }, [trails, favoriteSet]);
 
   async function toggleFavorite(trailId: string) {
-    if (!hasSession) return;
+    if (!user || !accessToken) return;
 
     setSavingId(trailId);
 
     try {
       if (favoriteSet.has(trailId)) {
-        await removeFavorite(trailId);
+        await removeFavorite(trailId, accessToken);
         setFavoriteIds((prev) => prev.filter((id) => id !== trailId));
       } else {
-        await addFavorite(trailId);
+        await addFavorite(trailId, accessToken);
         setFavoriteIds((prev) => [...prev, trailId]);
       }
     } finally {
@@ -91,7 +82,7 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
     return <p className="text-sm text-zinc-400">Loading favorites...</p>;
   }
 
-  if (!hasSession) {
+  if (!user) {
     return (
       <p className="text-sm text-zinc-400">
         Sign in to manage your favorite trails.
@@ -137,9 +128,7 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
                   stroke="currentColor"
                   strokeWidth="1.8"
                   className={`h-6 w-6 transition-colors duration-200 ${
-                    isFavorite
-                      ? "text-red-500"
-                      : "text-zinc-500 hover:text-zinc-300"
+                    isFavorite ? "text-red-500" : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
                   <path

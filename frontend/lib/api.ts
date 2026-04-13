@@ -65,38 +65,40 @@ export async function getTrailReports(id: string): Promise<TrailReport[]> {
 /**
  * Auth headers helper
  */
-async function authHeaders() {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+function authHeaders(
+  accessToken?: string,
+  includeJsonContentType = false
+): HeadersInit {
+  const headers: Record<string, string> = {};
 
-  return {
-    "Content-Type": "application/json",
-    Authorization: session ? `Bearer ${session.access_token}` : "",
-  };
+  if (includeJsonContentType) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  return headers;
 }
 
 /**
  * Reports
  */
-export async function createReport(payload: {
-  trail_id: string;
-  primary_condition: string;
-  hazard_tags: string[];
-  note?: string;
-}) {
+export async function createReport(
+  payload: {
+    trail_id: string;
+    primary_condition: string;
+    hazard_tags: string[];
+    note?: string;
+  },
+  accessToken?: string
+) {
   const apiUrl = getApiBaseUrl();
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
 
   const res = await fetch(`${apiUrl}/reports`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: session ? `Bearer ${session.access_token}` : "",
-    },
+    headers: authHeaders(accessToken, true),
     body: JSON.stringify(payload),
   });
 
@@ -111,14 +113,14 @@ export async function createReport(payload: {
  * Favorites
  */
 const FAVORITES_CACHE_KEY = "favorites-cache";
-const FAVORITES_TTL_MS = 2 * 60 * 1000; // 2 minutes
+const FAVORITES_TTL_MS = 2 * 60 * 1000;
 
 type FavoritesCache = {
   data: string[];
   fetchedAt: number;
 };
 
-export async function getFavorites(): Promise<string[]> {
+export async function getFavorites(accessToken?: string): Promise<string[]> {
   if (typeof window !== "undefined") {
     const raw = window.localStorage.getItem(FAVORITES_CACHE_KEY);
 
@@ -139,7 +141,7 @@ export async function getFavorites(): Promise<string[]> {
   const apiUrl = getApiBaseUrl();
 
   const res = await fetch(`${apiUrl}/favorites`, {
-    headers: await authHeaders(),
+    headers: authHeaders(accessToken),
     cache: "no-store",
   });
 
@@ -161,12 +163,12 @@ export async function getFavorites(): Promise<string[]> {
   return favorites;
 }
 
-export async function addFavorite(trailId: string) {
+export async function addFavorite(trailId: string, accessToken?: string) {
   const apiUrl = getApiBaseUrl();
 
   const res = await fetch(`${apiUrl}/favorites/${trailId}`, {
     method: "POST",
-    headers: await authHeaders(),
+    headers: authHeaders(accessToken),
   });
 
   if (!res.ok) {
@@ -182,12 +184,12 @@ export async function addFavorite(trailId: string) {
   return result;
 }
 
-export async function removeFavorite(trailId: string) {
+export async function removeFavorite(trailId: string, accessToken?: string) {
   const apiUrl = getApiBaseUrl();
 
   const res = await fetch(`${apiUrl}/favorites/${trailId}`, {
     method: "DELETE",
-    headers: await authHeaders(),
+    headers: authHeaders(accessToken),
   });
 
   if (!res.ok) {
