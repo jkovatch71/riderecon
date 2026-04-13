@@ -6,11 +6,6 @@ import { buildBriefing } from "@/lib/briefing";
 import { getCurrentWeather, getFavorites, getRecentRain } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
-type Profile = {
-  username?: string | null;
-  display_name?: string | null;
-};
-
 type Weather = {
   temperature?: number | null;
   summary?: string | null;
@@ -58,11 +53,9 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const { user, profile, authLoading } = useAuth();
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [checkedSession, setCheckedSession] = useState(false);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [recentRain, setRecentRain] = useState<RecentRain | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
-
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -86,12 +79,11 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
           setFavoriteIds([]);
           setWeather(nextWeather);
           setRecentRain(nextRain);
-          setCheckedSession(true);
           return;
         }
 
         const [ids, nextWeather, nextRain] = await Promise.all([
-          getFavorites().catch(() => []),
+          getFavorites().catch((): string[] => []),
           weatherPromise,
           rainPromise,
         ]);
@@ -104,35 +96,45 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
       }
     }
 
-    if (!authLoading) load();
+    if (authLoading) return;
+    load();
   }, [user?.id, authLoading]);
 
   const briefingTrails = useMemo(() => {
+    if (!favoriteIds.length) return trails;
+
     const favoriteSet = new Set(favoriteIds);
     const favorites = trails.filter((trail) => favoriteSet.has(trail.id));
 
     return favorites.length ? favorites : trails;
   }, [trails, favoriteIds]);
 
+  const usingFavorites = favoriteIds.length > 0 && briefingTrails.length > 0;
+
   const briefing = useMemo(() => {
     return buildBriefing(
       briefingTrails,
       weather ?? undefined,
       recentRain ?? undefined,
-      favoriteIds.length > 0
+      usingFavorites
     );
-  }, [briefingTrails, weather, recentRain, favoriteIds]);
+  }, [briefingTrails, weather, recentRain, usingFavorites]);
 
-  // Ensure profile data is available before rendering greeting
-  const displayName = profile?.display_name || profile?.username || "rider";
+  const displayName = profile?.display_name || profile?.username || null;
   const greetingBase = hasMounted ? `${getGreeting()},` : "Trail briefing";
   const greetingName = hasMounted && displayName ? `${displayName}!` : null;
+
+  const supportingText =
+    briefing.supporting &&
+    briefing.supporting.trim() !== briefing.detail.trim()
+      ? briefing.supporting
+      : null;
 
   const isLoading = authLoading || loadingBriefing;
 
   return (
-    <div className="mt-3 max-w-3xl">
-      <h1 className="text-page-title font-bold text-zinc-100">
+    <div className="mt-2 max-w-2xl">
+      <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
         <span className="whitespace-nowrap">{greetingBase}</span>{" "}
         {greetingName ? <span>{greetingName}</span> : null}
       </h1>
@@ -155,17 +157,17 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
             </p>
           </div>
 
-          <p className="text-section-title font-semibold text-zinc-100">
+          <p className="font-brand text-section-title font-semibold uppercase leading-tight text-zinc-100">
             {briefing.headline}
           </p>
 
           <p className="text-body text-zinc-300">{briefing.detail}</p>
 
-          {briefing.supporting && (
+          {supportingText ? (
             <p className="text-body pt-1 font-medium text-zinc-200">
-              {briefing.supporting}
+              {supportingText}
             </p>
-          )}
+          ) : null}
         </div>
       )}
     </div>

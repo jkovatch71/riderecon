@@ -6,35 +6,35 @@ import { addFavorite, getFavorites, removeFavorite } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
 export function FavoritesManager({ trails }: { trails: Trail[] }) {
-  const { user, session, authLoading } = useAuth();
+  const { user, authLoading } = useAuth();
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  const accessToken = session?.access_token;
-
   const loadFavorites = useCallback(async () => {
-    if (authLoading) return;
+    if (!user) {
+      setFavoriteIds([]);
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
 
     try {
-      if (!user || !accessToken) {
-        setFavoriteIds([]);
-        return;
-      }
-
-      const ids: string[] = await getFavorites(accessToken).catch(() => []);
+      const ids: string[] = await getFavorites().catch(() => []);
       setFavoriteIds(ids);
     } finally {
       setLoading(false);
     }
-  }, [user, accessToken, authLoading]);
+  }, [user]);
 
   useEffect(() => {
+    if (authLoading) return;
     loadFavorites();
+  }, [authLoading, loadFavorites]);
 
+  useEffect(() => {
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
         loadFavorites();
@@ -61,16 +61,16 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
   }, [trails, favoriteSet]);
 
   async function toggleFavorite(trailId: string) {
-    if (!user || !accessToken) return;
+    if (!user) return;
 
     setSavingId(trailId);
 
     try {
       if (favoriteSet.has(trailId)) {
-        await removeFavorite(trailId, accessToken);
+        await removeFavorite(trailId);
         setFavoriteIds((prev) => prev.filter((id) => id !== trailId));
       } else {
-        await addFavorite(trailId, accessToken);
+        await addFavorite(trailId);
         setFavoriteIds((prev) => [...prev, trailId]);
       }
     } finally {
@@ -91,17 +91,14 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="divide-y divide-zinc-800">
       {sortedTrails.map((trail) => {
         const isFavorite = favoriteSet.has(trail.id);
         const isSaving = savingId === trail.id;
 
         return (
-          <div
-            key={trail.id}
-            className="flex items-center justify-between rounded-xl border border-zinc-700 px-4 py-3"
-          >
-            <div className="min-w-0 flex-1 pr-4">
+          <div key={trail.id} className="flex items-center justify-between gap-4 py-4">
+            <div className="min-w-0 flex-1 pr-2">
               <p className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">
                 {trail.name}
               </p>
