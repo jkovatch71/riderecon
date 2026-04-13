@@ -1,35 +1,30 @@
 from fastapi import APIRouter, Header, HTTPException, Depends
-from dotenv import load_dotenv
-from pathlib import Path
 import httpx
-import os
 
+from app.core.config import settings
 from app.db.supabase_client import get_supabase_admin_client
 
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-
 router = APIRouter(prefix="/favorites", tags=["favorites"])
-client = get_supabase_admin_client()
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 
-async def get_current_user(authorization: str = Header(None)):
+async def get_current_user(authorization: str | None = Header(default=None)):
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing auth token")
 
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        raise HTTPException(status_code=500, detail="Supabase auth environment variables are missing")
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        raise HTTPException(
+            status_code=500,
+            detail="Supabase auth environment variables are missing",
+        )
 
-    token = authorization.replace("Bearer ", "")
+    token = authorization.replace("Bearer ", "").strip()
 
-    async with httpx.AsyncClient() as http_client:
+    async with httpx.AsyncClient(timeout=15.0) as http_client:
         res = await http_client.get(
-            f"{SUPABASE_URL}/auth/v1/user",
+            f"{settings.supabase_url}/auth/v1/user",
             headers={
                 "Authorization": f"Bearer {token}",
-                "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                "apikey": settings.supabase_service_role_key,
             },
         )
 
@@ -39,20 +34,28 @@ async def get_current_user(authorization: str = Header(None)):
     return res.json()
 
 
+def get_admin_client():
+    client = get_supabase_admin_client()
+    if not client:
+      raise HTTPException(status_code=500, detail="Supabase admin client is not configured")
+    return client
+
+
 @router.get("")
 async def list_favorites(user=Depends(get_current_user)):
     user_id = user.get("id")
+    client = get_admin_client()
 
-    if not client:
-        return []
-
-    res = (
-        client.table("favorite_trails")
-        .select("trail_id")
-        .eq("user_id", user_id)
-        .order("created_at", desc=False)
-        .execute()
-    )
+    try:
+        res = (
+            client.table("favorite_trails")
+            .select("trail_id")
+            .eq("user_id", user_id)
+            .order("created_at", desc=False)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list favorites: {str(e)}")
 
     rows = res.data or []
     return [row["trail_id"] for row in rows]
@@ -61,16 +64,17 @@ async def list_favorites(user=Depends(get_current_user)):
 @router.post("/{trail_id}")
 async def add_favorite(trail_id: str, user=Depends(get_current_user)):
     user_id = user.get("id")
+    client = get_admin_client()
 
-    if not client:
-        return {"message": "Favorite added", "trail_id": trail_id}
-
-    client.table("favorite_trails").upsert(
-        {
-            "user_id": user_id,
-            "trail_id": trail_id,
-        }
-    ).execute()
+    try:
+        client.table("favorite_trails").upsert(
+            {
+                "user_id": user_id,
+                "trail_id": trail_id,
+            }
+        ).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add favorite: {str(e)}")
 
     return {"message": "Favorite added", "trail_id": trail_id}
 
@@ -78,16 +82,17 @@ async def add_favorite(trail_id: str, user=Depends(get_current_user)):
 @router.delete("/{trail_id}")
 async def remove_favorite(trail_id: str, user=Depends(get_current_user)):
     user_id = user.get("id")
+    client = get_admin_client()
 
-    if not client:
-        return {"message": "Favorite removed", "trail_id": trail_id}
-
-    (
-        client.table("favorite_trails")
-        .delete()
-        .eq("user_id", user_id)
-        .eq("trail_id", trail_id)
-        .execute()
-    )
+    try:
+        (
+            client.table("favorite_trails")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("trail_id", trail_id)
+            .execute()
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to remove favorite: {str(e)}")
 
     return {"message": "Favorite removed", "trail_id": trail_id}

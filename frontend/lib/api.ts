@@ -64,15 +64,22 @@ export async function getTrailReports(id: string): Promise<TrailReport[]> {
 /**
  * Auth headers helper
  */
-async function authHeaders() {
+async function authHeaders(includeJsonContentType = false): Promise<HeadersInit> {
   const {
-    data: { session }
+    data: { session },
   } = await supabase.auth.getSession();
 
-  return {
-    "Content-Type": "application/json",
-    Authorization: session ? `Bearer ${session.access_token}` : ""
-  };
+  const headers: Record<string, string> = {};
+
+  if (includeJsonContentType) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
+
+  return headers;
 }
 
 /**
@@ -86,17 +93,10 @@ export async function createReport(payload: {
 }) {
   const apiUrl = getApiBaseUrl();
 
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
-
   const res = await fetch(`${apiUrl}/reports`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: session ? `Bearer ${session.access_token}` : ""
-    },
-    body: JSON.stringify(payload)
+    headers: await authHeaders(true),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
@@ -114,7 +114,7 @@ export async function getFavorites(): Promise<string[]> {
 
   const res = await fetch(`${apiUrl}/favorites`, {
     headers: await authHeaders(),
-    cache: "no-store"
+    cache: "no-store",
   });
 
   if (!res.ok) {
@@ -129,7 +129,7 @@ export async function addFavorite(trailId: string) {
 
   const res = await fetch(`${apiUrl}/favorites/${trailId}`, {
     method: "POST",
-    headers: await authHeaders()
+    headers: await authHeaders(),
   });
 
   if (!res.ok) {
@@ -144,7 +144,7 @@ export async function removeFavorite(trailId: string) {
 
   const res = await fetch(`${apiUrl}/favorites/${trailId}`, {
     method: "DELETE",
-    headers: await authHeaders()
+    headers: await authHeaders(),
   });
 
   if (!res.ok) {
@@ -192,8 +192,6 @@ const RECENT_RAIN_TTL_MS = 5 * 60 * 1000;
 
 export async function getRecentRain(): Promise<RecentRain> {
   const now = Date.now();
-
-  console.log("Calling recent-rain endpoint...");
   
   if (
     recentRainCache &&
