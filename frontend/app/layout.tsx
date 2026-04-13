@@ -19,9 +19,20 @@ const rajdhani = Rajdhani({
   variable: "--font-rajdhani",
 });
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "Ride Recon",
-  description: "Local MTB trail conditions for the San Antonio area.",
+  description: "Real-time MTB trail conditions",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" }
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    shortcut: ["/favicon.ico"]
+  },
+  themeColor: "#020312"
 };
 
 export default function RootLayout({
