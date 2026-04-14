@@ -1,43 +1,25 @@
-from fastapi import APIRouter, HTTPException
-import httpx
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import httpx
+from fastapi import APIRouter, HTTPException
+
 from app.core.config import settings
+from app.db.weather_cache import (
+    get_any_weather_cache_payload,
+    get_fresh_weather_cache_payload,
+    upsert_weather_cache,
+)
 
 router = APIRouter(prefix="/weather", tags=["weather"])
 
 
-CACHE_TTL_SECONDS = 300  # 5 minutes
+CURRENT_CACHE_KEY = "current_weather"
+RECENT_RAIN_CACHE_KEY = "recent_rain"
 
-_weather_cache: dict[str, dict[str, Any]] = {
-    "current": {"data": None, "expires_at": None},
-    "recent_rain": {"data": None, "expires_at": None},
-}
-
-
-def get_cached_value(key: str):
-    entry = _weather_cache.get(key)
-    if not entry:
-        return None
-
-    expires_at = entry.get("expires_at")
-    data = entry.get("data")
-
-    if not expires_at or data is None:
-        return None
-
-    if datetime.now(timezone.utc) >= expires_at:
-        return None
-
-    return data
-
-
-def set_cached_value(key: str, data: dict[str, Any]):
-    _weather_cache[key] = {
-        "data": data,
-        "expires_at": datetime.now(timezone.utc) + timedelta(seconds=CACHE_TTL_SECONDS),
-    }
+CURRENT_SUCCESS_TTL_SECONDS = 300       # 5 minutes
+RECENT_RAIN_SUCCESS_TTL_SECONDS = 1800  # 30 minutes
+RECENT_RAIN_FAILURE_TTL_SECONDS = 1800  # 30 minutes
 
 
 def phrase_for_description(description: str) -> str:
@@ -61,9 +43,26 @@ def phrase_for_description(description: str) -> str:
     return description
 
 
+def build_recent_rain_payload(
+    *,
+    hours: int,
+    total_inches: float,
+    threshold_inches: float,
+    unavailable: bool = False,
+) -> dict[str, Any]:
+    return {
+        "window_hours": hours,
+        "rain_inches": round(total_inches, 3),
+        "threshold_inches": threshold_inches,
+        "exceeds_threshold": total_inches >= threshold_inches,
+        "cached_at": datetime.now(timezone.utc).isoformat(),
+        "unavailable": unavailable,
+    }
+
+
 @router.get("/current")
 async def get_current_weather():
-    cached = get_cached_value("current")
+    cached = get_fresh_weather_cache_payload(CURRENT_CACHE_KEY)
     if cached is not None:
         return cached
 
@@ -74,7 +73,6 @@ async def get_current_weather():
         raise HTTPException(status_code=500, detail="WEATHER_LAT/WEATHER_LON are missing")
 
     url = "https://api.openweathermap.org/data/2.5/weather"
-
     params = {
         "lat": settings.weather_lat,
         "lon": settings.weather_lon,
@@ -101,13 +99,18 @@ async def get_current_weather():
         "cached_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    set_cached_value("current", payload)
+    upsert_weather_cache(
+        cache_key=CURRENT_CACHE_KEY,
+        payload=payload,
+        status="fresh",
+        ttl_seconds=CURRENT_SUCCESS_TTL_SECONDS,
+    )
     return payload
 
 
 @router.get("/recent-rain")
 async def get_recent_rain():
-    cached = get_cached_value("recent_rain")
+    cached = get_fresh_weather_cache_payload(RECENT_RAIN_CACHE_KEY)
     if cached is not None:
         return cached
 
@@ -121,6 +124,7 @@ async def get_recent_rain():
         raise HTTPException(status_code=500, detail="WEATHER_RAIN_THRESHOLD_INCHES is missing")
 
     hours = settings.weather_window_hours
+    threshold_inches = settings.weather_rain_threshold_inches
     now = datetime.now(timezone.utc)
 
     url = "https://api.open-meteo.com/v1/forecast"
@@ -133,12 +137,40 @@ async def get_recent_rain():
         "timezone": "UTC",
     }
 
+    stale_payload = get_any_weather_cache_payload(RECENT_RAIN_CACHE_KEY)
+
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             res = await client.get(url, params=params)
 
         if res.status_code != 200:
-            raise HTTPException(status_code=res.status_code, detail=res.text)
+            if stale_payload:
+                fallback_payload = {
+                    **stale_payload,
+                    "cached_at": datetime.now(timezone.utc).isoformat(),
+                    "unavailable": True,
+                }
+                upsert_weather_cache(
+                    cache_key=RECENT_RAIN_CACHE_KEY,
+                    payload=fallback_payload,
+                    status="fallback",
+                    ttl_seconds=RECENT_RAIN_FAILURE_TTL_SECONDS,
+                )
+                return fallback_payload
+
+            fallback_payload = build_recent_rain_payload(
+                hours=hours,
+                total_inches=0.0,
+                threshold_inches=threshold_inches,
+                unavailable=True,
+            )
+            upsert_weather_cache(
+                cache_key=RECENT_RAIN_CACHE_KEY,
+                payload=fallback_payload,
+                status="fallback",
+                ttl_seconds=RECENT_RAIN_FAILURE_TTL_SECONDS,
+            )
+            return fallback_payload
 
         data = res.json()
         hourly = data.get("hourly", {})
@@ -163,21 +195,51 @@ async def get_recent_rain():
                 continue
 
         total_inches = total_mm / 25.4
-        exceeds_threshold = total_inches >= settings.weather_rain_threshold_inches
 
-        payload = {
-            "window_hours": hours,
-            "rain_inches": round(total_inches, 3),
-            "threshold_inches": settings.weather_rain_threshold_inches,
-            "exceeds_threshold": exceeds_threshold,
-            "cached_at": datetime.now(timezone.utc).isoformat(),
-        }
+        payload = build_recent_rain_payload(
+            hours=hours,
+            total_inches=total_inches,
+            threshold_inches=threshold_inches,
+            unavailable=False,
+        )
 
-        set_cached_value("recent_rain", payload)
+        upsert_weather_cache(
+            cache_key=RECENT_RAIN_CACHE_KEY,
+            payload=payload,
+            status="fresh",
+            ttl_seconds=RECENT_RAIN_SUCCESS_TTL_SECONDS,
+        )
         return payload
 
     except HTTPException:
         raise
     except Exception as e:
         print(f"/weather/recent-rain failed: {e}")
-        raise HTTPException(status_code=500, detail=f"recent-rain failed: {str(e)}")
+
+        if stale_payload:
+            fallback_payload = {
+                **stale_payload,
+                "cached_at": datetime.now(timezone.utc).isoformat(),
+                "unavailable": True,
+            }
+            upsert_weather_cache(
+                cache_key=RECENT_RAIN_CACHE_KEY,
+                payload=fallback_payload,
+                status="fallback",
+                ttl_seconds=RECENT_RAIN_FAILURE_TTL_SECONDS,
+            )
+            return fallback_payload
+
+        fallback_payload = build_recent_rain_payload(
+            hours=hours,
+            total_inches=0.0,
+            threshold_inches=threshold_inches,
+            unavailable=True,
+        )
+        upsert_weather_cache(
+            cache_key=RECENT_RAIN_CACHE_KEY,
+            payload=fallback_payload,
+            status="fallback",
+            ttl_seconds=RECENT_RAIN_FAILURE_TTL_SECONDS,
+        )
+        return fallback_payload

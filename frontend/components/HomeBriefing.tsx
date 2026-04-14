@@ -1,24 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Trail } from "@/lib/types";
 import { buildBriefing } from "@/lib/briefing";
-import { getCurrentWeather, getFavorites, getRecentRain } from "@/lib/api";
+import {
+  getCurrentWeather,
+  getFavorites,
+  getRecentRain,
+  type CurrentWeather,
+  type RecentRain,
+} from "@/lib/api";
+import type { Trail } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
 import { TypingText } from "@/components/TypingText";
-
-type Weather = {
-  temperature?: number | null;
-  summary?: string | null;
-  raw_summary?: string | null;
-};
-
-type RecentRain = {
-  window_hours: number;
-  rain_inches: number;
-  threshold_inches: number;
-  exceeds_threshold: boolean;
-};
 
 type BriefingScript = {
   greeting: string;
@@ -47,7 +40,7 @@ function getWeatherIcon(summary?: string | null) {
   return "🌤️";
 }
 
-function getWeatherDisplay(weather?: Weather | null) {
+function getWeatherDisplay(weather?: CurrentWeather | null) {
   const icon = getWeatherIcon(weather?.summary);
 
   if (weather?.temperature !== null && weather?.temperature !== undefined) {
@@ -61,9 +54,10 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const { user, profile, session, authLoading } = useAuth();
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [weather, setWeather] = useState<Weather | null>(null);
+  const [weather, setWeather] = useState<CurrentWeather | null>(null);
   const [recentRain, setRecentRain] = useState<RecentRain | null>(null);
-  const [loadingBriefing, setLoadingBriefing] = useState(false);
+  const [loadingWeather, setLoadingWeather] = useState(false);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
 
   const [script, setScript] = useState<BriefingScript | null>(null);
@@ -83,47 +77,62 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
-      setLoadingBriefing(true);
+    async function loadWeather() {
+      setLoadingWeather(true);
 
       try {
-        const weatherPromise = getCurrentWeather().catch(() => null);
-        const rainPromise = getRecentRain().catch(() => null);
-
-        if (!user || !accessToken) {
-          const [nextWeather, nextRain] = await Promise.all([
-            weatherPromise,
-            rainPromise,
-          ]);
-
-          if (!cancelled) {
-            setFavoriteIds([]);
-            setWeather(nextWeather);
-            setRecentRain(nextRain);
-          }
-          return;
-        }
-
-        const [ids, nextWeather, nextRain] = await Promise.all([
-          getFavorites(accessToken).catch((): string[] => []),
-          weatherPromise,
-          rainPromise,
+        const [nextWeather, nextRain] = await Promise.all([
+          getCurrentWeather(),
+          getRecentRain(),
         ]);
 
         if (!cancelled) {
-          setFavoriteIds(ids);
           setWeather(nextWeather);
           setRecentRain(nextRain);
         }
       } finally {
         if (!cancelled) {
-          setLoadingBriefing(false);
+          setLoadingWeather(false);
         }
       }
     }
 
-    if (authLoading) return;
-    load();
+    loadWeather();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFavorites() {
+      if (authLoading) return;
+
+      setLoadingFavorites(true);
+
+      try {
+        if (!user || !accessToken) {
+          if (!cancelled) {
+            setFavoriteIds([]);
+          }
+          return;
+        }
+
+        const ids = await getFavorites(accessToken).catch((): string[] => []);
+
+        if (!cancelled) {
+          setFavoriteIds(ids);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingFavorites(false);
+        }
+      }
+    }
+
+    loadFavorites();
 
     return () => {
       cancelled = true;
@@ -163,7 +172,8 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
       ? briefing.supporting
       : null;
 
-  const briefingReady = hasMounted && !authLoading && !loadingBriefing;
+  const briefingReady =
+    hasMounted && !authLoading && !loadingWeather && !loadingFavorites;
 
   const nextScript = useMemo<BriefingScript | null>(() => {
     if (!briefingReady) return null;
@@ -174,7 +184,13 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
       detail: briefing.detail,
       supporting: supportingText,
     };
-  }, [briefingReady, greetingLine, briefing.headline, briefing.detail, supportingText]);
+  }, [
+    briefingReady,
+    greetingLine,
+    briefing.headline,
+    briefing.detail,
+    supportingText,
+  ]);
 
   useEffect(() => {
     if (!nextScript) return;
@@ -201,7 +217,6 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   return (
     <div className="max-w-2xl">
       <div className="min-h-[240px]">
-        {/* Heading above divider */}
         <div className="min-h-[62px]">
           {script ? (
             <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
@@ -216,10 +231,8 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
           ) : null}
         </div>
 
-        {/* Divider visible immediately */}
         <div className="border-t border-zinc-700" />
 
-        {/* Briefing body below divider */}
         <div className="mt-5 min-h-[150px] space-y-4">
           {script && headingDone ? (
             <p className="font-brand text-section-title font-semibold uppercase leading-tight text-zinc-100">
@@ -257,7 +270,9 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
               />
 
               {supportingDone && (
-                <span className="ml-0.5 inline-block text-emerald-300 animate-pulse">▌</span>
+                <span className="ml-0.5 inline-block animate-pulse text-emerald-300">
+                  ▌
+                </span>
               )}
             </p>
           ) : null}

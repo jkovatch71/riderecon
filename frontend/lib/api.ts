@@ -1,8 +1,5 @@
 import { Trail, TrailReport } from "@/lib/types";
 
-/**
- * Resolve API base URL safely for both client and server.
- */
 function getApiBaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
 
@@ -21,9 +18,6 @@ function getApiBaseUrl(): string {
   );
 }
 
-/**
- * Build auth headers only when a token is available.
- */
 function authHeaders(
   accessToken?: string,
   includeJsonContentType = false
@@ -41,9 +35,16 @@ function authHeaders(
   return headers;
 }
 
-/**
- * Generic JSON request helper.
- */
+class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const apiUrl = getApiBaseUrl();
 
@@ -56,7 +57,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
-    throw new Error(`API request failed: ${res.status}`);
+    let detail = "";
+    try {
+      detail = await res.text();
+    } catch {
+      detail = "";
+    }
+
+    throw new ApiError(detail || `API request failed: ${res.status}`, res.status);
   }
 
   return res.json();
@@ -98,10 +106,6 @@ export async function createReport(
 
 /**
  * Favorites
- *
- * Temporary QA-safe version:
- * - no localStorage caching
- * - always fetch fresh data
  */
 export async function getFavorites(accessToken?: string): Promise<string[]> {
   if (!accessToken) {
@@ -116,7 +120,7 @@ export async function getFavorites(accessToken?: string): Promise<string[]> {
   });
 
   if (!res.ok) {
-    throw new Error(`Favorites request failed: ${res.status}`);
+    throw new ApiError(`Favorites request failed: ${res.status}`, res.status);
   }
 
   return res.json();
@@ -150,42 +154,39 @@ export type RecentRain = {
   rain_inches: number;
   threshold_inches: number;
   exceeds_threshold: boolean;
+  cached_at?: string;
+  unavailable?: boolean;
 };
 
-export async function getCurrentWeather(): Promise<CurrentWeather> {
-  return request<CurrentWeather>("/weather/current");
-}
+let currentWeatherPromise: Promise<CurrentWeather | null> | null = null;
+let recentRainPromise: Promise<RecentRain | null> | null = null;
 
-let recentRainCache:
-  | {
-      data: RecentRain;
-      fetchedAt: number;
-    }
-  | null = null;
-
-let recentRainPromise: Promise<RecentRain> | null = null;
-
-const RECENT_RAIN_TTL_MS = 5 * 60 * 1000;
-
-export async function getRecentRain(): Promise<RecentRain> {
-  const now = Date.now();
-
-  if (recentRainCache && now - recentRainCache.fetchedAt < RECENT_RAIN_TTL_MS) {
-    return recentRainCache.data;
+export async function getCurrentWeather(): Promise<CurrentWeather | null> {
+  if (currentWeatherPromise) {
+    return currentWeatherPromise;
   }
 
+  currentWeatherPromise = request<CurrentWeather>("/weather/current")
+    .catch((error: unknown) => {
+      console.warn("getCurrentWeather failed:", error);
+      return null;
+    })
+    .finally(() => {
+      currentWeatherPromise = null;
+    });
+
+  return currentWeatherPromise;
+}
+
+export async function getRecentRain(): Promise<RecentRain | null> {
   if (recentRainPromise) {
     return recentRainPromise;
   }
 
   recentRainPromise = request<RecentRain>("/weather/recent-rain")
-    .then((data) => {
-      recentRainCache = {
-        data,
-        fetchedAt: Date.now(),
-      };
-
-      return data;
+    .catch((error: unknown) => {
+      console.warn("getRecentRain failed:", error);
+      return null;
     })
     .finally(() => {
       recentRainPromise = null;

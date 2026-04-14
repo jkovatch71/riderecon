@@ -10,6 +10,7 @@ type RecentRain = {
   rain_inches: number;
   threshold_inches: number;
   exceeds_threshold: boolean;
+  unavailable?: boolean;
 };
 
 type BriefingResult = {
@@ -35,7 +36,11 @@ function isBadWeatherNow(summary?: string | null) {
 }
 
 function condition(trail: Trail) {
-  return (trail.summary?.current_condition || trail.current_condition || "").toLowerCase();
+  return (
+    trail.summary?.current_condition ||
+    trail.current_condition ||
+    ""
+  ).toLowerCase();
 }
 
 function getRecoveryMix(trails: Trail[]) {
@@ -62,6 +67,10 @@ function getRecoveryMix(trails: Trail[]) {
   };
 }
 
+function hasUsableRecentRain(recentRain?: RecentRain | null): recentRain is RecentRain {
+  return !!recentRain && !recentRain.unavailable;
+}
+
 function getRideability(trails: Trail[], recentRain?: RecentRain | null) {
   let good = 0;
   let caution = 0;
@@ -80,7 +89,7 @@ function getRideability(trails: Trail[], recentRain?: RecentRain | null) {
   const badRatio = bad / total;
   const recoveryMix = getRecoveryMix(trails);
 
-  if (recentRain?.exceeds_threshold) {
+  if (hasUsableRecentRain(recentRain) && recentRain.exceeds_threshold) {
     if (badRatio >= 0.5) return "not_rideable";
 
     if (goodRatio >= 0.6) {
@@ -107,7 +116,7 @@ function getRideability(trails: Trail[], recentRain?: RecentRain | null) {
 }
 
 function shouldMentionRainAmount(recentRain?: RecentRain | null) {
-  if (!recentRain) return false;
+  if (!hasUsableRecentRain(recentRain)) return false;
   return recentRain.exceeds_threshold || recentRain.rain_inches >= 0.1;
 }
 
@@ -122,7 +131,7 @@ function buildWeatherDetail(weather?: Weather | null, recentRain?: RecentRain | 
     parts.push(weather.summary);
   }
 
-  if (recentRain && shouldMentionRainAmount(recentRain)) {
+  if (hasUsableRecentRain(recentRain) && shouldMentionRainAmount(recentRain)) {
     parts.push(
       `${formatRainAmount(recentRain.rain_inches)}" rain / ${recentRain.window_hours}h`
     );
@@ -145,7 +154,7 @@ export function buildBriefing(
   trails: Trail[],
   weather?: Weather | null,
   recentRain?: RecentRain | null,
-  usingFavorites: boolean = false
+  usingFavorites = false
 ): BriefingResult {
   const trailPhrase = getTrailPhrase(usingFavorites);
 
@@ -179,7 +188,11 @@ export function buildBriefing(
   if (rideability === "rideable") {
     let detail = `${trailPhrase} look good to ride`;
 
-    if (recentRain?.exceeds_threshold && recoveryMix.fastRatio >= 0.5) {
+    if (
+      hasUsableRecentRain(recentRain) &&
+      recentRain.exceeds_threshold &&
+      recoveryMix.fastRatio >= 0.5
+    ) {
       detail = `${trailPhrase} look promising, especially the faster-drying ones`;
     }
 
@@ -196,7 +209,7 @@ export function buildBriefing(
   if (rideability === "not_rideable") {
     let detail = `${trailPhrase} may still be too wet to ride`;
 
-    if (recentRain?.exceeds_threshold) {
+    if (hasUsableRecentRain(recentRain) && recentRain.exceeds_threshold) {
       detail = `${trailPhrase} likely need more time after recent rain`;
     }
 
@@ -218,7 +231,11 @@ export function buildBriefing(
 
   let detail = `${trailPhrase} look mixed right now`;
 
-  if (recentRain?.exceeds_threshold && recoveryMix.fastRatio >= 0.5) {
+  if (
+    hasUsableRecentRain(recentRain) &&
+    recentRain.exceeds_threshold &&
+    recoveryMix.fastRatio >= 0.5
+  ) {
     detail = `${trailPhrase} look mixed, but some faster-drying trails may be okay`;
   }
 
