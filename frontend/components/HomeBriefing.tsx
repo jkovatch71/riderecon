@@ -5,6 +5,7 @@ import { Trail } from "@/lib/types";
 import { buildBriefing } from "@/lib/briefing";
 import { getCurrentWeather, getFavorites, getRecentRain } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { TypingText } from "@/components/TypingText";
 
 type Weather = {
   temperature?: number | null;
@@ -21,9 +22,9 @@ type RecentRain = {
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return "GOOD MORNING";
+  if (hour < 18) return "GOOD AFTERNOON";
+  return "GOOD EVENING";
 }
 
 function getWeatherIcon(summary?: string | null) {
@@ -57,6 +58,10 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const [recentRain, setRecentRain] = useState<RecentRain | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
+
+  const [headingDone, setHeadingDone] = useState(false);
+  const [detailDone, setDetailDone] = useState(false);
+  const [supportingDone, setSupportingDone] = useState(false);
 
   const accessToken = session?.access_token;
 
@@ -102,6 +107,12 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
     load();
   }, [user?.id, accessToken, authLoading]);
 
+  useEffect(() => {
+    setHeadingDone(false);
+    setDetailDone(false);
+    setSupportingDone(false);
+  }, [user?.id, profile?.display_name, profile?.username, trails, weather, recentRain]);
+
   const briefingTrails = useMemo(() => {
     if (!favoriteIds.length) return trails;
 
@@ -123,8 +134,10 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   }, [briefingTrails, weather, recentRain, usingFavorites]);
 
   const displayName = profile?.display_name || profile?.username || null;
-  const greetingBase = hasMounted ? `${getGreeting()},` : "Trail briefing";
-  const greetingName = hasMounted && displayName ? `${displayName}!` : null;
+  const greetingLine =
+    hasMounted && displayName
+      ? `${getGreeting()}, ${displayName.toUpperCase()}!`
+      : `${getGreeting()}!`;
 
   const supportingText =
     briefing.supporting &&
@@ -133,45 +146,79 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
       : null;
 
   const isLoading = authLoading || loadingBriefing;
+  const metaReady = headingDone && detailDone && (!supportingText || supportingDone);
+
+  if (isLoading) {
+    return (
+      <div className="mt-2 max-w-2xl">
+        <div className="min-h-[220px]">
+          <div className="mt-3 border-t border-zinc-700" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-2 max-w-2xl">
-      <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
-        <span className="whitespace-nowrap">{greetingBase}</span>{" "}
-        {greetingName ? <span>{greetingName}</span> : null}
-      </h1>
+      <div className="min-h-[220px]">
+        <div className="mt-3 border-t border-zinc-700" />
 
-      <div className="mt-3 border-t border-zinc-700" />
-
-      {isLoading ? (
-        <p className="mt-4 text-sm text-zinc-300">
-          Loading your trail briefing...
-        </p>
-      ) : (
-        <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
-              Based on reports + weather
-            </p>
-
-            <p className="text-body whitespace-nowrap font-medium text-zinc-300">
-              {getWeatherDisplay(weather)}
-            </p>
-          </div>
+        <div className="mt-5 min-h-[132px] space-y-4">
+          <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
+            <TypingText
+              text={greetingLine}
+              speed={18}
+              startDelay={250}
+              showCursor={!headingDone}
+              onComplete={() => setHeadingDone(true)}
+            />
+          </h1>
 
           <p className="font-brand text-section-title font-semibold uppercase leading-tight text-zinc-100">
-            {briefing.headline}
+            {headingDone ? (
+              <TypingText
+                text={briefing.headline}
+                speed={18}
+                startDelay={250}
+                showCursor={!detailDone}
+                onComplete={() => setDetailDone(true)}
+              />
+            ) : null}
           </p>
 
-          <p className="text-body text-zinc-300">{briefing.detail}</p>
-
-          {supportingText ? (
-            <p className="text-body pt-1 font-medium text-zinc-200">
-              {supportingText}
-            </p>
-          ) : null}
+          <p className="text-body font-medium text-zinc-200">
+            {detailDone && supportingText ? (
+              <TypingText
+                text={supportingText}
+                speed={18}
+                startDelay={250}
+                showCursor
+                onComplete={() => setSupportingDone(true)}
+              />
+            ) : detailDone && !supportingText ? (
+              <span className="inline-block animate-pulse">_</span>
+            ) : null}
+          </p>
         </div>
-      )}
+
+        <div className="mt-6 flex items-end justify-between gap-3">
+          <p
+            className={`text-[10px] uppercase tracking-[0.18em] text-zinc-500 transition-opacity duration-300 ${
+              metaReady ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            Based on weather &amp; rider reports
+          </p>
+
+          <p
+            className={`text-body whitespace-nowrap font-medium text-zinc-300 transition-opacity duration-300 ${
+              metaReady ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            {getWeatherDisplay(weather)}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
