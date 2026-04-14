@@ -257,7 +257,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
               />
 
               {supportingDone && (
-                <span className="ml-0.5 inline-block text-emerald-300 animate-pulse">█</span>
+                <span className="ml-0.5 inline-block text-emerald-300 animate-pulse">▌</span>
               )}
             </p>
           ) : null}

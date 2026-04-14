@@ -44,19 +44,19 @@ def phrase_for_description(description: str) -> str:
     d = description.lower()
 
     if d == "clear sky":
-        return "not a cloud in the sky"
+        return "Not a cloud in the sky"
     if d in {"few clouds", "scattered clouds"}:
-        return "a few clouds overhead"
+        return "A few clouds overhead"
     if d in {"broken clouds", "overcast clouds"}:
-        return "clouds hanging around"
+        return "Clouds hanging around"
     if "thunderstorm" in d:
-        return "storms in the area"
+        return "Storms in the area"
     if "rain" in d or "drizzle" in d:
-        return "rain moving through the area"
+        return "Rain moving through the area"
     if "snow" in d or "sleet" in d:
-        return "wintry weather in the area"
+        return "Wintry weather in the area"
     if "mist" in d or "fog" in d or "haze" in d:
-        return "some low visibility out there"
+        return "Some low visibility out there"
 
     return description
 

@@ -57,7 +57,6 @@ export function AuthStatus() {
         <div className="leading-tight">
           <p className="font-brand text-lg font-semibold uppercase text-emerald-300">
             RIDE RECON
-            <span className="ml-0.5 inline-block animate-pulse">_</span>
           </p>
           <p className="mt-1 font-sans text-[11px] uppercase tracking-[0.18em] text-zinc-500">
             Real-time decisions
