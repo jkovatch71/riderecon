@@ -60,7 +60,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const [hasMounted, setHasMounted] = useState(false);
 
   const [headingDone, setHeadingDone] = useState(false);
-  const [detailDone, setDetailDone] = useState(false);
+  const [headlineDone, setHeadlineDone] = useState(false);
   const [supportingDone, setSupportingDone] = useState(false);
 
   const accessToken = session?.access_token;
@@ -109,9 +109,18 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
 
   useEffect(() => {
     setHeadingDone(false);
-    setDetailDone(false);
+    setHeadlineDone(false);
     setSupportingDone(false);
-  }, [user?.id, profile?.display_name, profile?.username, trails, weather, recentRain]);
+  }, [
+    user?.id,
+    profile?.display_name,
+    profile?.username,
+    trails,
+    weather?.summary,
+    weather?.temperature,
+    recentRain?.rain_inches,
+    recentRain?.exceeds_threshold,
+  ]);
 
   const briefingTrails = useMemo(() => {
     if (!favoriteIds.length) return trails;
@@ -141,83 +150,85 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
 
   const supportingText =
     briefing.supporting &&
-    briefing.supporting.trim() !== briefing.detail.trim()
+    briefing.supporting.trim() !== briefing.headline.trim()
       ? briefing.supporting
       : null;
 
   const isLoading = authLoading || loadingBriefing;
-  const metaReady = headingDone && detailDone && (!supportingText || supportingDone);
-
-  if (isLoading) {
-    return (
-      <div className="mt-2 max-w-2xl">
-        <div className="min-h-[220px]">
-          <div className="mt-3 border-t border-zinc-700" />
-        </div>
-      </div>
-    );
-  }
+  const metaReady = headingDone && headlineDone && (!supportingText || supportingDone);
 
   return (
-    <div className="mt-2 max-w-2xl">
+    <div className="max-w-2xl">
       <div className="min-h-[220px]">
-        <div className="mt-3 border-t border-zinc-700" />
+        <div className="border-t border-zinc-700" />
 
-        <div className="mt-5 min-h-[132px] space-y-4">
-          <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
-            <TypingText
-              text={greetingLine}
-              speed={18}
-              startDelay={250}
-              showCursor={!headingDone}
-              onComplete={() => setHeadingDone(true)}
-            />
-          </h1>
+        {isLoading ? (
+          <div className="mt-5 min-h-[140px]" />
+        ) : (
+          <>
+            <div className="mt-5 min-h-[140px] space-y-4">
+              <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
+                <TypingText
+                  text={greetingLine}
+                  speed={30}
+                  startDelay={400}
+                  showCursor={!headingDone}
+                  onComplete={() => setHeadingDone(true)}
+                />
+              </h1>
 
-          <p className="font-brand text-section-title font-semibold uppercase leading-tight text-zinc-100">
-            {headingDone ? (
-              <TypingText
-                text={briefing.headline}
-                speed={18}
-                startDelay={250}
-                showCursor={!detailDone}
-                onComplete={() => setDetailDone(true)}
-              />
-            ) : null}
-          </p>
+              <p className="font-brand text-section-title font-semibold uppercase leading-tight text-zinc-100">
+                {headingDone ? (
+                  <TypingText
+                    text={briefing.headline}
+                    speed={30}
+                    startDelay={700}
+                    showCursor={!headlineDone}
+                    onComplete={() => setHeadlineDone(true)}
+                  />
+                ) : null}
+              </p>
 
-          <p className="text-body font-medium text-zinc-200">
-            {detailDone && supportingText ? (
-              <TypingText
-                text={supportingText}
-                speed={18}
-                startDelay={250}
-                showCursor
-                onComplete={() => setSupportingDone(true)}
-              />
-            ) : detailDone && !supportingText ? (
-              <span className="inline-block animate-pulse">_</span>
-            ) : null}
-          </p>
-        </div>
+              <p className="text-body font-medium text-zinc-200">
+                {headlineDone && supportingText ? (
+                  <TypingText
+                    text={supportingText}
+                    speed={30}
+                    startDelay={1000}
+                    showCursor={!supportingDone}
+                    onComplete={() => setSupportingDone(true)}
+                  />
+                ) : headlineDone && !supportingText ? (
+                  <span className="inline-block animate-pulse">_</span>
+                ) : null}
+              </p>
 
-        <div className="mt-6 flex items-end justify-between gap-3">
-          <p
-            className={`text-[10px] uppercase tracking-[0.18em] text-zinc-500 transition-opacity duration-300 ${
-              metaReady ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            Based on weather &amp; rider reports
-          </p>
+              {metaReady ? (
+                <div className="pt-1">
+                  <span className="inline-block animate-pulse text-zinc-200">_</span>
+                </div>
+              ) : null}
+            </div>
 
-          <p
-            className={`text-body whitespace-nowrap font-medium text-zinc-300 transition-opacity duration-300 ${
-              metaReady ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            {getWeatherDisplay(weather)}
-          </p>
-        </div>
+            <div className="mt-6 flex items-end justify-between gap-3">
+              <p
+                className={`text-[10px] uppercase tracking-[0.18em] text-zinc-500 transition-all duration-500 ease-out ${
+                  metaReady ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+                }`}
+              >
+                BASED ON WEATHER &amp; RIDER REPORTS
+              </p>
+
+              <p
+                className={`text-body whitespace-nowrap font-medium text-zinc-300 transition-all duration-500 ease-out ${
+                  metaReady ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+                }`}
+              >
+                {getWeatherDisplay(weather)}
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -35,11 +35,7 @@ function isBadWeatherNow(summary?: string | null) {
 }
 
 function condition(trail: Trail) {
-  return (
-    trail.summary?.current_condition ||
-    trail.current_condition ||
-    ""
-  ).toLowerCase();
+  return (trail.summary?.current_condition || trail.current_condition || "").toLowerCase();
 }
 
 function getRecoveryMix(trails: Trail[]) {
@@ -110,6 +106,31 @@ function getRideability(trails: Trail[], recentRain?: RecentRain | null) {
   return "caution";
 }
 
+function shouldMentionRainAmount(recentRain?: RecentRain | null) {
+  if (!recentRain) return false;
+  return recentRain.exceeds_threshold || recentRain.rain_inches >= 0.1;
+}
+
+function formatRainAmount(inches: number) {
+  return inches.toFixed(2).replace(/\.00$/, "");
+}
+
+function buildWeatherDetail(weather?: Weather | null, recentRain?: RecentRain | null) {
+  const parts: string[] = [];
+
+  if (weather?.summary) {
+    parts.push(weather.summary);
+  }
+
+  if (recentRain && shouldMentionRainAmount(recentRain)) {
+    parts.push(
+      `${formatRainAmount(recentRain.rain_inches)}" rain / ${recentRain.window_hours}h`
+    );
+  }
+
+  return parts.join(" · ");
+}
+
 function getTrailPhrase(usingFavorites: boolean) {
   return usingFavorites ? "Your favorite trails" : "Nearby trails";
 }
@@ -139,12 +160,15 @@ export function buildBriefing(
 
   const relevant = trails.slice(0, 3);
   const rideability = getRideability(relevant, recentRain);
+  const weatherDetail = buildWeatherDetail(weather, recentRain);
   const recoveryMix = getRecoveryMix(relevant);
 
   if (isBadWeatherNow(weather?.summary)) {
     return {
       headline: "Bad weather right now",
-      detail: ensurePunctuation("Current weather looks rough for a ride"),
+      detail: ensurePunctuation(
+        weatherDetail || "Current weather looks rough for a ride"
+      ),
       supporting: ensurePunctuation(
         "Good day to check bolts, sealant, drivetrain or clean your bike"
       ),
@@ -161,7 +185,9 @@ export function buildBriefing(
 
     return {
       headline: "Good to go!",
-      detail: ensurePunctuation(detail),
+      detail: ensurePunctuation(
+        weatherDetail ? `${detail}. ${weatherDetail}` : detail
+      ),
       supporting: "Get out there and shred.",
       status: "rideable",
     };
@@ -180,7 +206,9 @@ export function buildBriefing(
 
     return {
       headline: "Probably too wet today",
-      detail: ensurePunctuation(detail),
+      detail: ensurePunctuation(
+        weatherDetail ? `${detail}. ${weatherDetail}` : detail
+      ),
       supporting: ensurePunctuation(
         "Giving trails more time now helps prevent ruts"
       ),
@@ -196,7 +224,9 @@ export function buildBriefing(
 
   return {
     headline: "Use caution today",
-    detail: ensurePunctuation(detail),
+    detail: ensurePunctuation(
+      weatherDetail ? `${detail}. ${weatherDetail}` : detail
+    ),
     supporting: ensurePunctuation("Check conditions before you roll out"),
     status: "caution",
   };

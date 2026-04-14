@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function TypingText({
   text,
@@ -18,9 +18,13 @@ export function TypingText({
   const [displayed, setDisplayed] = useState("");
   const [started, setStarted] = useState(false);
 
+  const hasCompletedRef = useRef(false);
+
+  // Reset when text changes
   useEffect(() => {
     setDisplayed("");
     setStarted(false);
+    hasCompletedRef.current = false;
 
     const delayTimer = window.setTimeout(() => {
       setStarted(true);
@@ -29,19 +33,25 @@ export function TypingText({
     return () => window.clearTimeout(delayTimer);
   }, [text, startDelay]);
 
+  // Typing effect
   useEffect(() => {
     if (!started) return;
 
     let i = 0;
 
     const interval = window.setInterval(() => {
-      const next = text.slice(0, i + 1);
-      setDisplayed(next);
       i += 1;
+      const next = text.slice(0, i);
+      setDisplayed(next);
 
       if (i >= text.length) {
         window.clearInterval(interval);
-        onComplete?.();
+
+        // Ensure onComplete only fires once
+        if (!hasCompletedRef.current) {
+          hasCompletedRef.current = true;
+          onComplete?.();
+        }
       }
     }, speed);
 
@@ -51,9 +61,9 @@ export function TypingText({
   return (
     <span>
       {displayed}
-      {showCursor ? (
+      {showCursor && (
         <span className="ml-0.5 inline-block animate-pulse">_</span>
-      ) : null}
+      )}
     </span>
   );
 }
