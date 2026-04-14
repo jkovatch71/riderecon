@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Trail } from "@/lib/types";
 import { buildBriefing } from "@/lib/briefing";
 import { getCurrentWeather, getFavorites, getRecentRain } from "@/lib/api";
@@ -18,6 +18,13 @@ type RecentRain = {
   rain_inches: number;
   threshold_inches: number;
   exceeds_threshold: boolean;
+};
+
+type BriefingScript = {
+  greeting: string;
+  status: string;
+  detail: string;
+  supporting: string | null;
 };
 
 function getGreeting() {
@@ -59,17 +66,23 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
 
+  const [script, setScript] = useState<BriefingScript | null>(null);
+
   const [headingDone, setHeadingDone] = useState(false);
-  const [headlineDone, setHeadlineDone] = useState(false);
+  const [statusDone, setStatusDone] = useState(false);
+  const [detailDone, setDetailDone] = useState(false);
   const [supportingDone, setSupportingDone] = useState(false);
 
   const accessToken = session?.access_token;
+  const lastScriptKeyRef = useRef("");
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       setLoadingBriefing(true);
 
@@ -83,9 +96,11 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
             rainPromise,
           ]);
 
-          setFavoriteIds([]);
-          setWeather(nextWeather);
-          setRecentRain(nextRain);
+          if (!cancelled) {
+            setFavoriteIds([]);
+            setWeather(nextWeather);
+            setRecentRain(nextRain);
+          }
           return;
         }
 
@@ -95,32 +110,25 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
           rainPromise,
         ]);
 
-        setFavoriteIds(ids);
-        setWeather(nextWeather);
-        setRecentRain(nextRain);
+        if (!cancelled) {
+          setFavoriteIds(ids);
+          setWeather(nextWeather);
+          setRecentRain(nextRain);
+        }
       } finally {
-        setLoadingBriefing(false);
+        if (!cancelled) {
+          setLoadingBriefing(false);
+        }
       }
     }
 
     if (authLoading) return;
     load();
-  }, [user?.id, accessToken, authLoading]);
 
-  useEffect(() => {
-    setHeadingDone(false);
-    setHeadlineDone(false);
-    setSupportingDone(false);
-  }, [
-    user?.id,
-    profile?.display_name,
-    profile?.username,
-    trails,
-    weather?.summary,
-    weather?.temperature,
-    recentRain?.rain_inches,
-    recentRain?.exceeds_threshold,
-  ]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, accessToken, authLoading]);
 
   const briefingTrails = useMemo(() => {
     if (!favoriteIds.length) return trails;
@@ -143,6 +151,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   }, [briefingTrails, weather, recentRain, usingFavorites]);
 
   const displayName = profile?.display_name || profile?.username || null;
+
   const greetingLine =
     hasMounted && displayName
       ? `${getGreeting()}, ${displayName.toUpperCase()}!`
@@ -150,85 +159,127 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
 
   const supportingText =
     briefing.supporting &&
-    briefing.supporting.trim() !== briefing.headline.trim()
+    briefing.supporting.trim() !== briefing.detail.trim()
       ? briefing.supporting
       : null;
 
-  const isLoading = authLoading || loadingBriefing;
-  const metaReady = headingDone && headlineDone && (!supportingText || supportingDone);
+  const briefingReady = hasMounted && !authLoading && !loadingBriefing;
+
+  const nextScript = useMemo<BriefingScript | null>(() => {
+    if (!briefingReady) return null;
+
+    return {
+      greeting: greetingLine,
+      status: briefing.headline,
+      detail: briefing.detail,
+      supporting: supportingText,
+    };
+  }, [briefingReady, greetingLine, briefing.headline, briefing.detail, supportingText]);
+
+  useEffect(() => {
+    if (!nextScript) return;
+
+    const nextKey = JSON.stringify(nextScript);
+    if (lastScriptKeyRef.current === nextKey) return;
+
+    lastScriptKeyRef.current = nextKey;
+    setScript(nextScript);
+
+    setHeadingDone(false);
+    setStatusDone(false);
+    setDetailDone(false);
+    setSupportingDone(false);
+  }, [nextScript]);
+
+  const metaReady =
+    !!script &&
+    headingDone &&
+    statusDone &&
+    detailDone &&
+    (!script.supporting || supportingDone);
 
   return (
     <div className="max-w-2xl">
-      <div className="min-h-[220px]">
+      <div className="min-h-[240px]">
+        {/* Heading above divider */}
+        <div className="min-h-[62px]">
+          {script ? (
+            <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
+              <TypingText
+                text={script.greeting}
+                speed={48}
+                startDelay={400}
+                showCursor={!headingDone}
+                onComplete={() => setHeadingDone(true)}
+              />
+            </h1>
+          ) : null}
+        </div>
+
+        {/* Divider visible immediately */}
         <div className="border-t border-zinc-700" />
 
-        {isLoading ? (
-          <div className="mt-5 min-h-[140px]" />
-        ) : (
-          <>
-            <div className="mt-5 min-h-[140px] space-y-4">
-              <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
-                <TypingText
-                  text={greetingLine}
-                  speed={30}
-                  startDelay={400}
-                  showCursor={!headingDone}
-                  onComplete={() => setHeadingDone(true)}
-                />
-              </h1>
+        {/* Briefing body below divider */}
+        <div className="mt-5 min-h-[150px] space-y-4">
+          {script && headingDone ? (
+            <p className="font-brand text-section-title font-semibold uppercase leading-tight text-zinc-100">
+              <TypingText
+                text={script.status}
+                speed={48}
+                startDelay={250}
+                showCursor={!statusDone}
+                onComplete={() => setStatusDone(true)}
+              />
+            </p>
+          ) : null}
 
-              <p className="font-brand text-section-title font-semibold uppercase leading-tight text-zinc-100">
-                {headingDone ? (
-                  <TypingText
-                    text={briefing.headline}
-                    speed={30}
-                    startDelay={700}
-                    showCursor={!headlineDone}
-                    onComplete={() => setHeadlineDone(true)}
-                  />
-                ) : null}
-              </p>
+          {script && statusDone ? (
+            <p className="text-body font-medium text-zinc-200">
+              <TypingText
+                text={script.detail}
+                speed={48}
+                startDelay={250}
+                showCursor={!detailDone}
+                onComplete={() => setDetailDone(true)}
+              />
+            </p>
+          ) : null}
 
-              <p className="text-body font-medium text-zinc-200">
-                {headlineDone && supportingText ? (
-                  <TypingText
-                    text={supportingText}
-                    speed={30}
-                    startDelay={1000}
-                    showCursor={!supportingDone}
-                    onComplete={() => setSupportingDone(true)}
-                  />
-                ) : headlineDone && !supportingText ? (
-                  <span className="inline-block animate-pulse">_</span>
-                ) : null}
-              </p>
+          {script && detailDone && script.supporting ? (
+            <p className="text-body font-medium text-zinc-200">
+              <TypingText
+                text={script.supporting}
+                speed={48}
+                startDelay={300}
+                showCursor={!supportingDone}
+                onComplete={() => setSupportingDone(true)}
+                enableSound={true}
+              />
 
-              {metaReady ? (
-                <div className="pt-1">
-                  <span className="inline-block animate-pulse text-zinc-200">_</span>
-                </div>
-              ) : null}
-            </div>
+              {supportingDone && (
+                <span className="ml-0.5 inline-block text-emerald-300 animate-pulse">█</span>
+              )}
+            </p>
+          ) : null}
+        </div>
 
-            <div className="mt-6 flex items-end justify-between gap-3">
-              <p
-                className={`text-[10px] uppercase tracking-[0.18em] text-zinc-500 transition-all duration-500 ease-out ${
-                  metaReady ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
-                }`}
-              >
-                BASED ON WEATHER &amp; RIDER REPORTS
-              </p>
+        <div className="mt-6 flex items-end justify-between gap-3">
+          <p
+            className={`text-[10px] uppercase tracking-[0.18em] text-zinc-500 transition-all duration-500 ease-out ${
+              metaReady ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+            }`}
+          >
+            BASED ON WEATHER &amp; RIDER REPORTS
+          </p>
 
-              <p
-                className={`text-body whitespace-nowrap font-medium text-zinc-300 transition-all duration-500 ease-out ${
-                  metaReady ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
-                }`}
-              >
-                {getWeatherDisplay(weather)}
-              </p>
-            </div>
-          </>
-        )}
+          <p
+            className={`text-body whitespace-nowrap font-medium text-zinc-300 transition-all duration-500 ease-out ${
+              metaReady ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+            }`}
+          >
+            {getWeatherDisplay(weather)}
+          </p>
+        </div>
       </div>
     </div>
   );
