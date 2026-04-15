@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { List, Map, Heart } from "lucide-react";
 import type { Trail } from "@/lib/types";
 import { TrailList } from "@/components/TrailList";
@@ -14,22 +14,22 @@ type Props = {
 };
 
 export function TrailsPageClient({ trails }: Props) {
-  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const selectedTrailId = searchParams.get("selected");
 
   const currentView = useMemo(() => {
-    if (pathname === "/favorites") return "favorites";
     const viewParam = searchParams.get("view");
-    return viewParam === "map" ? "map" : "list";
-  }, [pathname, searchParams]);
+    if (viewParam === "map") return "map";
+    if (viewParam === "favorites") return "favorites";
+    return "list";
+  }, [searchParams]);
 
   const listHref = "/trails?view=list";
   const mapHref = selectedTrailId
     ? `/trails?view=map&selected=${encodeURIComponent(selectedTrailId)}`
     : "/trails?view=map";
-  const favoritesHref = "/favorites";
+  const favoritesHref = "/trails?view=favorites";
 
   return (
     <div className="space-y-3">

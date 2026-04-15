@@ -1,8 +1,5 @@
-import { getTrails } from "@/lib/api";
-import { TrailsPageClient } from "@/components/TrailsPageClient";
+import { redirect } from "next/navigation";
 
-export default async function FavoritesPage() {
-  const trails = await getTrails();
-
-  return <TrailsPageClient trails={trails} />;
+export default function FavoritesPage() {
+  redirect("/trails?view=favorites");
 }
