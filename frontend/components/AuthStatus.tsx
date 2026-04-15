@@ -19,7 +19,7 @@ function initialsFor(displayName?: string | null, username?: string | null) {
 
 export function AuthStatus() {
   const pathname = usePathname();
-  const { user, profile, authLoading } = useAuth();
+  const { user, profile, authLoading, profileLoading } = useAuth();
 
   const loginHref = `/auth/login?next=${encodeURIComponent(pathname || "/")}`;
 
@@ -63,12 +63,12 @@ export function AuthStatus() {
           </p>
         </div>
 
-        {authLoading ? (
-          <div className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-950/80" />
+        {authLoading || (user && profileLoading) ? (
+          <div className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-950/80 animate-pulse" />
         ) : user ? (
           <Link
             href="/profile"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 text-sm font-semibold text-zinc-100 transition hover:border-emerald-500"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 text-sm font-semibold text-zinc-100 transition active:scale-95"
             aria-label="Profile"
             title="Profile"
           >
