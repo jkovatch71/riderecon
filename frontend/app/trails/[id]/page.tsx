@@ -35,7 +35,7 @@ export default async function TrailDetailPage({ params }: { params: { id: string
 
   if (!trail) {
     return (
-      <main className="space-y-6">
+      <main className="space-y-5 pb-4">
         <div className="card p-6">
           <h1 className="text-2xl font-bold">Trail not found</h1>
           <p className="mt-2 text-sm text-zinc-400">
@@ -58,10 +58,8 @@ export default async function TrailDetailPage({ params }: { params: { id: string
   const hasHazards = (trail.summary?.recent_hazards?.length ?? 0) > 0;
 
   return (
-    <main className="space-y-6">
-      <Link href="/" className="text-sm text-emerald-300">
-        ← Back to trails
-      </Link>
+    <main className="space-y-3 pb-4">
+      
 
       <section className="card p-6">
         <div className="flex items-start justify-between gap-4">
@@ -127,7 +125,7 @@ export default async function TrailDetailPage({ params }: { params: { id: string
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+      <section className="grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
           <ReportAccess trailId={trail.id} trailName={trail.name} />
         </div>
