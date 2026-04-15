@@ -2,73 +2,84 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { List, Map } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { List, Map, Heart } from "lucide-react";
 import type { Trail } from "@/lib/types";
 import { TrailList } from "@/components/TrailList";
 import { TrailMapPlaceholder } from "@/components/TrailMapPlaceholder";
+import { FavoritesManager } from "@/components/FavoritesManager";
 
 type Props = {
   trails: Trail[];
 };
 
 export function TrailsPageClient({ trails }: Props) {
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const viewParam = searchParams.get("view");
   const selectedTrailId = searchParams.get("selected");
 
-  const view = viewParam === "map" ? "map" : "list";
+  const currentView = useMemo(() => {
+    if (pathname === "/favorites") return "favorites";
+    const viewParam = searchParams.get("view");
+    return viewParam === "map" ? "map" : "list";
+  }, [pathname, searchParams]);
 
-  const listHref = useMemo(() => "/trails?view=list", []);
-  const mapHref = useMemo(
-    () =>
-      selectedTrailId
-        ? `/trails?view=map&selected=${encodeURIComponent(selectedTrailId)}`
-        : "/trails?view=map",
-    [selectedTrailId]
-  );
+  const listHref = "/trails?view=list";
+  const mapHref = selectedTrailId
+    ? `/trails?view=map&selected=${encodeURIComponent(selectedTrailId)}`
+    : "/trails?view=map";
+  const favoritesHref = "/favorites";
 
   return (
     <div className="space-y-3">
       <div className="card p-1.5">
-        <div className="relative grid grid-cols-2 gap-2">
-            <div
-            className={`pointer-events-none absolute top-0 bottom-0 w-[calc(50%-0.25rem)] rounded-lg bg-emerald-500/20 ring-1 ring-emerald-500/40 transition-all duration-300 ease-out ${
-                view === "list" ? "left-0" : "left-[calc(50%+0.25rem)]"
-            }`}
-            />
-
-            <Link
+        <div className="grid grid-cols-3 gap-2">
+          <Link
             href={listHref}
-            className={`relative z-10 flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-                view === "list"
-                ? "text-emerald-300"
-                : "text-zinc-400 hover:text-zinc-200"
+            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+              currentView === "list"
+                ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40"
+                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 active:scale-[0.98]"
             }`}
-            aria-current={view === "list" ? "page" : undefined}
-            >
+            aria-current={currentView === "list" ? "page" : undefined}
+          >
             <List className="h-4 w-4" />
             <span>Trail List</span>
-            </Link>
+          </Link>
 
-            <Link
+          <Link
             href={mapHref}
-            className={`relative z-10 flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-                view === "map"
-                ? "text-emerald-300"
-                : "text-zinc-400 hover:text-zinc-200"
+            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+              currentView === "map"
+                ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40"
+                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 active:scale-[0.98]"
             }`}
-            aria-current={view === "map" ? "page" : undefined}
-            >
+            aria-current={currentView === "map" ? "page" : undefined}
+          >
             <Map className="h-4 w-4" />
             <span>Map View</span>
-            </Link>
-        </div>
-        </div>
+          </Link>
 
-      {view === "map" ? (
+          <Link
+            href={favoritesHref}
+            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+              currentView === "favorites"
+                ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40"
+                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 active:scale-[0.98]"
+            }`}
+            aria-current={currentView === "favorites" ? "page" : undefined}
+          >
+            <Heart className="h-4 w-4" />
+            <span>Favorites</span>
+          </Link>
+        </div>
+      </div>
+
+      {currentView === "map" ? (
         <TrailMapPlaceholder trails={trails} selectedTrailId={selectedTrailId} />
+      ) : currentView === "favorites" ? (
+        <FavoritesManager trails={trails} />
       ) : (
         <TrailList trails={trails} />
       )}
