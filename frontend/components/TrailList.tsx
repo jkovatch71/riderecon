@@ -5,33 +5,23 @@ import { Trail } from "@/lib/types";
 import { TrailCard } from "@/components/TrailCard";
 import { getFavorites } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
-import { supabase } from "@/lib/supabase";
 
 export function TrailList({ trails }: { trails: Trail[] }) {
-  const { user, authLoading } = useAuth();
+  const { user, session, authLoading } = useAuth();
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
 
+  const accessToken = session?.access_token;
+
   const loadFavorites = useCallback(async () => {
-    if (!user) {
-      setFavoriteIds([]);
-      return;
-    }
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    const accessToken = session?.access_token;
-
-    if (!accessToken) {
+    if (!user || !accessToken) {
       setFavoriteIds([]);
       return;
     }
 
     const ids: string[] = await getFavorites(accessToken).catch(() => []);
     setFavoriteIds(ids);
-  }, [user]);
+  }, [user, accessToken]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -41,7 +31,7 @@ export function TrailList({ trails }: { trails: Trail[] }) {
   useEffect(() => {
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
-        loadFavorites();
+        void loadFavorites();
       }
     }
 

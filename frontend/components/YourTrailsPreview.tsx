@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { getFavorites } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
 import type { Trail } from "@/lib/types";
 
 function normalizeCondition(trail: Trail) {
@@ -59,25 +58,18 @@ function groupLabel(bucket: "good" | "caution" | "bad") {
 }
 
 export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
-  const { user } = useAuth();
+  const { user, session, authLoading } = useAuth();
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+
+  const accessToken = session?.access_token;
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadFavorites() {
-      if (!user) {
-        if (!cancelled) setFavoriteIds([]);
-        return;
-      }
+      if (authLoading) return;
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const accessToken = session?.access_token;
-
-      if (!accessToken) {
+      if (!user || !accessToken) {
         if (!cancelled) setFavoriteIds([]);
         return;
       }
@@ -94,7 +86,7 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, accessToken, authLoading]);
 
   const relevantTrails = useMemo(() => {
     if (!favoriteIds.length) {
@@ -165,12 +157,12 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
     <section className="card p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="mt-1 font-brand text-section-title font-semibold uppercase text-zinc-100">
-            Briefing breakdown
-          </h2>
           <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
             Based on your trails
           </p>
+          <h2 className="mt-1 font-brand text-section-title font-semibold uppercase text-zinc-100">
+            Briefing breakdown
+          </h2>
         </div>
 
         <Link
