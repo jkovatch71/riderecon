@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createReport } from "@/lib/api";
+import { useAuth } from "@/components/AuthProvider";
 
 const primaryConditions = [
   "Hero",
@@ -23,12 +24,16 @@ export function ReportForm({
   trailName: string;
 }) {
   const router = useRouter();
+  const { session } = useAuth();
 
   const [primaryCondition, setPrimaryCondition] = useState("Dry");
   const [selectedHazards, setSelectedHazards] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const accessToken = session?.access_token;
 
   function toggleHazard(tag: string) {
     setSelectedHazards((prev) =>
@@ -40,16 +45,28 @@ export function ReportForm({
     e.preventDefault();
     setSubmitting(true);
     setMessage(null);
+    setMessageType(null);
+
+    if (!accessToken) {
+      setMessage("Please sign in again before submitting a report.");
+      setMessageType("error");
+      setSubmitting(false);
+      return;
+    }
 
     try {
-      const result = await createReport({
-        trail_id: trailId,
-        primary_condition: primaryCondition,
-        hazard_tags: selectedHazards,
-        note,
-      });
+      const result = await createReport(
+        {
+          trail_id: trailId,
+          primary_condition: primaryCondition,
+          hazard_tags: selectedHazards,
+          note,
+        },
+        accessToken
+      );
 
       setMessage(result.message);
+      setMessageType("success");
       setNote("");
       setSelectedHazards([]);
       setPrimaryCondition("Dry");
@@ -57,6 +74,7 @@ export function ReportForm({
       router.refresh();
     } catch {
       setMessage("Unable to submit report right now.");
+      setMessageType("error");
     } finally {
       setSubmitting(false);
     }
@@ -90,7 +108,11 @@ export function ReportForm({
                     className={`flex cursor-pointer items-center gap-3 px-4 py-3 text-sm transition
                       ${!isTopRow ? "border-t border-zinc-800" : ""}
                       ${!isLeftCol ? "border-l border-zinc-800" : ""}
-                      ${active ? "bg-emerald-500/8 text-zinc-100" : "bg-transparent text-zinc-300 hover:bg-zinc-900/60"}
+                      ${
+                        active
+                          ? "bg-emerald-500/8 text-zinc-100"
+                          : "bg-transparent text-zinc-300 hover:bg-zinc-900/60"
+                      }
                     `}
                   >
                     <span
@@ -165,7 +187,15 @@ export function ReportForm({
           {submitting ? "Submitting..." : "Submit report"}
         </button>
 
-        {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
+        {message ? (
+          <p
+            className={`text-sm ${
+              messageType === "error" ? "text-rose-300" : "text-emerald-300"
+            }`}
+          >
+            {message}
+          </p>
+        ) : null}
       </div>
     </form>
   );
