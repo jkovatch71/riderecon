@@ -34,13 +34,23 @@ export function TrailsPageClient({ trails }: Props) {
   return (
     <div className="space-y-3">
       <div className="card p-1.5">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="relative grid grid-cols-3 gap-2">
+          <div
+            className={`pointer-events-none absolute top-0 bottom-0 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-500/40 transition-all duration-300 ease-out ${
+              currentView === "list"
+                ? "left-0 w-[calc(33.333%-0.34rem)]"
+                : currentView === "map"
+                  ? "left-[calc(33.333%+0.16rem)] w-[calc(33.333%-0.32rem)]"
+                  : "left-[calc(66.666%+0.32rem)] w-[calc(33.333%-0.34rem)]"
+            }`}
+          />
+
           <Link
             href={listHref}
-            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+            className={`relative z-10 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
               currentView === "list"
-                ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40"
-                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 active:scale-[0.98]"
+                ? "text-emerald-300"
+                : "text-zinc-400 active:scale-[0.98]"
             }`}
             aria-current={currentView === "list" ? "page" : undefined}
           >
@@ -50,10 +60,10 @@ export function TrailsPageClient({ trails }: Props) {
 
           <Link
             href={mapHref}
-            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+            className={`relative z-10 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
               currentView === "map"
-                ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40"
-                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 active:scale-[0.98]"
+                ? "text-emerald-300"
+                : "text-zinc-400 active:scale-[0.98]"
             }`}
             aria-current={currentView === "map" ? "page" : undefined}
           >
@@ -63,10 +73,10 @@ export function TrailsPageClient({ trails }: Props) {
 
           <Link
             href={favoritesHref}
-            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+            className={`relative z-10 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
               currentView === "favorites"
-                ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40"
-                : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 active:scale-[0.98]"
+                ? "text-emerald-300"
+                : "text-zinc-400 active:scale-[0.98]"
             }`}
             aria-current={currentView === "favorites" ? "page" : undefined}
           >

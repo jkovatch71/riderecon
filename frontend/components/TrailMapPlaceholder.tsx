@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Trail } from "@/lib/types";
-import { getFavorites } from "@/lib/api";
-import { getConditionColor } from "@/lib/utils";
-import { useAuth } from "@/components/AuthProvider";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LatLngBounds, type CircleMarker as LeafletCircleMarker } from "leaflet";
 import {
   CircleMarker,
   MapContainer,
@@ -12,8 +10,10 @@ import {
   TileLayer,
   useMap,
 } from "react-leaflet";
-import { LatLngBounds, type CircleMarker as LeafletCircleMarker } from "leaflet";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Trail } from "@/lib/types";
+import { getFavorites } from "@/lib/api";
+import { getConditionColor } from "@/lib/utils";
+import { useAuth } from "@/components/AuthProvider";
 
 function markerColor(condition?: string) {
   const color = getConditionColor(condition);
@@ -109,7 +109,7 @@ function LocateMe({
         map.flyTo(coords, 13, { duration: 0.8 });
       },
       () => {
-        // leave silent for now; can add toast later
+        // silent for now
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -147,13 +147,13 @@ export function TrailMapPlaceholder({
 
   useEffect(() => {
     if (authLoading) return;
-    loadFavorites();
+    void loadFavorites();
   }, [authLoading, loadFavorites]);
 
   useEffect(() => {
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
-        loadFavorites();
+        void loadFavorites();
       }
     }
 
@@ -175,11 +175,6 @@ export function TrailMapPlaceholder({
   if (!validTrails.length) {
     return (
       <div className="card p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-section-title font-semibold">Map View</h2>
-          <span className="text-helper text-zinc-400">No map data yet</span>
-        </div>
-
         <p className="text-body text-zinc-300">
           None of your trails have coordinates available yet.
         </p>
@@ -189,13 +184,6 @@ export function TrailMapPlaceholder({
 
   return (
     <div className="card p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-section-title font-semibold">Map View</h2>
-        <span className="text-helper text-zinc-400">
-          {validTrails.length} trail{validTrails.length === 1 ? "" : "s"}
-        </span>
-      </div>
-
       <div className="relative">
         <button
           type="button"
