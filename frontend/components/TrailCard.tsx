@@ -18,6 +18,13 @@ export function TrailCard({
   showMapLink?: boolean;
 }) {
   const router = useRouter();
+
+  const handleMapClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/trails?view=map&selected=${trail.id}`);
+  };
+
   return (
     <Link
       href={`/trails/${trail.id}`}
@@ -28,7 +35,7 @@ export function TrailCard({
       <div className="flex h-full flex-col">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1 pr-2">
-            <h3 className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">
+            <h3 className="font-trail text-section-title break-words font-semibold uppercase text-zinc-100">
               {trail.name}
             </h3>
             <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
@@ -88,11 +95,7 @@ export function TrailCard({
                   aria-label={`Open ${trail.name} on map`}
                   title="Open on map"
                   className="text-zinc-500 transition duration-150 hover:scale-110 hover:text-zinc-300 active:scale-95"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    router.push(`/?view=map&selected=${trail.id}`);
-                  }}
+                  onClick={handleMapClick}
                 >
                   <Navigation className="h-5 w-5" />
                 </button>

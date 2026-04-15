@@ -35,7 +35,7 @@ export function AuthStatus() {
   }, [profile, user]);
 
   return (
-    <div className="relative mb-6 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
+    <div className="relative mb-3 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-[0.06]"

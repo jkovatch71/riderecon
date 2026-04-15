@@ -70,7 +70,7 @@ export function TrailList({ trails }: { trails: Trail[] }) {
   }, [trails, favoriteSet]);
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-3 md:grid-cols-2">
       {sortedTrails.map((trail) => (
         <TrailCard
           key={trail.id}

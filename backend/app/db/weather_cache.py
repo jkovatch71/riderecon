@@ -3,7 +3,6 @@ from typing import Any
 
 from app.db.supabase_client import get_supabase_admin_client
 
-
 TABLE_NAME = "weather_cache"
 
 
@@ -17,10 +16,22 @@ def get_weather_cache_row(cache_key: str) -> dict[str, Any] | None:
             client.table(TABLE_NAME)
             .select("cache_key, payload, status, expires_at, updated_at")
             .eq("cache_key", cache_key)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
-        return response.data if response else None
+
+        data = getattr(response, "data", None)
+
+        if not data:
+            return None
+
+        if isinstance(data, list):
+            return data[0] if data else None
+
+        if isinstance(data, dict):
+            return data
+
+        return None
     except Exception as e:
         print(f"get_weather_cache_row failed for {cache_key}: {e}")
         return None
@@ -71,13 +82,16 @@ def upsert_weather_cache(
         return
 
     now = datetime.now(timezone.utc)
-    expires_at = now.timestamp() + ttl_seconds
+    expires_at = datetime.fromtimestamp(
+        now.timestamp() + ttl_seconds,
+        tz=timezone.utc,
+    )
 
     row = {
         "cache_key": cache_key,
         "payload": payload,
         "status": status,
-        "expires_at": datetime.fromtimestamp(expires_at, tz=timezone.utc).isoformat(),
+        "expires_at": expires_at.isoformat(),
         "updated_at": now.isoformat(),
     }
 

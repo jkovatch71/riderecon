@@ -45,7 +45,7 @@ export default function RootLayout({
       <body className={`${teko.variable} ${rajdhani.variable} font-sans bg-zinc-950 text-zinc-100`}>
         <AuthProvider>
           <TextSizeProvider>
-            <div className="mx-auto min-h-screen max-w-5xl px-4 pb-24 pt-4">
+            <div className="mx-auto min-h-screen max-w-5xl px-4 pb-24 pt-2">
               <AuthStatus />
               {children}
             </div>
