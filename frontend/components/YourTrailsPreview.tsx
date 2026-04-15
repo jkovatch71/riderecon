@@ -2,56 +2,90 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { Trail } from "@/lib/types";
-import { getFavorites } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
-import { getConditionColor, timeAgo } from "@/lib/utils";
+import { getFavorites } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import type { Trail } from "@/lib/types";
 
-function conditionClasses(condition?: string | null) {
-  const color = getConditionColor(condition ?? undefined);
+function normalizeCondition(trail: Trail) {
+  return (
+    trail.summary?.display_condition ||
+    trail.summary?.current_condition ||
+    trail.current_condition ||
+    "Unknown"
+  );
+}
 
-  if (color === "green") {
-    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+function getBucket(trail: Trail): "good" | "caution" | "bad" {
+  const condition = normalizeCondition(trail).toLowerCase();
+  const weatherWarning = (trail.weather_warning || "").toLowerCase();
+
+  if (
+    condition.includes("mud") ||
+    condition.includes("flood") ||
+    condition.includes("closed") ||
+    weatherWarning.includes("wet") ||
+    weatherWarning.includes("flood")
+  ) {
+    return "bad";
   }
 
-  if (color === "yellow") {
-    return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+  if (
+    condition.includes("damp") ||
+    condition.includes("caution") ||
+    condition.includes("other") ||
+    weatherWarning
+  ) {
+    return "caution";
   }
 
-  return "border-rose-500/30 bg-rose-500/10 text-rose-300";
+  return "good";
+}
+
+function statusText(trail: Trail) {
+  return trail.weather_warning || normalizeCondition(trail);
+}
+
+function statusClass(bucket: "good" | "caution" | "bad") {
+  if (bucket === "good") return "text-emerald-300";
+  if (bucket === "caution") return "text-amber-300";
+  return "text-rose-300";
+}
+
+function groupLabel(bucket: "good" | "caution" | "bad") {
+  if (bucket === "good") return "Good to ride";
+  if (bucket === "caution") return "Use caution";
+  return "Needs more time";
 }
 
 export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
-  const { user, session, authLoading } = useAuth();
-
+  const { user } = useAuth();
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [favoritesLoading, setFavoritesLoading] = useState(true);
-
-  const accessToken = session?.access_token;
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadFavorites() {
-      if (authLoading) return;
-
-      if (!user || !accessToken) {
-        if (!cancelled) {
-          setFavoriteIds([]);
-          setFavoritesLoading(false);
-        }
+      if (!user) {
+        if (!cancelled) setFavoriteIds([]);
         return;
       }
 
-      if (!cancelled) {
-        setFavoritesLoading(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        if (!cancelled) setFavoriteIds([]);
+        return;
       }
 
-      const ids = await getFavorites(accessToken).catch(() => []);
+      const ids = await getFavorites(accessToken).catch((): string[] => []);
 
       if (!cancelled) {
         setFavoriteIds(ids);
-        setFavoritesLoading(false);
       }
     }
 
@@ -60,171 +94,136 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
     return () => {
       cancelled = true;
     };
-  }, [user, accessToken, authLoading]);
+  }, [user]);
 
-  const favoriteTrails = useMemo(() => {
-    if (!favoriteIds.length) return [];
+  const relevantTrails = useMemo(() => {
+    if (!favoriteIds.length) {
+      return trails.slice(0, 3);
+    }
 
     const favoriteSet = new Set(favoriteIds);
+    const favorites = trails.filter((trail) => favoriteSet.has(trail.id));
 
-    return trails
-      .filter((trail) => favoriteSet.has(trail.id))
-      .sort((a, b) => {
-        const aTime = a.summary?.last_updated_at || "";
-        const bTime = b.summary?.last_updated_at || "";
-        return bTime.localeCompare(aTime);
-      })
-      .slice(0, 6);
+    return favorites.slice(0, 5);
   }, [trails, favoriteIds]);
 
-  if (authLoading) {
-    return null;
-  }
+  const grouped = useMemo(() => {
+    const groups = {
+      good: [] as Trail[],
+      caution: [] as Trail[],
+      bad: [] as Trail[],
+    };
 
-  if (!user) {
+    for (const trail of relevantTrails) {
+      groups[getBucket(trail)].push(trail);
+    }
+
+    return groups;
+  }, [relevantTrails]);
+
+  const hasTrails =
+    grouped.good.length > 0 || grouped.caution.length > 0 || grouped.bad.length > 0;
+
+  if (!hasTrails) {
     return (
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-            Your Trails
-          </h2>
-          <Link
-            href="/auth/login?next=/"
-            className="text-helper font-medium uppercase tracking-wide text-emerald-300 hover:text-emerald-200"
-          >
-            Sign in
-          </Link>
-        </div>
+      <section className="card p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+              Based on your trails
+            </p>
+            <h2 className="mt-1 font-brand text-section-title font-semibold uppercase text-zinc-100">
+              No trail data yet
+            </h2>
+          </div>
 
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <p className="text-body text-zinc-300">
-            Sign in to pin your favorite trails here for quick access.
-          </p>
-        </div>
-      </section>
-    );
-  }
-
-  if (favoritesLoading) {
-    return (
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-            Your Trails
-          </h2>
           <Link
-            href="/favorites"
-            className="text-helper font-medium uppercase tracking-wide text-emerald-300 hover:text-emerald-200"
+            href="/trails"
+            className="text-helper font-semibold uppercase tracking-wide text-emerald-300"
           >
             View all
           </Link>
         </div>
 
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <p className="text-body text-zinc-300">Loading your favorites...</p>
-        </div>
+        <p className="mt-4 text-body text-zinc-300">
+          Add favorites and check back once trail conditions start coming in.
+        </p>
       </section>
     );
   }
 
-  if (!favoriteTrails.length) {
-    return (
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-            Your Trails
-          </h2>
-          <Link
-            href="/trails"
-            className="text-helper font-medium uppercase tracking-wide text-emerald-300 hover:text-emerald-200"
-          >
-            Browse all
-          </Link>
-        </div>
-
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <p className="text-body text-zinc-300">
-            You have no favorite trails yet. Head to Trails and tap the heart to save a few.
-          </p>
-        </div>
-      </section>
-    );
-  }
+  const orderedGroups: Array<{
+    key: "bad" | "caution" | "good";
+    trails: Trail[];
+  }> = [
+    { key: "bad", trails: grouped.bad },
+    { key: "caution", trails: grouped.caution },
+    { key: "good", trails: grouped.good },
+  ];
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-          Your Trails
-        </h2>
+    <section className="card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+            Based on your trails
+          </p>
+          <h2 className="mt-1 font-brand text-section-title font-semibold uppercase text-zinc-100">
+            Briefing breakdown
+          </h2>
+        </div>
+
         <Link
           href="/favorites"
-          className="text-helper font-medium uppercase tracking-wide text-emerald-300 hover:text-emerald-200"
+          className="text-helper font-semibold uppercase tracking-wide text-emerald-300"
         >
           View all
         </Link>
       </div>
 
-      <div className="relative -mx-4">
-        <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-10 bg-gradient-to-l from-zinc-950 to-transparent" />
+      <div className="mt-4 space-y-4">
+        {orderedGroups.map(({ key, trails: groupTrails }) => {
+          if (!groupTrails.length) return null;
 
-        <div className="overflow-x-auto snap-x snap-mandatory px-4 pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex gap-3">
-            {favoriteTrails.map((trail) => {
-              const condition =
-                trail.summary?.display_condition || trail.current_condition;
+          return (
+            <div key={key}>
+              <div className="mb-2 flex items-center gap-2">
+                <div className="h-px flex-1 bg-zinc-800" />
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  {groupLabel(key)}
+                </p>
+                <div className="h-px flex-1 bg-zinc-800" />
+              </div>
 
-              return (
-                <Link
-                  key={trail.id}
-                  href={`/trails/${trail.id}`}
-                  className="w-[280px] shrink-0 snap-start rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition hover:border-emerald-600/40 hover:bg-zinc-900"
-                >
-                  <div className="flex min-h-[132px] flex-col">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">
-                          {trail.name}
-                        </p>
-                        <p className="text-helper mt-1 font-medium uppercase tracking-wide text-zinc-500">
+              <div className="space-y-2">
+                {groupTrails.map((trail) => (
+                  <div
+                    key={trail.id}
+                    className="flex items-start justify-between gap-4 rounded-lg px-1 py-1"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-brand text-body font-semibold uppercase text-zinc-100">
+                        {trail.name}
+                      </p>
+
+                      {trail.system_name ? (
+                        <p className="text-helper uppercase tracking-wide text-zinc-500">
                           {trail.system_name}
                         </p>
-                      </div>
-
-                      <span
-                        className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${conditionClasses(
-                          condition
-                        )}`}
-                      >
-                        {condition}
-                      </span>
+                      ) : null}
                     </div>
 
-                    <div className="mt-3 border-t border-zinc-800" />
-
-                    <div className="mt-3 space-y-2 text-zinc-300">
-                      <p className="text-body">
-                        {trail.summary?.last_updated_at
-                          ? `Updated ${timeAgo(trail.summary.last_updated_at)}`
-                          : "No recent reports"}
+                    <div className="shrink-0 text-right">
+                      <p className={`text-body font-semibold ${statusClass(key)}`}>
+                        {statusText(trail)}
                       </p>
-
-                      <p className="text-body">
-                        Reports: {trail.summary?.reported_by_count ?? 0}
-                      </p>
-                    </div>
-
-                    <div className="mt-auto pt-3">
-                      <span className="text-helper uppercase tracking-wide text-zinc-500">
-                        Open trail
-                      </span>
                     </div>
                   </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
