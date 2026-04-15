@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
@@ -30,68 +31,100 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  const loadProfile = useCallback(async (nextUser: User | null) => {
+  const mountedRef = useRef(true);
+  const profileRequestIdRef = useRef(0);
+  const profilePromiseRef = useRef<Promise<void> | null>(null);
+  const lastProfileUserIdRef = useRef<string | null>(null);
+
+  const clearProfileState = useCallback(() => {
+    lastProfileUserIdRef.current = null;
+    setProfile(null);
+    setProfileLoading(false);
+  }, []);
+
+  const loadProfile = useCallback(async (nextUser: User | null, force = false) => {
+    if (!mountedRef.current) return;
+
     if (!nextUser) {
-      setProfile(null);
-      setProfileLoading(false);
+      clearProfileState();
       return;
     }
 
+    if (!force && lastProfileUserIdRef.current === nextUser.id && profile) {
+      return;
+    }
+
+    if (profilePromiseRef.current && !force && lastProfileUserIdRef.current === nextUser.id) {
+      return profilePromiseRef.current;
+    }
+
+    const requestId = ++profileRequestIdRef.current;
+    lastProfileUserIdRef.current = nextUser.id;
     setProfileLoading(true);
 
-    try {
-      const nextProfile = await getProfileByUserId(nextUser.id);
-      setProfile(nextProfile);
-    } catch (error) {
-      console.error("Failed to load profile:", error);
-      setProfile(null);
-    } finally {
-      setProfileLoading(false);
-    }
-  }, []);
+    const promise = (async () => {
+      try {
+        const nextProfile = await getProfileByUserId(nextUser.id);
+
+        if (!mountedRef.current || profileRequestIdRef.current !== requestId) return;
+
+        setProfile(nextProfile);
+      } catch (error) {
+        if (!mountedRef.current || profileRequestIdRef.current !== requestId) return;
+
+        console.error("Failed to load profile:", error);
+        setProfile(null);
+      } finally {
+        if (!mountedRef.current || profileRequestIdRef.current !== requestId) return;
+
+        setProfileLoading(false);
+        profilePromiseRef.current = null;
+      }
+    })();
+
+    profilePromiseRef.current = promise;
+    return promise;
+  }, [clearProfileState, profile]);
+
+  const applySession = useCallback(
+    (nextSession: Session | null) => {
+      const nextUser = nextSession?.user ?? null;
+
+      setSession(nextSession);
+      setUser(nextUser);
+      setAuthLoading(false);
+
+      // Fire and forget profile loading so auth state is not blocked.
+      void loadProfile(nextUser);
+    },
+    [loadProfile]
+  );
 
   const refreshProfile = useCallback(async () => {
     if (!user) {
-      setProfile(null);
-      setProfileLoading(false);
+      clearProfileState();
       return;
     }
 
-    setProfileLoading(true);
-
-    try {
-      const nextProfile = await getProfileByUserId(user.id);
-      setProfile(nextProfile);
-    } catch (error) {
-      console.error("Failed to refresh profile:", error);
-      setProfile(null);
-    } finally {
-      setProfileLoading(false);
-    }
-  }, [user]);
+    await loadProfile(user, true);
+  }, [user, loadProfile, clearProfileState]);
 
   useEffect(() => {
-    let active = true;
+    mountedRef.current = true;
 
-    async function syncSession() {
+    async function initializeAuth() {
       try {
         const {
           data: { session: nextSession },
         } = await supabase.auth.getSession();
 
-        if (!active) return;
+        if (!mountedRef.current) return;
 
-        const nextUser = nextSession?.user ?? null;
-
-        setSession(nextSession ?? null);
-        setUser(nextUser);
-        setAuthLoading(false);
-
-        await loadProfile(nextUser);
+        applySession(nextSession ?? null);
       } catch (error) {
         console.error("Failed to sync auth session:", error);
 
-        if (!active) return;
+        if (!mountedRef.current) return;
 
         setSession(null);
         setUser(null);
@@ -101,38 +134,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    syncSession();
+    void initializeAuth();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
-      if (!active) return;
-
-      const nextUser = nextSession?.user ?? null;
-
-      setSession(nextSession ?? null);
-      setUser(nextUser);
-      setAuthLoading(false);
-
-      await loadProfile(nextUser);
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!mountedRef.current) return;
+      applySession(nextSession ?? null);
     });
 
-    async function handleAppResume() {
-      if (document.visibilityState === "visible") {
-        await syncSession();
-      }
-    }
-
-    window.addEventListener("focus", handleAppResume);
-    document.addEventListener("visibilitychange", handleAppResume);
-
     return () => {
-      active = false;
+      mountedRef.current = false;
       subscription.unsubscribe();
-      window.removeEventListener("focus", handleAppResume);
-      document.removeEventListener("visibilitychange", handleAppResume);
     };
-  }, [loadProfile]);
+  }, [applySession]);
 
   const value = useMemo(
     () => ({
