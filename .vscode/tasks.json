@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Start Backend",
+      "label": "Backend 🔧",
       "type": "shell",
       "command": "source .venv/bin/activate && uvicorn app.main:app --reload --port 8000",
       "options": {
@@ -22,20 +22,17 @@
       "problemMatcher": {
         "owner": "custom",
         "pattern": {
-          "regexp": "^(.*)$",
-          "file": 1,
-          "location": 1,
-          "message": 1
+          "regexp": "^(?!)$"
         },
         "background": {
           "activeOnStart": true,
-          "beginsPattern": ".*Uvicorn running on.*|.*Started reloader process.*",
+          "beginsPattern": ".*Started reloader process.*|.*Uvicorn running on.*",
           "endsPattern": ".*Application startup complete.*"
         }
       }
     },
     {
-      "label": "Start Frontend",
+      "label": "Frontend 🎨",
       "type": "shell",
       "command": "npm run dev",
       "options": {
@@ -55,22 +52,19 @@
       "problemMatcher": {
         "owner": "custom",
         "pattern": {
-          "regexp": "^(.*)$",
-          "file": 1,
-          "location": 1,
-          "message": 1
+          "regexp": "^(?!)$"
         },
         "background": {
           "activeOnStart": true,
           "beginsPattern": ".*next dev.*|.*Starting.*",
-          "endsPattern": ".*Ready in.*"
+          "endsPattern": ".*Ready in.*|.*Local:.*http://localhost:3000.*"
         }
       }
     },
     {
-      "label": "Start App",
+      "label": "Start RideRecon",
       "dependsOrder": "parallel",
-      "dependsOn": ["Start Backend", "Start Frontend"]
+      "dependsOn": ["Backend 🔧", "Frontend 🎨"]
     }
   ]
 }
