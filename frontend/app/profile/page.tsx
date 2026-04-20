@@ -198,7 +198,7 @@ export default function ProfilePage() {
                   type="text"
                   value={garageBay1}
                   onChange={(e) => setGarageBay1(e.target.value)}
-                  placeholder="2021 Norco Fluid FS-3"
+                  placeholder="Optional"
                   className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-emerald-500"
                 />
               </div>

@@ -144,7 +144,7 @@ export default function CompleteProfilePageClient() {
                 className="input"
                 value={garageBay1}
                 onChange={(e) => setGarageBay1(e.target.value)}
-                placeholder="2021 Norco Fluid FS-3"
+                placeholder="Optional"
               />
             </div>
 

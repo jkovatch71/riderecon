@@ -15,6 +15,7 @@ export default function LoginPageClient() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,14 +37,41 @@ export default function LoginPageClient() {
 
         if (error) throw error;
 
-        setMessage("Account created. Check your email to verify your account, then sign in.");
+        setAccountCreated(true);
+        setMessage(
+          "If that account can receive a verification email, check your inbox and then sign in."
+        );
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
+
+        const userId = data.user?.id;
+
+        if (!userId) {
+          throw new Error("Unable to load your account.");
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        if (!profile?.username) {
+          router.replace(
+            `/auth/complete-profile?next=${encodeURIComponent(nextPath)}`
+          );
+          router.refresh();
+          return;
+        }
 
         router.replace(nextPath);
         router.refresh();
@@ -56,10 +84,18 @@ export default function LoginPageClient() {
     }
   }
 
+  function handleModeToggle() {
+    setMode(mode === "signin" ? "signup" : "signin");
+    setMessage(null);
+    setAccountCreated(false);
+  }
+
   return (
     <main className="mx-auto max-w-md space-y-6 py-10">
       <div className="card p-6">
-        <h1 className="text-2xl font-bold">{mode === "signin" ? "Sign in" : "Create account"}</h1>
+        <h1 className="text-2xl font-bold">
+          {mode === "signin" ? "Sign in" : "Create account"}
+        </h1>
         <p className="mt-2 text-sm text-zinc-400">
           Guests can browse. Signed-in riders can submit reports and interact later as we expand features.
         </p>
@@ -74,6 +110,9 @@ export default function LoginPageClient() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
             />
           </div>
 
@@ -90,20 +129,44 @@ export default function LoginPageClient() {
             />
           </div>
 
-          <button type="submit" className="btn-primary w-full" disabled={submitting}>
-            {submitting ? "Working..." : mode === "signin" ? "Sign in" : "Create account"}
+          <button
+            type="submit"
+            className={`w-full ${
+              accountCreated
+                ? "cursor-not-allowed rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm font-medium text-zinc-400"
+                : "btn-primary"
+            }`}
+            disabled={submitting || accountCreated}
+          >
+            {accountCreated
+              ? "Account created"
+              : submitting
+              ? "Working..."
+              : mode === "signin"
+              ? "Sign in"
+              : "Create account"}
           </button>
 
-          {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
+          {message ? (
+            <p className="text-sm text-zinc-400">{message}</p>
+          ) : null}
         </form>
 
         <div className="mt-4 flex items-center justify-between text-sm">
           <button
             type="button"
-            className="text-emerald-300"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            className="text-zinc-400"
+            onClick={handleModeToggle}
           >
-            {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
+            {mode === "signin" ? (
+              <span>
+                Need an account? <span className="text-emerald-300">Sign up</span>
+              </span>
+            ) : (
+              <span>
+                Already have an account? <span className="text-emerald-300">Sign in</span>
+              </span>
+            )}
           </button>
 
           <Link href={nextPath} className="text-zinc-400">

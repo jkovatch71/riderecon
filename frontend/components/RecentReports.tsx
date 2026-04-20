@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { TrailReport } from "@/lib/types";
 import { timeAgo } from "@/lib/utils";
@@ -39,7 +40,17 @@ export function RecentReports({ reports }: { reports: TrailReport[] }) {
                 <article key={report.id} className="rounded-xl border border-zinc-800 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-medium text-zinc-100">{report.username}</p>
+                      {report.username ? (
+                        <Link
+                          href={`/riders/${report.username.toLowerCase()}`}
+                          className="font-medium text-zinc-100 transition hover:text-emerald-300"
+                        >
+                          @{report.username}
+                        </Link>
+                      ) : (
+                        <p className="font-medium text-zinc-100">Unknown rider</p>
+                      )}
+
                       <p className="text-sm text-zinc-400">{report.primary_condition}</p>
                     </div>
 

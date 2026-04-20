@@ -157,12 +157,13 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
     <section className="card p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-            Based on your trails
-          </p>
+          
           <h2 className="mt-1 font-brand text-section-title font-semibold uppercase text-zinc-100">
             Briefing breakdown
           </h2>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+            Based on your trails
+          </p>
         </div>
 
         <Link
