@@ -3,15 +3,34 @@ import { supabase } from "@/lib/supabase";
 export type MyProfile = {
   id: string;
   username: string | null;
-  display_name: string | null;
-  avatar_color: string | null;
-  strava_url: string | null;
+  garage_bay_1: string | null;
+  garage_bay_2: string | null;
+  garage_bay_3: string | null;
 };
 
-export async function getProfileByUserId(userId: string): Promise<MyProfile | null> {
+type ProfilePayload = {
+  username?: string;
+  garage_bay_1?: string;
+  garage_bay_2?: string;
+  garage_bay_3?: string;
+};
+
+function normalizeUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
+function normalizeOptionalText(value?: string): string | null {
+  if (value === undefined) return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+export async function getProfileByUserId(
+  userId: string
+): Promise<MyProfile | null> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_color, strava_url")
+    .select("id, username, garage_bay_1, garage_bay_2, garage_bay_3")
     .eq("id", userId)
     .maybeSingle();
 
@@ -22,25 +41,28 @@ export async function getProfileByUserId(userId: string): Promise<MyProfile | nu
   return data;
 }
 
-export async function createProfileForUser(userId: string, payload: {
-  username: string;
-  display_name?: string;
-  avatar_color?: string;
-  strava_url?: string;
-}) {
+export async function createProfileForUser(
+  userId: string,
+  payload: {
+    username: string;
+    garage_bay_1?: string;
+    garage_bay_2?: string;
+    garage_bay_3?: string;
+  }
+) {
   const { data, error } = await supabase
     .from("profiles")
     .upsert(
       {
         id: userId,
-        username: payload.username,
-        display_name: payload.display_name || null,
-        avatar_color: payload.avatar_color || null,
-        strava_url: payload.strava_url || null,
+        username: normalizeUsername(payload.username),
+        garage_bay_1: normalizeOptionalText(payload.garage_bay_1),
+        garage_bay_2: normalizeOptionalText(payload.garage_bay_2),
+        garage_bay_3: normalizeOptionalText(payload.garage_bay_3),
       },
       { onConflict: "id" }
     )
-    .select("id, username, display_name, avatar_color, strava_url")
+    .select("id, username, garage_bay_1, garage_bay_2, garage_bay_3")
     .single();
 
   if (error) {
@@ -50,35 +72,38 @@ export async function createProfileForUser(userId: string, payload: {
   return data;
 }
 
-export async function updateProfileForUser(userId: string, payload: {
-  username?: string;
-  display_name?: string;
-  avatar_color?: string;
-  strava_url?: string;
-}) {
-  const updates: Record<string, string | null> = {};
+export async function updateProfileForUser(
+  userId: string,
+  payload: ProfilePayload
+) {
+  const updates: Partial<{
+    username: string | null;
+    garage_bay_1: string | null;
+    garage_bay_2: string | null;
+    garage_bay_3: string | null;
+  }> = {};
 
   if (payload.username !== undefined) {
-    updates.username = payload.username || null;
+    updates.username = normalizeUsername(payload.username);
   }
 
-  if (payload.display_name !== undefined) {
-    updates.display_name = payload.display_name || null;
+  if (payload.garage_bay_1 !== undefined) {
+    updates.garage_bay_1 = normalizeOptionalText(payload.garage_bay_1);
   }
 
-  if (payload.avatar_color !== undefined) {
-    updates.avatar_color = payload.avatar_color || null;
+  if (payload.garage_bay_2 !== undefined) {
+    updates.garage_bay_2 = normalizeOptionalText(payload.garage_bay_2);
   }
 
-  if (payload.strava_url !== undefined) {
-    updates.strava_url = payload.strava_url || null;
+  if (payload.garage_bay_3 !== undefined) {
+    updates.garage_bay_3 = normalizeOptionalText(payload.garage_bay_3);
   }
 
   const { data, error } = await supabase
     .from("profiles")
     .update(updates)
     .eq("id", userId)
-    .select("id, username, display_name, avatar_color, strava_url")
+    .select("id, username, garage_bay_1, garage_bay_2, garage_bay_3")
     .single();
 
   if (error) {

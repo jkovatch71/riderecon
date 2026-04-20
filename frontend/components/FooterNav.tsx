@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   House,
   Map,
-  Heart,
   Settings,
   NotebookPen,
 } from "lucide-react";
@@ -13,7 +12,6 @@ import {
 const items = [
   { href: "/", label: "Home", icon: House },
   { href: "/trails", label: "Trails", icon: Map },
-  { href: "/favorites", label: "Favorites", icon: Heart },
   { href: "/preferences", label: "Preferences", icon: Settings },
   { href: "/blog", label: "Blog", icon: NotebookPen },
 ];
@@ -21,12 +19,16 @@ const items = [
 export function FooterNav() {
   const pathname = usePathname();
 
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
-      <div className="mx-auto grid max-w-5xl grid-cols-5">
+      <div className="mx-auto grid max-w-5xl grid-cols-4">
         {items.map((item) => {
-          const active =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+          const active = isActive(item.href);
           const Icon = item.icon;
 
           return (

@@ -1,6 +1,6 @@
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
-import type { Metadata } from "next";
+import type { Metadata,Viewport } from "next";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AuthStatus } from "@/components/AuthStatus";
 import { FooterNav } from "@/components/FooterNav";
@@ -31,7 +31,10 @@ export const metadata = {
     ],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
     shortcut: ["/favicon.ico"]
-  },
+  }
+};
+
+export const viewport: Viewport = {
   themeColor: "#020312"
 };
 

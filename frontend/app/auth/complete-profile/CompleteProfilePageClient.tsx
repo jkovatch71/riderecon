@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { createProfileForUser } from "@/lib/profiles";
 
-const avatarColors = ["emerald", "blue", "purple", "orange", "pink", "zinc"];
+function normalizeUsername(value: string) {
+  return value.trim().toLowerCase();
+}
 
 export default function CompleteProfilePageClient() {
   const router = useRouter();
@@ -15,9 +17,9 @@ export default function CompleteProfilePageClient() {
   const { user, profile, authLoading, profileLoading, refreshProfile } = useAuth();
 
   const [username, setUsername] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [avatarColor, setAvatarColor] = useState("emerald");
-  const [stravaUrl, setStravaUrl] = useState("");
+  const [garageBay1, setGarageBay1] = useState("");
+  const [garageBay2, setGarageBay2] = useState("");
+  const [garageBay3, setGarageBay3] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -26,7 +28,9 @@ export default function CompleteProfilePageClient() {
 
     if (!user) {
       router.replace(
-        `/auth/login?next=${encodeURIComponent(`/auth/complete-profile?next=${encodeURIComponent(nextPath)}`)}`
+        `/auth/login?next=${encodeURIComponent(
+          `/auth/complete-profile?next=${encodeURIComponent(nextPath)}`
+        )}`
       );
       return;
     }
@@ -39,17 +43,36 @@ export default function CompleteProfilePageClient() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user?.id) return;
+    if (!user?.id || !user.email) return;
+
+    const normalizedUsername = normalizeUsername(username);
+
+    if (!normalizedUsername) {
+      setMessage("Username is required.");
+      return;
+    }
+
+    if (normalizedUsername.length < 3) {
+      setMessage("Username must be at least 3 characters.");
+      return;
+    }
+
+    if (!/^[a-z0-9][a-z0-9_]{2,19}$/.test(normalizedUsername)) {
+      setMessage(
+        "Username must be 3-20 characters and use only lowercase letters, numbers, or underscores."
+      );
+      return;
+    }
 
     setSaving(true);
     setMessage(null);
 
     try {
       await createProfileForUser(user.id, {
-        username: username.trim(),
-        display_name: displayName.trim(),
-        avatar_color: avatarColor,
-        strava_url: stravaUrl.trim(),
+        username: normalizedUsername,
+        garage_bay_1: garageBay1,
+        garage_bay_2: garageBay2,
+        garage_bay_3: garageBay3,
       });
 
       await refreshProfile();
@@ -81,55 +104,69 @@ export default function CompleteProfilePageClient() {
       <div className="card p-6">
         <h1 className="text-2xl font-bold">Complete your profile</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Choose a rider username. This will appear on trail reports.
+          Choose your rider username and set up your garage. Your username will appear on trail reports.
         </p>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
           <div>
             <label className="label">Username</label>
             <input
               className="input"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="example: MacDirtRider"
+              onChange={(e) => setUsername(normalizeUsername(e.target.value))}
+              placeholder="example: mac_dirt_rider"
               required
               minLength={3}
+              maxLength={20}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
             />
+            <p className="mt-2 text-xs text-zinc-500">
+              Lowercase letters, numbers, and underscores only.
+            </p>
           </div>
 
           <div>
-            <label className="label">Display name (optional)</label>
-            <input
-              className="input"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="John"
-            />
+            <p className="label">Email</p>
+            <p className="input min-h-[42px] break-all text-zinc-300">
+              {user.email}
+            </p>
+            <p className="mt-2 text-xs text-zinc-500">
+              Your email stays private and is never shown on your public rider profile.
+            </p>
           </div>
 
-          <div>
-            <label className="label">Avatar color</label>
-            <select
-              className="input"
-              value={avatarColor}
-              onChange={(e) => setAvatarColor(e.target.value)}
-            >
-              {avatarColors.map((color) => (
-                <option key={color} value={color}>
-                  {color}
-                </option>
-              ))}
-            </select>
-          </div>
+          <div className="space-y-4 border-t border-zinc-800 pt-4">
+            <div>
+              <label className="label">Garage · Bay 1</label>
+              <input
+                className="input"
+                value={garageBay1}
+                onChange={(e) => setGarageBay1(e.target.value)}
+                placeholder="2021 Norco Fluid FS-3"
+              />
+            </div>
 
-          <div>
-            <label className="label">Strava URL (optional)</label>
-            <input
-              className="input"
-              value={stravaUrl}
-              onChange={(e) => setStravaUrl(e.target.value)}
-              placeholder="https://www.strava.com/athletes/..."
-            />
+            <div>
+              <label className="label">Garage · Bay 2</label>
+              <input
+                className="input"
+                value={garageBay2}
+                onChange={(e) => setGarageBay2(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+
+            <div>
+              <label className="label">Garage · Bay 3</label>
+              <input
+                className="input"
+                value={garageBay3}
+                onChange={(e) => setGarageBay3(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
           </div>
 
           <button className="btn-primary w-full" type="submit" disabled={saving}>

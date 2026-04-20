@@ -61,6 +61,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const [hasMounted, setHasMounted] = useState(false);
 
   const [script, setScript] = useState<BriefingScript | null>(null);
+  const [bootComplete, setBootComplete] = useState(false);
 
   const [headingDone, setHeadingDone] = useState(false);
   const [statusDone, setStatusDone] = useState(false);
@@ -159,11 +160,11 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
     );
   }, [briefingTrails, weather, recentRain, usingFavorites]);
 
-  const displayName = profile?.display_name || profile?.username || null;
+  const username = profile?.username || null;
 
   const greetingLine =
-    hasMounted && displayName
-      ? `${getGreeting()}, ${displayName.toUpperCase()}!`
+    hasMounted && username
+      ? `${getGreeting()}, ${username.toUpperCase()}!`
       : `${getGreeting()}!`;
 
   const supportingText =
@@ -201,11 +202,22 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
     lastScriptKeyRef.current = nextKey;
     setScript(nextScript);
 
+    setBootComplete(false);
     setHeadingDone(false);
     setStatusDone(false);
     setDetailDone(false);
     setSupportingDone(false);
   }, [nextScript]);
+
+  useEffect(() => {
+  if (!script) return;
+
+  const timer = window.setTimeout(() => {
+    setBootComplete(true);
+  }, 1400);
+
+  return () => window.clearTimeout(timer);
+}, [script]);
 
   const metaReady =
     !!script &&
@@ -220,13 +232,22 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
         <div className="min-h-[62px]">
           {script ? (
             <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
-              <TypingText
-                text={script.greeting}
-                speed={48}
-                startDelay={400}
-                showCursor={!headingDone}
-                onComplete={() => setHeadingDone(true)}
-              />
+              {!bootComplete ? (
+                <>
+                  <span>Initializing...</span>
+                  <span className="ml-1 inline-block animate-pulse text-emerald-300">
+                    ▌
+                  </span>
+                </>
+              ) : (
+                <TypingText
+                  text={script.greeting}
+                  speed={48}
+                  startDelay={150}
+                  showCursor={!headingDone}
+                  onComplete={() => setHeadingDone(true)}
+                />
+              )}
             </h1>
           ) : null}
         </div>
@@ -234,7 +255,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
         <div className="border-t border-zinc-700" />
 
         <div className="mt-5 min-h-[150px] space-y-4">
-          {script && headingDone ? (
+          {script && bootComplete && headingDone ? (
             <p className="font-brand text-section-title font-semibold uppercase leading-tight text-zinc-100">
               <TypingText
                 text={script.status}
@@ -246,7 +267,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
             </p>
           ) : null}
 
-          {script && statusDone ? (
+          {script && bootComplete && statusDone ? (
             <p className="text-body font-medium text-zinc-200">
               <TypingText
                 text={script.detail}
@@ -258,7 +279,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
             </p>
           ) : null}
 
-          {script && detailDone && script.supporting ? (
+          {script && bootComplete && detailDone && script.supporting ? (
             <p className="text-body font-medium text-zinc-200">
               <TypingText
                 text={script.supporting}

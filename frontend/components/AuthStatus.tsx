@@ -5,14 +5,9 @@ import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
-function initialsFor(displayName?: string | null, username?: string | null) {
-  const source = (displayName || username || "").trim();
+function initialsFor(username?: string | null) {
+  const source = (username || "").trim();
   if (!source) return "";
-
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
 
   return source.slice(0, 2).toUpperCase();
 }
@@ -24,7 +19,7 @@ export function AuthStatus() {
   const loginHref = `/auth/login?next=${encodeURIComponent(pathname || "/")}`;
 
   const initials = useMemo(() => {
-    const profileInitials = initialsFor(profile?.display_name, profile?.username);
+    const profileInitials = initialsFor(profile?.username);
 
     if (profileInitials) {
       return profileInitials;
@@ -32,7 +27,7 @@ export function AuthStatus() {
 
     const emailPrefix = user?.email?.split("@")[0]?.trim() || "";
     return emailPrefix ? emailPrefix.slice(0, 2).toUpperCase() : "R";
-  }, [profile, user]);
+  }, [profile?.username, user?.email]);
 
   return (
     <div className="relative mb-3 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
@@ -64,7 +59,7 @@ export function AuthStatus() {
         </div>
 
         {authLoading || (user && profileLoading) ? (
-          <div className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-950/80 animate-pulse" />
+          <div className="h-10 w-10 animate-pulse rounded-xl border border-zinc-800 bg-zinc-950/80" />
         ) : user ? (
           <Link
             href="/profile"

@@ -65,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const promise = (async () => {
       try {
         const nextProfile = await getProfileByUserId(nextUser.id);
+        console.log("Loaded profile:", nextProfile);
 
         if (!mountedRef.current || profileRequestIdRef.current !== requestId) return;
 

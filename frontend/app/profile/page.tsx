@@ -4,18 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
-import { createProfileForUser, updateProfileForUser } from "@/lib/profiles";
+import { updateProfileForUser } from "@/lib/profiles";
 
-function initialsFor(displayName?: string | null, username?: string | null) {
-  const source = (displayName || username || "").trim();
+function initialsFor(username?: string | null) {
+  const source = (username || "").trim();
   if (!source) return "R";
-
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-
   return source.slice(0, 2).toUpperCase();
+}
+
+function normalizeUsername(value: string) {
+  return value.trim().toLowerCase();
 }
 
 export default function ProfilePage() {
@@ -25,7 +23,9 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
 
   const [username, setUsername] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [garageBay1, setGarageBay1] = useState("");
+  const [garageBay2, setGarageBay2] = useState("");
+  const [garageBay3, setGarageBay3] = useState("");
 
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -42,7 +42,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     setUsername(profile?.username || "");
-    setDisplayName(profile?.display_name || "");
+    setGarageBay1(profile?.garage_bay_1 || "");
+    setGarageBay2(profile?.garage_bay_2 || "");
+    setGarageBay3(profile?.garage_bay_3 || "");
   }, [profile]);
 
   async function signOut() {
@@ -56,21 +58,27 @@ export default function ProfilePage() {
     setSuccessMessage("");
     setErrorMessage("");
 
-    if (!user) {
+    if (!user?.id || !user.email) {
       setErrorMessage("You must be signed in.");
       return;
     }
 
-    const trimmedUsername = username.trim();
-    const trimmedDisplayName = displayName.trim();
+    const normalizedUsername = normalizeUsername(username);
 
-    if (!trimmedUsername) {
+    if (!normalizedUsername) {
       setErrorMessage("Username is required.");
       return;
     }
 
-    if (trimmedUsername.length < 3) {
+    if (normalizedUsername.length < 3) {
       setErrorMessage("Username must be at least 3 characters.");
+      return;
+    }
+
+    if (!/^[a-z0-9][a-z0-9_]{2,19}$/.test(normalizedUsername)) {
+      setErrorMessage(
+        "Username must be 3-20 characters and use only lowercase letters, numbers, or underscores."
+      );
       return;
     }
 
@@ -78,8 +86,10 @@ export default function ProfilePage() {
 
     try {
       await updateProfileForUser(user.id, {
-        username: trimmedUsername,
-        display_name: trimmedDisplayName,
+        username: normalizedUsername,
+        garage_bay_1: garageBay1,
+        garage_bay_2: garageBay2,
+        garage_bay_3: garageBay3,
       });
 
       await refreshProfile();
@@ -94,15 +104,10 @@ export default function ProfilePage() {
   }
 
   const avatarInitials = useMemo(() => {
-    return initialsFor(displayName || profile?.display_name, username || profile?.username);
-  }, [displayName, username, profile]);
+    return initialsFor(username || profile?.username);
+  }, [username, profile]);
 
-  const profileName =
-    displayName.trim() ||
-    profile?.display_name ||
-    username.trim() ||
-    profile?.username ||
-    "Rider";
+  const profileName = username.trim() || profile?.username || "rider";
 
   if (authLoading || profileLoading) {
     return (
@@ -142,9 +147,9 @@ export default function ProfilePage() {
           <div>
             <h1 className="text-2xl font-bold">Profile</h1>
             <p className="mt-1 text-sm text-zinc-400">
-              Update your profile and account info.
+              Manage your rider identity and garage.
             </p>
-            <p className="mt-2 text-sm text-zinc-300">{profileName}</p>
+            <p className="mt-2 text-sm text-zinc-300">@{profileName}</p>
           </div>
         </div>
       </section>
@@ -153,28 +158,22 @@ export default function ProfilePage() {
         <form onSubmit={handleSave} className="space-y-5">
           <div>
             <label className="text-xs uppercase tracking-wide text-zinc-500">
-              Display Name
-            </label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="How your name appears in the app"
-              className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs uppercase tracking-wide text-zinc-500">
               Username
             </label>
             <input
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => setUsername(normalizeUsername(e.target.value))}
               placeholder="Your rider username"
               className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-emerald-500"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={20}
             />
+            <p className="mt-2 text-xs text-zinc-500">
+              Lowercase letters, numbers, and underscores only.
+            </p>
           </div>
 
           <div>
@@ -182,6 +181,54 @@ export default function ProfilePage() {
             <p className="mt-2 min-h-[42px] break-all rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-base text-zinc-100">
               {user.email || "Not available"}
             </p>
+            <p className="mt-2 text-xs text-zinc-500">
+              Private. This is never shown on your public rider profile.
+            </p>
+          </div>
+
+          <div className="border-t border-zinc-800 pt-4">
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Garage</p>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="text-xs uppercase tracking-wide text-zinc-500">
+                  Bay 1
+                </label>
+                <input
+                  type="text"
+                  value={garageBay1}
+                  onChange={(e) => setGarageBay1(e.target.value)}
+                  placeholder="2021 Norco Fluid FS-3"
+                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs uppercase tracking-wide text-zinc-500">
+                  Bay 2
+                </label>
+                <input
+                  type="text"
+                  value={garageBay2}
+                  onChange={(e) => setGarageBay2(e.target.value)}
+                  placeholder="Optional"
+                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs uppercase tracking-wide text-zinc-500">
+                  Bay 3
+                </label>
+                <input
+                  type="text"
+                  value={garageBay3}
+                  onChange={(e) => setGarageBay3(e.target.value)}
+                  placeholder="Optional"
+                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
           </div>
 
           {successMessage ? (
