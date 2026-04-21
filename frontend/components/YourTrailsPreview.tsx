@@ -6,55 +6,32 @@ import { useAuth } from "@/components/AuthProvider";
 import { getFavorites } from "@/lib/api";
 import type { Trail } from "@/lib/types";
 
-function normalizeCondition(trail: Trail) {
-  return (
-    trail.summary?.display_condition ||
-    trail.summary?.current_condition ||
-    trail.current_condition ||
-    "Unknown"
-  );
+function resolvedCondition(trail: Trail) {
+  return trail.summary?.display_condition || trail.current_condition || "Unknown";
 }
 
-function getBucket(trail: Trail): "good" | "caution" | "bad" {
-  const condition = normalizeCondition(trail).toLowerCase();
-  const weatherWarning = (trail.weather_warning || "").toLowerCase();
-
-  if (
-    condition.includes("mud") ||
-    condition.includes("flood") ||
-    condition.includes("closed") ||
-    weatherWarning.includes("wet") ||
-    weatherWarning.includes("flood")
-  ) {
-    return "bad";
-  }
-
-  if (
-    condition.includes("damp") ||
-    condition.includes("caution") ||
-    condition.includes("other") ||
-    weatherWarning
-  ) {
-    return "caution";
-  }
-
-  return "good";
+function resolvedColor(trail: Trail): "green" | "yellow" | "red" {
+  return trail.summary?.display_status_color || "yellow";
 }
 
-function statusText(trail: Trail) {
-  return trail.weather_warning || normalizeCondition(trail);
-}
-
-function statusClass(bucket: "good" | "caution" | "bad") {
-  if (bucket === "good") return "text-emerald-300";
-  if (bucket === "caution") return "text-amber-300";
-  return "text-rose-300";
+function getBucketFromResolved(
+  color: "green" | "yellow" | "red"
+): "good" | "caution" | "bad" {
+  if (color === "green") return "good";
+  if (color === "red") return "bad";
+  return "caution";
 }
 
 function groupLabel(bucket: "good" | "caution" | "bad") {
   if (bucket === "good") return "Good to ride";
   if (bucket === "caution") return "Use caution";
   return "Needs more time";
+}
+
+function statusClass(color: "green" | "yellow" | "red") {
+  if (color === "green") return "text-emerald-300";
+  if (color === "yellow") return "text-amber-300";
+  return "text-rose-300";
 }
 
 export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
@@ -81,7 +58,7 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
       }
     }
 
-    loadFavorites();
+    void loadFavorites();
 
     return () => {
       cancelled = true;
@@ -107,14 +84,17 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
     };
 
     for (const trail of relevantTrails) {
-      groups[getBucket(trail)].push(trail);
+      const bucket = getBucketFromResolved(resolvedColor(trail));
+      groups[bucket].push(trail);
     }
 
     return groups;
   }, [relevantTrails]);
 
   const hasTrails =
-    grouped.good.length > 0 || grouped.caution.length > 0 || grouped.bad.length > 0;
+    grouped.good.length > 0 ||
+    grouped.caution.length > 0 ||
+    grouped.bad.length > 0;
 
   if (!hasTrails) {
     return (
@@ -157,7 +137,6 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
     <section className="card p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          
           <h2 className="mt-1 font-brand text-section-title font-semibold uppercase text-zinc-100">
             Briefing breakdown
           </h2>
@@ -189,30 +168,45 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
               </div>
 
               <div className="space-y-2">
-                {groupTrails.map((trail) => (
-                  <div
-                    key={trail.id}
-                    className="flex items-start justify-between gap-4 rounded-lg px-1 py-1"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-brand text-body font-semibold uppercase text-zinc-100">
-                        {trail.name}
-                      </p>
+                {groupTrails.map((trail, index) => {
+                  const displayCondition = resolvedCondition(trail);
+                  const displayColor = resolvedColor(trail);
 
-                      {trail.system_name ? (
-                        <p className="text-helper uppercase tracking-wide text-zinc-500">
-                          {trail.system_name}
-                        </p>
-                      ) : null}
-                    </div>
+                  return (
+                    <div key={trail.id}>
+                      <Link
+                        href={`/trails/${trail.id}`}
+                        className="block rounded-lg transition active:scale-[0.99] hover:bg-zinc-900/40"
+                      >
+                        <div className="flex items-start justify-between gap-4 px-1 py-1">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-brand text-body font-semibold uppercase text-zinc-100">
+                              {trail.name}
+                            </p>
 
-                    <div className="shrink-0 text-right">
-                      <p className={`text-body font-semibold ${statusClass(key)}`}>
-                        {statusText(trail)}
-                      </p>
+                            {trail.system_name ? (
+                              <p className="text-helper uppercase tracking-wide text-zinc-500">
+                                {trail.system_name}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <div className="shrink-0 text-right">
+                            <p className={`text-body font-semibold ${statusClass(displayColor)}`}>
+                              {displayCondition}
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+
+                      {index < groupTrails.length - 1 && (
+                        <div className="my-2 flex justify-center">
+                          <div className="h-px w-16 bg-zinc-800" />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );

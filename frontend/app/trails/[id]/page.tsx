@@ -18,18 +18,33 @@ function recoveryLabel(recoveryClass?: string | null) {
   }
 }
 
+function resolvedCondition(trail: Awaited<ReturnType<typeof getTrail>>) {
+  return trail.summary?.display_condition || trail.current_condition || "Unknown";
+}
+
+function resolvedColor(trail: Awaited<ReturnType<typeof getTrail>>) {
+  return (
+    trail.summary?.display_status_color ||
+    getConditionColor(resolvedCondition(trail))
+  );
+}
+
 function confirmationLine(trail: Awaited<ReturnType<typeof getTrail>>) {
-  const condition = trail.summary?.current_condition ?? trail.current_condition ?? "Unknown";
+  const displayCondition = resolvedCondition(trail);
   const riderCount = trail.summary?.reported_by_count ?? 0;
 
   if (riderCount > 0) {
-    return `${condition} — confirmed by ${riderCount} rider${riderCount === 1 ? "" : "s"}`;
+    return `${displayCondition} — confirmed by ${riderCount} rider${riderCount === 1 ? "" : "s"}`;
   }
 
-  return `${condition} — no recent confirmations`;
+  return `${displayCondition} — no recent confirmations`;
 }
 
-export default async function TrailDetailPage({ params }: { params: { id: string } }) {
+export default async function TrailDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const trail = await getTrail(params.id);
   const reports = await getTrailReports(params.id);
 
@@ -49,6 +64,9 @@ export default async function TrailDetailPage({ params }: { params: { id: string
     );
   }
 
+  const displayCondition = resolvedCondition(trail);
+  const displayColor = resolvedColor(trail);
+
   const freshnessText = trail.summary?.last_updated_at
     ? timeAgo(trail.summary.last_updated_at)
     : trail.last_reported_at
@@ -59,29 +77,30 @@ export default async function TrailDetailPage({ params }: { params: { id: string
 
   return (
     <main className="space-y-3 pb-4">
-      
-
       <section className="card p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">{trail.name}</h1>
+            <h1 className="font-trail text-section-title break-words font-semibold uppercase text-zinc-100">
+              {trail.name}
+            </h1>
             <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
               {trail.system_name}
             </p>
           </div>
 
-          <StatusPill
-            color={getConditionColor(trail.current_condition)}
-            label={trail.current_condition}
-          />
+          <StatusPill color={displayColor} label={displayCondition} />
         </div>
 
         <div className="my-4 h-px bg-zinc-800" />
 
         <div className="space-y-3">
           <div>
-            <p className="text-lg font-semibold text-zinc-100">{confirmationLine(trail)}</p>
-            <p className="mt-1 text-sm text-zinc-400">Last updated {freshnessText}</p>
+            <p className="text-lg font-semibold text-zinc-100">
+              {confirmationLine(trail)}
+            </p>
+            <p className="mt-1 text-sm text-zinc-400">
+              Last updated {freshnessText}
+            </p>
           </div>
 
           <div className="space-y-1 text-sm text-zinc-300">
@@ -99,7 +118,10 @@ export default async function TrailDetailPage({ params }: { params: { id: string
             ) : null}
 
             <p>
-              Weather: <span className="text-zinc-100">{trail.weather_warning || "No warning"}</span>
+              Weather:{" "}
+              <span className="text-zinc-100">
+                {trail.weather_warning || "No warning"}
+              </span>
             </p>
 
             {trail.recovery_profile ? (

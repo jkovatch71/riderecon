@@ -8,6 +8,17 @@ import { StatusPill } from "@/components/StatusPill";
 import { getConditionColor, timeAgo } from "@/lib/utils";
 import { FavoriteButton } from "@/components/FavoriteButton";
 
+function resolvedCondition(trail: Trail) {
+  return trail.summary?.display_condition || trail.current_condition || "Unknown";
+}
+
+function resolvedColor(trail: Trail): "green" | "yellow" | "red" {
+  return (
+    trail.summary?.display_status_color ||
+    getConditionColor(resolvedCondition(trail))
+  );
+}
+
 export function TrailCard({
   trail,
   fullHeight = true,
@@ -24,6 +35,9 @@ export function TrailCard({
     e.stopPropagation();
     router.push(`/trails?view=map&selected=${trail.id}`);
   };
+
+  const displayCondition = resolvedCondition(trail);
+  const displayColor = resolvedColor(trail);
 
   return (
     <Link
@@ -44,12 +58,7 @@ export function TrailCard({
           </div>
 
           <div className="flex-shrink-0">
-            <StatusPill
-              color={getConditionColor(
-                trail.summary?.display_condition || trail.current_condition
-              )}
-              label={trail.summary?.display_condition || trail.current_condition}
-            />
+            <StatusPill color={displayColor} label={displayCondition} />
           </div>
         </div>
 
@@ -63,7 +72,9 @@ export function TrailCard({
               Last Updated:{" "}
               {trail.summary?.last_updated_at
                 ? timeAgo(trail.summary.last_updated_at)
-                : "No recent reports"}
+                : trail.last_reported_at
+                  ? timeAgo(trail.last_reported_at)
+                  : "No recent reports"}
             </p>
 
             <div className="min-h-[20px]">

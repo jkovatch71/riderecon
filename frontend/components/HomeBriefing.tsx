@@ -233,12 +233,14 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
           {script ? (
             <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
               {!bootComplete ? (
-                <>
-                  <span>Initializing...</span>
-                  <span className="ml-1 inline-block animate-pulse text-emerald-300">
-                    ▌
+                <span className="inline-flex items-center gap-1">
+                  <span className="text-zinc-400">Initializing</span>
+                  <span className="flex gap-[2px]">
+                    <span className="h-1 w-1 animate-pulse rounded-full bg-emerald-300" />
+                    <span className="h-1 w-1 animate-pulse rounded-full bg-emerald-300 [animation-delay:120ms]" />
+                    <span className="h-1 w-1 animate-pulse rounded-full bg-emerald-300 [animation-delay:240ms]" />
                   </span>
-                </>
+                </span>
               ) : (
                 <TypingText
                   text={script.greeting}
@@ -302,7 +304,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
         <div className="mt-6 flex items-end justify-between gap-3">
           <p
             className={`text-[10px] uppercase tracking-[0.18em] text-zinc-500 transition-all duration-500 ease-out ${
-              metaReady ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+              metaReady ? "translate-y-0 opacity-100" : "translate-y-.5 opacity-0"
             }`}
           >
             BASED ON WEATHER &amp; RIDER REPORTS
@@ -310,7 +312,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
 
           <p
             className={`text-body whitespace-nowrap font-medium text-zinc-300 transition-all duration-500 ease-out ${
-              metaReady ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+              metaReady ? "translate-y-0 opacity-100" : "translate-y-.5 opacity-0"
             }`}
           >
             {getWeatherDisplay(weather)}

@@ -16,14 +16,77 @@ def parse_dt(value: str | None) -> datetime | None:
         return None
 
 
+def normalize_condition(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    lowered = value.strip().lower()
+
+    if lowered in {"hero dirt", "hero"}:
+        return "Hero Dirt"
+    if lowered == "dry":
+        return "Dry"
+    if lowered == "damp":
+        return "Damp"
+    if lowered == "muddy":
+        return "Muddy"
+    if lowered == "flooded":
+        return "Flooded"
+    if lowered == "closed":
+        return "Closed"
+    if lowered == "likely wet":
+        return "Likely Wet"
+    if lowered == "likely dry":
+        return "Likely Dry"
+    if lowered in {"no reports", "unknown"}:
+        return "Unknown"
+    if lowered == "other":
+        return "Other"
+
+    return value.strip()
+
+
 def color_for_condition(primary_condition: str | None) -> str:
-    if not primary_condition:
+    condition = normalize_condition(primary_condition)
+
+    if not condition:
         return "yellow"
-    if primary_condition in {"Hero Dirt", "Dry"}:
+
+    if condition in {"Hero Dirt", "Dry", "Likely Dry"}:
         return "green"
-    if primary_condition in {"Damp", "Muddy", "Other", "Likely Wet"}:
+
+    if condition in {"Damp", "Muddy", "Other", "Likely Wet", "Unknown"}:
         return "yellow"
+
     return "red"
+
+
+def warning_indicates_wet(weather_warning: str | None) -> bool:
+    if not weather_warning:
+        return False
+
+    warning = weather_warning.lower()
+
+    wet_terms = (
+        "rain",
+        "wet",
+        "flood",
+        "storm",
+        "thunder",
+        "drizzle",
+        "shower",
+        "precip",
+    )
+
+    return any(term in warning for term in wet_terms)
+
+
+def warning_indicates_flood(weather_warning: str | None) -> bool:
+    if not weather_warning:
+        return False
+
+    warning = weather_warning.lower()
+    return "flood" in warning
 
 
 class TrailsRepository:
@@ -53,20 +116,17 @@ class TrailsRepository:
             if created_at and created_at >= cutoff:
                 fresh_reports.append(report)
 
-        most_recent = sorted_reports[0] if sorted_reports else None
-        current_condition = (
-            most_recent.get("primary_condition")
-            if most_recent
+        most_recent_report = sorted_reports[0] if sorted_reports else None
+        most_recent_fresh_report = fresh_reports[0] if fresh_reports else None
+
+        most_recent_raw_condition = (
+            most_recent_report.get("primary_condition")
+            if most_recent_report
             else trail.get("current_condition")
         )
+        current_condition = normalize_condition(most_recent_raw_condition)
 
-        matching_count = 0
-        if current_condition:
-            matching_count = sum(
-                1
-                for report in fresh_reports
-                if report.get("primary_condition") == current_condition
-            )
+        fresh_report_count = len(fresh_reports)
 
         recent_hazards: list[str] = []
         for report in fresh_reports:
@@ -78,32 +138,65 @@ class TrailsRepository:
         recovery_profile = (recovery_profiles or {}).get(trail_id) if trail_id else None
 
         last_updated_at = (
-            most_recent.get("created_at") if most_recent else trail.get("last_reported_at")
+            most_recent_report.get("created_at") if most_recent_report else trail.get("last_reported_at")
         )
         weather_warning = trail.get("weather_warning")
+        wet_weather_active = warning_indicates_wet(weather_warning)
+        flood_weather_active = warning_indicates_flood(weather_warning)
 
-        # Default to stored trail condition
-        display_condition = "No Reports"
+        display_condition = "Unknown"
         display_status_color = "yellow"
+        reported_by_count = fresh_report_count
 
-        # Fresh rider report wins
-        if fresh_reports and most_recent:
-            display_condition = (
-                most_recent.get("primary_condition") or trail.get("current_condition")
-            )
+        most_recent_fresh_condition = normalize_condition(
+            most_recent_fresh_report.get("primary_condition") if most_recent_fresh_report else None
+        )
+
+        # 1) Hard rider-confirmed closures/flooding win immediately
+        if most_recent_fresh_condition in {"Closed", "Flooded"}:
+            display_condition = most_recent_fresh_condition
             display_status_color = color_for_condition(display_condition)
 
-        # If there are no fresh rider reports but weather heuristic exists,
-        # let weather drive the displayed state to avoid conflicting signals.
-        elif weather_warning:
-            display_condition = "Likely Wet"
-            display_status_color = "yellow"
+        # 2) Severe weather should never allow a dry-looking state
+        elif flood_weather_active:
+            if most_recent_fresh_condition in {"Muddy", "Damp"}:
+                display_condition = most_recent_fresh_condition
+            else:
+                display_condition = "Likely Wet"
+            display_status_color = color_for_condition(display_condition)
+
+        # 3) Active wet weather with fresh reports:
+        #    damp/muddy can surface directly, but dry/hero cannot beat the weather.
+        elif wet_weather_active:
+            if most_recent_fresh_condition in {"Muddy", "Damp"}:
+                display_condition = most_recent_fresh_condition
+            else:
+                display_condition = "Likely Wet"
+            display_status_color = color_for_condition(display_condition)
+
+        # 4) No active wet weather: fresh rider report wins
+        elif most_recent_fresh_condition:
+            display_condition = most_recent_fresh_condition
+            display_status_color = color_for_condition(display_condition)
+
+        # 5) No fresh reports and no wet weather:
+        #    in South Texas / dry context, bias toward Likely Dry unless the trail is explicitly closed/flooded.
+        else:
+            stored_condition = normalize_condition(trail.get("current_condition"))
+
+            if stored_condition in {"Closed", "Flooded"}:
+                display_condition = stored_condition
+            else:
+                display_condition = "Likely Dry"
+
+            display_status_color = color_for_condition(display_condition)
+            reported_by_count = 0
 
         return {
             **trail,
             "summary": {
                 "current_condition": current_condition,
-                "reported_by_count": matching_count,
+                "reported_by_count": reported_by_count,
                 "recent_hazards": recent_hazards,
                 "last_updated_at": last_updated_at,
                 "freshness_hours": FRESHNESS_HOURS,
@@ -197,11 +290,11 @@ class TrailsRepository:
         recovery_profiles = self._get_recovery_profiles()
 
         if not self.client:
-            trail = next((trail for trail in TRAILS if trail["id"] == trail_id), None)
-            if not trail:
-                return None
-            reports = REPORTS.get(trail_id, [])
-            return self._build_summary(trail, reports, recovery_profiles)
+          trail = next((trail for trail in TRAILS if trail["id"] == trail_id), None)
+          if not trail:
+              return None
+          reports = REPORTS.get(trail_id, [])
+          return self._build_summary(trail, reports, recovery_profiles)
 
         trail_res = (
             self.client.table("trails")
