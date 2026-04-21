@@ -3,8 +3,14 @@ from typing import Any
 
 from app.data.seed import REPORTS, TRAILS
 from app.db.supabase_client import get_supabase_admin_client
+from app.db.weather_cache import (
+    get_any_weather_cache_payload,
+    get_fresh_weather_cache_payload,
+)
 
 FRESHNESS_HOURS = 3
+CURRENT_CACHE_KEY = "current_weather"
+RECENT_RAIN_CACHE_KEY = "recent_rain"
 
 
 def parse_dt(value: str | None) -> datetime | None:
@@ -85,8 +91,39 @@ def warning_indicates_flood(weather_warning: str | None) -> bool:
     if not weather_warning:
         return False
 
-    warning = weather_warning.lower()
-    return "flood" in warning
+    return "flood" in weather_warning.lower()
+
+
+def current_weather_indicates_rain(payload: dict[str, Any] | None) -> bool:
+    if not payload:
+        return False
+
+    summary = str(payload.get("raw_summary") or payload.get("summary") or "").lower()
+
+    wet_terms = (
+        "rain",
+        "drizzle",
+        "storm",
+        "thunder",
+        "shower",
+        "precip",
+    )
+
+    return any(term in summary for term in wet_terms)
+
+
+def get_cached_current_weather() -> dict[str, Any] | None:
+    return (
+        get_fresh_weather_cache_payload(CURRENT_CACHE_KEY)
+        or get_any_weather_cache_payload(CURRENT_CACHE_KEY)
+    )
+
+
+def get_cached_recent_rain() -> dict[str, Any] | None:
+    return (
+        get_fresh_weather_cache_payload(RECENT_RAIN_CACHE_KEY)
+        or get_any_weather_cache_payload(RECENT_RAIN_CACHE_KEY)
+    )
 
 
 class TrailsRepository:
@@ -101,6 +138,8 @@ class TrailsRepository:
         trail: dict[str, Any],
         reports: list[dict[str, Any]],
         recovery_profiles: dict[str, dict[str, Any]] | None = None,
+        current_weather: dict[str, Any] | None = None,
+        recent_rain: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         cutoff = self._fresh_cutoff()
 
@@ -138,11 +177,22 @@ class TrailsRepository:
         recovery_profile = (recovery_profiles or {}).get(trail_id) if trail_id else None
 
         last_updated_at = (
-            most_recent_report.get("created_at") if most_recent_report else trail.get("last_reported_at")
+            most_recent_report.get("created_at")
+            if most_recent_report
+            else trail.get("last_reported_at")
         )
+
         weather_warning = trail.get("weather_warning")
-        wet_weather_active = warning_indicates_wet(weather_warning)
-        flood_weather_active = warning_indicates_flood(weather_warning)
+        trail_warning_wet = warning_indicates_wet(weather_warning)
+        trail_warning_flood = warning_indicates_flood(weather_warning)
+
+        cached_rain_inches = float(recent_rain.get("rain_inches", 0) or 0) if recent_rain else 0.0
+        recent_rain_exceeds_threshold = bool(recent_rain.get("exceeds_threshold")) if recent_rain else False
+        current_rain_active = current_weather_indicates_rain(current_weather)
+
+        # Strong regional wet signal
+        regional_wet_signal = current_rain_active or recent_rain_exceeds_threshold
+        severe_wet_signal = trail_warning_flood or current_rain_active or recent_rain_exceeds_threshold
 
         display_condition = "Unknown"
         display_status_color = "yellow"
@@ -152,42 +202,52 @@ class TrailsRepository:
             most_recent_fresh_report.get("primary_condition") if most_recent_fresh_report else None
         )
 
-        # 1) Hard rider-confirmed closures/flooding win immediately
+        # 1) Fresh hard closures/flooding always win
         if most_recent_fresh_condition in {"Closed", "Flooded"}:
             display_condition = most_recent_fresh_condition
             display_status_color = color_for_condition(display_condition)
 
-        # 2) Severe weather should never allow a dry-looking state
-        elif flood_weather_active:
+        # 2) Explicit trail flood warning also wins unless a fresh hard closure/flood already did
+        elif trail_warning_flood:
+            display_condition = "Likely Wet"
+            display_status_color = color_for_condition(display_condition)
+
+        # 3) During active citywide wet conditions:
+        #    do not allow Dry / Hero Dirt / Likely Dry.
+        elif severe_wet_signal:
             if most_recent_fresh_condition in {"Muddy", "Damp"}:
                 display_condition = most_recent_fresh_condition
             else:
                 display_condition = "Likely Wet"
+
             display_status_color = color_for_condition(display_condition)
 
-        # 3) Active wet weather with fresh reports:
-        #    damp/muddy can surface directly, but dry/hero cannot beat the weather.
-        elif wet_weather_active:
+        # 4) If there is some trail-level weather caution, still bias wet
+        elif trail_warning_wet:
             if most_recent_fresh_condition in {"Muddy", "Damp"}:
                 display_condition = most_recent_fresh_condition
             else:
                 display_condition = "Likely Wet"
+
             display_status_color = color_for_condition(display_condition)
 
-        # 4) No active wet weather: fresh rider report wins
+        # 5) No active wet signal: fresh rider report can win
         elif most_recent_fresh_condition:
             display_condition = most_recent_fresh_condition
             display_status_color = color_for_condition(display_condition)
 
-        # 5) No fresh reports and no wet weather:
-        #    in South Texas / dry context, bias toward Likely Dry unless the trail is explicitly closed/flooded.
+        # 6) No fresh reports:
+        #    - no rain at all => Likely Dry
+        #    - some rain, but below threshold => Unknown
         else:
             stored_condition = normalize_condition(trail.get("current_condition"))
 
             if stored_condition in {"Closed", "Flooded"}:
                 display_condition = stored_condition
-            else:
+            elif cached_rain_inches == 0:
                 display_condition = "Likely Dry"
+            else:
+                display_condition = "Unknown"
 
             display_status_color = color_for_condition(display_condition)
             reported_by_count = 0
@@ -208,12 +268,22 @@ class TrailsRepository:
 
     def list_trails(self) -> list[dict[str, Any]]:
         recovery_profiles = self._get_recovery_profiles()
+        current_weather = get_cached_current_weather()
+        recent_rain = get_cached_recent_rain()
 
         if not self.client:
             results = []
             for trail in TRAILS:
                 reports = REPORTS.get(trail["id"], [])
-                results.append(self._build_summary(trail, reports, recovery_profiles))
+                results.append(
+                    self._build_summary(
+                        trail,
+                        reports,
+                        recovery_profiles,
+                        current_weather,
+                        recent_rain,
+                    )
+                )
 
             return sorted(
                 results,
@@ -237,7 +307,13 @@ class TrailsRepository:
             grouped.setdefault(report["trail_id"], []).append(report)
 
         results = [
-            self._build_summary(trail, grouped.get(trail["id"], []), recovery_profiles)
+            self._build_summary(
+                trail,
+                grouped.get(trail["id"], []),
+                recovery_profiles,
+                current_weather,
+                recent_rain,
+            )
             for trail in trails
         ]
 
@@ -288,13 +364,21 @@ class TrailsRepository:
 
     def get_trail(self, trail_id: str) -> dict[str, Any] | None:
         recovery_profiles = self._get_recovery_profiles()
+        current_weather = get_cached_current_weather()
+        recent_rain = get_cached_recent_rain()
 
         if not self.client:
-          trail = next((trail for trail in TRAILS if trail["id"] == trail_id), None)
-          if not trail:
-              return None
-          reports = REPORTS.get(trail_id, [])
-          return self._build_summary(trail, reports, recovery_profiles)
+            trail = next((trail for trail in TRAILS if trail["id"] == trail_id), None)
+            if not trail:
+                return None
+            reports = REPORTS.get(trail_id, [])
+            return self._build_summary(
+                trail,
+                reports,
+                recovery_profiles,
+                current_weather,
+                recent_rain,
+            )
 
         trail_res = (
             self.client.table("trails")
@@ -318,7 +402,13 @@ class TrailsRepository:
         )
         reports = reports_res.data or []
 
-        return self._build_summary(trail, reports, recovery_profiles)
+        return self._build_summary(
+            trail,
+            reports,
+            recovery_profiles,
+            current_weather,
+            recent_rain,
+        )
 
     def _get_recovery_profiles(self) -> dict[str, dict[str, Any]]:
         def normalize(row: dict[str, Any]) -> dict[str, Any]:
