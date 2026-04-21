@@ -45,7 +45,7 @@ export function RecentReports({ reports }: { reports: TrailReport[] }) {
                           href={`/riders/${report.username.toLowerCase()}`}
                           className="font-medium text-zinc-100 transition hover:text-emerald-300"
                         >
-                          @{report.username}
+                          {report.username}
                         </Link>
                       ) : (
                         <p className="font-medium text-zinc-100">Unknown rider</p>

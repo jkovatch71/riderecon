@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { resolveLoginIdentifier } from "@/lib/api";
 
 export default function LoginPageClient() {
   const router = useRouter();
@@ -11,11 +12,13 @@ export default function LoginPageClient() {
   const nextPath = searchParams.get("next") || "/";
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [accountCreated, setAccountCreated] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,6 +27,7 @@ export default function LoginPageClient() {
 
     try {
       if (mode === "signup") {
+        const email = identifier.trim().toLowerCase();
         const baseUrl =
           process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
 
@@ -42,6 +46,8 @@ export default function LoginPageClient() {
           "If that account can receive a verification email, check your inbox and then sign in."
         );
       } else {
+        const email = await resolveLoginIdentifier(identifier);
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -77,17 +83,55 @@ export default function LoginPageClient() {
         router.refresh();
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Authentication failed.";
+      const msg =
+        err instanceof Error ? err.message : "Invalid username/email or password.";
       setMessage(msg);
     } finally {
       setSubmitting(false);
     }
   }
 
+  async function handleForgotPassword() {
+    setMessage(null);
+
+    const email = identifier.trim().toLowerCase();
+
+    if (!email || !email.includes("@")) {
+      setMessage("Enter your email address first to reset your password.");
+      return;
+    }
+
+    setSendingReset(true);
+
+    try {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${baseUrl}/auth/login`,
+      });
+
+      if (error) throw error;
+
+      setMessage(
+        "If that email is eligible for password reset, check your inbox for the reset link."
+      );
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Unable to send reset email.";
+      setMessage(msg);
+    } finally {
+      setSendingReset(false);
+    }
+  }
+
   function handleModeToggle() {
     setMode(mode === "signin" ? "signup" : "signin");
+    setIdentifier("");
+    setPassword("");
     setMessage(null);
     setAccountCreated(false);
+    setShowPassword(false);
   }
 
   return (
@@ -102,13 +146,17 @@ export default function LoginPageClient() {
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label className="label">Email</label>
+            <label className="label">
+              {mode === "signin" ? "Username or Email" : "Email"}
+            </label>
             <input
               className="input"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type={mode === "signin" ? "text" : "email"}
+              placeholder={
+                mode === "signin" ? "username or you@example.com" : "you@example.com"
+              }
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
               autoCapitalize="none"
               autoCorrect="off"
@@ -118,15 +166,37 @@ export default function LoginPageClient() {
 
           <div>
             <label className="label">Password</label>
-            <input
-              className="input"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
+            <div className="relative mt-2">
+              <input
+                className="input pr-14"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 transition hover:text-zinc-200"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+
+            {mode === "signin" ? (
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={sendingReset}
+                  className="text-xs text-zinc-500 transition hover:text-emerald-300"
+                >
+                  {sendingReset ? "Sending reset..." : "Forgot password?"}
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <button
@@ -147,9 +217,7 @@ export default function LoginPageClient() {
               : "Create account"}
           </button>
 
-          {message ? (
-            <p className="text-sm text-zinc-400">{message}</p>
-          ) : null}
+          {message ? <p className="text-sm text-zinc-400">{message}</p> : null}
         </form>
 
         <div className="mt-4 flex items-center justify-between text-sm">

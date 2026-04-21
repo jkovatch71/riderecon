@@ -144,7 +144,7 @@ export default function RiderProfilePage() {
 
         <div className="mt-2 border-t border-zinc-800 pt-3">
           <p className="text-lg font-semibold text-zinc-100">
-            @{profile.username}
+            {profile.username}
           </p>
         </div>
 

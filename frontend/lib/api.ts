@@ -194,3 +194,28 @@ export async function getRecentRain(): Promise<RecentRain | null> {
 
   return recentRainPromise;
 }
+
+export async function resolveLoginIdentifier(identifier: string): Promise<string> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+  if (!apiUrl) {
+    throw new Error("API URL is not configured.");
+  }
+
+  const response = await fetch(`${apiUrl}/auth/resolve-login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      identifier,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Invalid username/email or password.");
+  }
+
+  const data = (await response.json()) as { email: string };
+  return data.email;
+}

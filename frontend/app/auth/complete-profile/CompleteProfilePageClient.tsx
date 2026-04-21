@@ -89,7 +89,7 @@ export default function CompleteProfilePageClient() {
   if (authLoading || profileLoading) {
     return (
       <main className="mx-auto max-w-md py-10">
-        <div className="card p-6">
+        <div className="card p-5">
           <p className="text-sm text-zinc-400">Checking profile...</p>
         </div>
       </main>
@@ -101,17 +101,17 @@ export default function CompleteProfilePageClient() {
 
   return (
     <main className="mx-auto max-w-md py-10">
-      <div className="card p-6">
+      <div className="card p-5">
         <h1 className="text-2xl font-bold">Complete your profile</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Choose your rider username and set up your garage. Your username will appear on trail reports.
+          Choose your username and set up your garage. Your username will appear on trail reports.
         </p>
 
-        <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
+        <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
           <div>
             <label className="label">Username</label>
             <input
-              className="input"
+              className="input placeholder:text-zinc-600"
               value={username}
               onChange={(e) => setUsername(normalizeUsername(e.target.value))}
               placeholder="example: mac_dirt_rider"
@@ -122,7 +122,7 @@ export default function CompleteProfilePageClient() {
               autoCorrect="off"
               spellCheck={false}
             />
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-1.5 text-xs text-zinc-500">
               Lowercase letters, numbers, and underscores only.
             </p>
           </div>
@@ -132,39 +132,39 @@ export default function CompleteProfilePageClient() {
             <p className="input min-h-[42px] break-all text-zinc-300">
               {user.email}
             </p>
-            <p className="mt-2 text-xs text-zinc-500">
-              Your email stays private and is never shown on your public rider profile.
+            <p className="mt-1.5 text-xs text-zinc-500">
+              Your email stays private and is never shown on your public profile.
             </p>
           </div>
 
-          <div className="space-y-4 border-t border-zinc-800 pt-4">
+          <div className="space-y-3 border-t border-zinc-800 pt-3">
             <div>
               <label className="label">Garage · Bay 1</label>
               <input
-                className="input"
+                className="input placeholder:text-zinc-600"
                 value={garageBay1}
                 onChange={(e) => setGarageBay1(e.target.value)}
-                placeholder="Optional"
+                placeholder="Your main ride here (optional)"
               />
             </div>
 
             <div>
               <label className="label">Garage · Bay 2</label>
               <input
-                className="input"
+                className="input placeholder:text-zinc-600"
                 value={garageBay2}
                 onChange={(e) => setGarageBay2(e.target.value)}
-                placeholder="Optional"
+                placeholder="You know you want another bike."
               />
             </div>
 
             <div>
               <label className="label">Garage · Bay 3</label>
               <input
-                className="input"
+                className="input placeholder:text-zinc-600"
                 value={garageBay3}
                 onChange={(e) => setGarageBay3(e.target.value)}
-                placeholder="Optional"
+                placeholder="Is it New Bike Day, yet?!"
               />
             </div>
           </div>
