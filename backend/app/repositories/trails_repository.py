@@ -44,6 +44,10 @@ def normalize_condition(value: str | None) -> str | None:
         return "Likely Wet"
     if lowered == "likely dry":
         return "Likely Dry"
+    if lowered == "needs more time":
+        return "Needs More Time"
+    if lowered == "wet / unrideable":
+        return "Wet / Unrideable"
     if lowered in {"no reports", "unknown"}:
         return "Unknown"
     if lowered == "other":
@@ -61,7 +65,7 @@ def color_for_condition(primary_condition: str | None) -> str:
     if condition in {"Hero Dirt", "Dry", "Likely Dry"}:
         return "green"
 
-    if condition in {"Damp", "Muddy", "Other", "Likely Wet", "Unknown"}:
+    if condition in {"Damp", "Likely Wet", "Unknown", "Other"}:
         return "yellow"
 
     return "red"
@@ -72,7 +76,6 @@ def warning_indicates_wet(weather_warning: str | None) -> bool:
         return False
 
     warning = weather_warning.lower()
-
     wet_terms = (
         "rain",
         "wet",
@@ -83,7 +86,6 @@ def warning_indicates_wet(weather_warning: str | None) -> bool:
         "shower",
         "precip",
     )
-
     return any(term in warning for term in wet_terms)
 
 
@@ -91,7 +93,9 @@ def warning_indicates_flood(weather_warning: str | None) -> bool:
     if not weather_warning:
         return False
 
-    return "flood" in weather_warning.lower()
+    warning = weather_warning.lower()
+    flood_terms = ("flood", "flash flood")
+    return any(term in warning for term in flood_terms)
 
 
 def current_weather_indicates_rain(payload: dict[str, Any] | None) -> bool:
@@ -99,7 +103,6 @@ def current_weather_indicates_rain(payload: dict[str, Any] | None) -> bool:
         return False
 
     summary = str(payload.get("raw_summary") or payload.get("summary") or "").lower()
-
     wet_terms = (
         "rain",
         "drizzle",
@@ -108,7 +111,6 @@ def current_weather_indicates_rain(payload: dict[str, Any] | None) -> bool:
         "shower",
         "precip",
     )
-
     return any(term in summary for term in wet_terms)
 
 
@@ -132,6 +134,91 @@ class TrailsRepository:
 
     def _fresh_cutoff(self) -> datetime:
         return datetime.now(timezone.utc) - timedelta(hours=FRESHNESS_HOURS)
+
+    def _resolve_display_status(
+        self,
+        *,
+        trail: dict[str, Any],
+        most_recent_fresh_condition: str | None,
+        current_weather: dict[str, Any] | None,
+        recent_rain: dict[str, Any] | None,
+    ) -> tuple[str, str, int]:
+        weather_warning = trail.get("weather_warning")
+
+        trail_warning_wet = warning_indicates_wet(weather_warning)
+        trail_warning_flood = warning_indicates_flood(weather_warning)
+
+        current_rain_active = current_weather_indicates_rain(current_weather)
+
+        cached_rain_inches = (
+            float(recent_rain.get("rain_inches", 0) or 0)
+            if recent_rain
+            else 0.0
+        )
+        recent_rain_exceeds_threshold = (
+            bool(recent_rain.get("exceeds_threshold"))
+            if recent_rain
+            else False
+        )
+        recent_rain_unavailable = (
+            bool(recent_rain.get("unavailable"))
+            if recent_rain
+            else True
+        )
+
+        # Fresh hard closures always win
+        if most_recent_fresh_condition == "Closed":
+            return "Closed", color_for_condition("Closed"), 1
+
+        if most_recent_fresh_condition == "Flooded":
+            return "Flooded", color_for_condition("Flooded"), 1
+
+        # Explicit flood warning is strong enough to surface Flooded
+        if trail_warning_flood and (current_rain_active or recent_rain_exceeds_threshold):
+            return "Flooded", color_for_condition("Flooded"), 0
+
+        # Active rain + exceeded threshold = definitely not rideable
+        if current_rain_active and recent_rain_exceeds_threshold:
+            return "Wet / Unrideable", color_for_condition("Wet / Unrideable"), 0
+
+        # Active rain plus trail-level wet signal is still unrideable
+        if current_rain_active and trail_warning_wet:
+            return "Wet / Unrideable", color_for_condition("Wet / Unrideable"), 0
+
+        # Rain event has stopped, but enough rain fell to keep trails off-limits
+        if not current_rain_active and recent_rain_exceeds_threshold:
+            if most_recent_fresh_condition == "Muddy":
+                return "Muddy", color_for_condition("Muddy"), 1
+            if most_recent_fresh_condition == "Damp":
+                return "Damp", color_for_condition("Damp"), 1
+            return "Needs More Time", color_for_condition("Needs More Time"), 0
+
+        # Weaker trail-level wet warning without dominant regional signal
+        if trail_warning_wet:
+            if most_recent_fresh_condition == "Muddy":
+                return "Muddy", color_for_condition("Muddy"), 1
+            if most_recent_fresh_condition == "Damp":
+                return "Damp", color_for_condition("Damp"), 1
+            return "Likely Wet", color_for_condition("Likely Wet"), 0
+
+        # Fresh rider reports in non-dominant weather conditions
+        if most_recent_fresh_condition == "Muddy":
+            return "Muddy", color_for_condition("Muddy"), 1
+
+        if most_recent_fresh_condition == "Damp":
+            return "Damp", color_for_condition("Damp"), 1
+
+        if most_recent_fresh_condition in {"Dry", "Hero Dirt"}:
+            if current_rain_active:
+                return "Wet / Unrideable", color_for_condition("Wet / Unrideable"), 0
+            return most_recent_fresh_condition, color_for_condition(most_recent_fresh_condition), 1
+
+        # No fresh reports, clearly dry weather
+        if not current_rain_active and not recent_rain_unavailable and cached_rain_inches == 0:
+            return "Likely Dry", color_for_condition("Likely Dry"), 0
+
+        # Some rain, but not enough to be certain
+        return "Unknown", color_for_condition("Unknown"), 0
 
     def _build_summary(
         self,
@@ -165,8 +252,6 @@ class TrailsRepository:
         )
         current_condition = normalize_condition(most_recent_raw_condition)
 
-        fresh_report_count = len(fresh_reports)
-
         recent_hazards: list[str] = []
         for report in fresh_reports:
             for tag in report.get("hazard_tags", []) or []:
@@ -182,81 +267,24 @@ class TrailsRepository:
             else trail.get("last_reported_at")
         )
 
-        weather_warning = trail.get("weather_warning")
-        trail_warning_wet = warning_indicates_wet(weather_warning)
-        trail_warning_flood = warning_indicates_flood(weather_warning)
-
-        cached_rain_inches = float(recent_rain.get("rain_inches", 0) or 0) if recent_rain else 0.0
-        recent_rain_exceeds_threshold = bool(recent_rain.get("exceeds_threshold")) if recent_rain else False
-        current_rain_active = current_weather_indicates_rain(current_weather)
-
-        # Strong regional wet signal
-        regional_wet_signal = current_rain_active or recent_rain_exceeds_threshold
-        severe_wet_signal = trail_warning_flood or current_rain_active or recent_rain_exceeds_threshold
-
-        display_condition = "Unknown"
-        display_status_color = "yellow"
-        reported_by_count = fresh_report_count
-
         most_recent_fresh_condition = normalize_condition(
-            most_recent_fresh_report.get("primary_condition") if most_recent_fresh_report else None
+            most_recent_fresh_report.get("primary_condition")
+            if most_recent_fresh_report
+            else None
         )
 
-        # 1) Fresh hard closures/flooding always win
-        if most_recent_fresh_condition in {"Closed", "Flooded"}:
-            display_condition = most_recent_fresh_condition
-            display_status_color = color_for_condition(display_condition)
-
-        # 2) Explicit trail flood warning also wins unless a fresh hard closure/flood already did
-        elif trail_warning_flood:
-            display_condition = "Likely Wet"
-            display_status_color = color_for_condition(display_condition)
-
-        # 3) During active citywide wet conditions:
-        #    do not allow Dry / Hero Dirt / Likely Dry.
-        elif severe_wet_signal:
-            if most_recent_fresh_condition in {"Muddy", "Damp"}:
-                display_condition = most_recent_fresh_condition
-            else:
-                display_condition = "Likely Wet"
-
-            display_status_color = color_for_condition(display_condition)
-
-        # 4) If there is some trail-level weather caution, still bias wet
-        elif trail_warning_wet:
-            if most_recent_fresh_condition in {"Muddy", "Damp"}:
-                display_condition = most_recent_fresh_condition
-            else:
-                display_condition = "Likely Wet"
-
-            display_status_color = color_for_condition(display_condition)
-
-        # 5) No active wet signal: fresh rider report can win
-        elif most_recent_fresh_condition:
-            display_condition = most_recent_fresh_condition
-            display_status_color = color_for_condition(display_condition)
-
-        # 6) No fresh reports:
-        #    - no rain at all => Likely Dry
-        #    - some rain, but below threshold => Unknown
-        else:
-            stored_condition = normalize_condition(trail.get("current_condition"))
-
-            if stored_condition in {"Closed", "Flooded"}:
-                display_condition = stored_condition
-            elif cached_rain_inches == 0:
-                display_condition = "Likely Dry"
-            else:
-                display_condition = "Unknown"
-
-            display_status_color = color_for_condition(display_condition)
-            reported_by_count = 0
+        display_condition, display_status_color, report_confidence_count = self._resolve_display_status(
+            trail=trail,
+            most_recent_fresh_condition=most_recent_fresh_condition,
+            current_weather=current_weather,
+            recent_rain=recent_rain,
+        )
 
         return {
             **trail,
             "summary": {
                 "current_condition": current_condition,
-                "reported_by_count": reported_by_count,
+                "reported_by_count": report_confidence_count,
                 "recent_hazards": recent_hazards,
                 "last_updated_at": last_updated_at,
                 "freshness_hours": FRESHNESS_HOURS,
