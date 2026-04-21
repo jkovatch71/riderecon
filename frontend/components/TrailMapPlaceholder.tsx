@@ -1,19 +1,36 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LatLngBounds, type CircleMarker as LeafletCircleMarker } from "leaflet";
-import {
-  CircleMarker,
-  MapContainer,
-  Popup,
-  TileLayer,
-  useMap,
-} from "react-leaflet";
+import type { CircleMarker as LeafletCircleMarker, LatLngBoundsExpression } from "leaflet";
 import type { Trail } from "@/lib/types";
 import { getFavorites } from "@/lib/api";
 import { getConditionColor } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
+
+const MapContainer = dynamic(
+  () => import("react-leaflet").then((mod) => mod.MapContainer),
+  { ssr: false }
+);
+
+const TileLayer = dynamic(
+  () => import("react-leaflet").then((mod) => mod.TileLayer),
+  { ssr: false }
+);
+
+const CircleMarker = dynamic(
+  () => import("react-leaflet").then((mod) => mod.CircleMarker),
+  { ssr: false }
+);
+
+const Popup = dynamic(
+  () => import("react-leaflet").then((mod) => mod.Popup),
+  { ssr: false }
+);
+
+const useMapModule = () => import("react-leaflet").then((mod) => mod.useMap);
+const LeafletModule = () => import("leaflet");
 
 function markerColor(condition?: string) {
   const color = getConditionColor(condition);
@@ -24,33 +41,52 @@ function markerColor(condition?: string) {
 }
 
 function FitBounds({ trails }: { trails: Trail[] }) {
+  const [useMap, setUseMap] = useState<null | (() => any)>(null);
+
+  useEffect(() => {
+    void useMapModule().then(setUseMap);
+  }, []);
+
+  if (!useMap) return null;
+
   const map = useMap();
 
   useEffect(() => {
-    const validTrails = trails.filter(
-      (trail) =>
-        typeof trail.latitude === "number" &&
-        typeof trail.longitude === "number"
-    );
+    let cancelled = false;
 
-    if (!validTrails.length) return;
-
-    if (validTrails.length === 1) {
-      map.setView(
-        [validTrails[0].latitude as number, validTrails[0].longitude as number],
-        13
+    async function run() {
+      const validTrails = trails.filter(
+        (trail) =>
+          typeof trail.latitude === "number" &&
+          typeof trail.longitude === "number"
       );
-      return;
-    }
 
-    const bounds = new LatLngBounds(
-      validTrails.map(
+      if (!validTrails.length || cancelled) return;
+
+      if (validTrails.length === 1) {
+        map.setView(
+          [validTrails[0].latitude as number, validTrails[0].longitude as number],
+          13
+        );
+        return;
+      }
+
+      const leaflet = await LeafletModule();
+      if (cancelled) return;
+
+      const bounds: LatLngBoundsExpression = validTrails.map(
         (trail) =>
           [trail.latitude as number, trail.longitude as number] as [number, number]
-      )
-    );
+      );
 
-    map.fitBounds(bounds, { padding: [30, 30] });
+      map.fitBounds(new leaflet.LatLngBounds(bounds), { padding: [30, 30] });
+    }
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
   }, [map, trails]);
 
   return null;
@@ -65,6 +101,14 @@ function FocusSelectedTrail({
   selectedTrailId?: string | null;
   markerRefs: React.MutableRefObject<Record<string, LeafletCircleMarker | null>>;
 }) {
+  const [useMap, setUseMap] = useState<null | (() => any)>(null);
+
+  useEffect(() => {
+    void useMapModule().then(setUseMap);
+  }, []);
+
+  if (!useMap) return null;
+
   const map = useMap();
 
   useEffect(() => {
@@ -77,9 +121,11 @@ function FocusSelectedTrail({
       duration: 0.8,
     });
 
-    window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       markerRefs.current[selectedTrailId]?.openPopup();
     }, 350);
+
+    return () => window.clearTimeout(timer);
   }, [map, markerRefs, selectedTrailId, trails]);
 
   return null;
@@ -92,6 +138,14 @@ function LocateMe({
   locateTrigger: number;
   onLocated: (coords: [number, number]) => void;
 }) {
+  const [useMap, setUseMap] = useState<null | (() => any)>(null);
+
+  useEffect(() => {
+    void useMapModule().then(setUseMap);
+  }, []);
+
+  if (!useMap) return null;
+
   const map = useMap();
 
   useEffect(() => {
@@ -130,10 +184,15 @@ export function TrailMapPlaceholder({
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [locateTrigger, setLocateTrigger] = useState(0);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   const markerRefs = useRef<Record<string, LeafletCircleMarker | null>>({});
 
   const accessToken = session?.access_token;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const loadFavorites = useCallback(async () => {
     if (!user || !accessToken) {
@@ -178,6 +237,14 @@ export function TrailMapPlaceholder({
         <p className="text-body text-zinc-300">
           None of your trails have coordinates available yet.
         </p>
+      </div>
+    );
+  }
+
+  if (!mounted) {
+    return (
+      <div className="card p-4">
+        <div className="h-[65vh] min-h-[420px] w-full rounded-2xl bg-zinc-900/40" />
       </div>
     );
   }
@@ -256,7 +323,7 @@ export function TrailMapPlaceholder({
                 ) : null}
 
                 <CircleMarker
-                  ref={(ref) => {
+                  ref={(ref: LeafletCircleMarker | null) => {
                     markerRefs.current[trail.id] = ref;
                   }}
                   center={center}
@@ -270,7 +337,7 @@ export function TrailMapPlaceholder({
                 >
                   <Popup>
                     <div className="space-y-1">
-                      <p className="font-trail text-section-title font-semibold uppercase break-words text-zinc-100">
+                      <p className="font-trail text-section-title break-words font-semibold uppercase text-zinc-100">
                         {trail.name}
                         {isFavorite ? " ★" : ""}
                       </p>

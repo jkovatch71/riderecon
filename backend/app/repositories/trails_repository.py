@@ -1,7 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
-from app.data.seed import REPORTS, TRAILS
 from app.db.supabase_client import get_supabase_admin_client
 from app.db.weather_cache import (
     get_any_weather_cache_payload,
@@ -71,36 +70,13 @@ def color_for_condition(primary_condition: str | None) -> str:
     return "red"
 
 
-def warning_indicates_wet(weather_warning: str | None) -> bool:
-    if not weather_warning:
-        return False
-
-    warning = weather_warning.lower()
-    wet_terms = (
-        "rain",
-        "wet",
-        "flood",
-        "storm",
-        "thunder",
-        "drizzle",
-        "shower",
-        "precip",
-    )
-    return any(term in warning for term in wet_terms)
-
-
-def warning_indicates_flood(weather_warning: str | None) -> bool:
-    if not weather_warning:
-        return False
-
-    warning = weather_warning.lower()
-    flood_terms = ("flood", "flash flood")
-    return any(term in warning for term in flood_terms)
-
-
 def current_weather_indicates_rain(payload: dict[str, Any] | None) -> bool:
     if not payload:
         return False
+
+    explicit_flag = payload.get("is_raining_now")
+    if isinstance(explicit_flag, bool):
+        return explicit_flag
 
     summary = str(payload.get("raw_summary") or payload.get("summary") or "").lower()
     wet_terms = (
@@ -128,9 +104,51 @@ def get_cached_recent_rain() -> dict[str, Any] | None:
     )
 
 
+def get_required_recovery_hours(recovery_class: str | None, storm_rain_total: float) -> int:
+    if storm_rain_total < 0.10:
+        storm_band = "light"
+    elif storm_rain_total < 0.50:
+        storm_band = "moderate"
+    elif storm_rain_total < 1.50:
+        storm_band = "heavy"
+    else:
+        storm_band = "extreme"
+
+    matrix = {
+        "fast": {
+            "light": 4,
+            "moderate": 10,
+            "heavy": 20,
+            "extreme": 36,
+        },
+        "average": {
+            "light": 6,
+            "moderate": 14,
+            "heavy": 30,
+            "extreme": 48,
+        },
+        "slow": {
+            "light": 10,
+            "moderate": 20,
+            "heavy": 40,
+            "extreme": 72,
+        },
+    }
+
+    effective_recovery_class = recovery_class or "average"
+    return matrix.get(effective_recovery_class, matrix["average"])[storm_band]
+
+
 class TrailsRepository:
     def __init__(self) -> None:
         self.client = get_supabase_admin_client()
+
+    def _require_client(self) -> None:
+        if not self.client:
+            raise RuntimeError(
+                "Supabase admin client is unavailable. "
+                "Seed/fallback trail data has been removed."
+            )
 
     def _fresh_cutoff(self) -> datetime:
         return datetime.now(timezone.utc) - timedelta(hours=FRESHNESS_HOURS)
@@ -138,27 +156,27 @@ class TrailsRepository:
     def _resolve_display_status(
         self,
         *,
-        trail: dict[str, Any],
         most_recent_fresh_condition: str | None,
+        recovery_class: str | None,
         current_weather: dict[str, Any] | None,
         recent_rain: dict[str, Any] | None,
-    ) -> tuple[str, str, int]:
-        weather_warning = trail.get("weather_warning")
+    ) -> tuple[str, str, int, str]:
+        is_raining_now = current_weather_indicates_rain(current_weather)
 
-        trail_warning_wet = warning_indicates_wet(weather_warning)
-        trail_warning_flood = warning_indicates_flood(weather_warning)
-
-        current_rain_active = current_weather_indicates_rain(current_weather)
-
-        cached_rain_inches = (
-            float(recent_rain.get("rain_inches", 0) or 0)
+        storm_rain_total_inches = (
+            float(recent_rain.get("storm_rain_total_inches", 0) or 0)
             if recent_rain
             else 0.0
         )
-        recent_rain_exceeds_threshold = (
-            bool(recent_rain.get("exceeds_threshold"))
+        drying_window_established = (
+            bool(recent_rain.get("drying_window_established"))
             if recent_rain
             else False
+        )
+        effective_drying_hours = (
+            float(recent_rain.get("effective_drying_hours", 0) or 0)
+            if recent_rain
+            else 0.0
         )
         recent_rain_unavailable = (
             bool(recent_rain.get("unavailable"))
@@ -166,59 +184,76 @@ class TrailsRepository:
             else True
         )
 
-        # Fresh hard closures always win
         if most_recent_fresh_condition == "Closed":
-            return "Closed", color_for_condition("Closed"), 1
+            return "Closed", color_for_condition("Closed"), 1, "fresh_report_closed"
 
         if most_recent_fresh_condition == "Flooded":
-            return "Flooded", color_for_condition("Flooded"), 1
+            return "Flooded", color_for_condition("Flooded"), 1, "fresh_report_flooded"
 
-        # Explicit flood warning is strong enough to surface Flooded
-        if trail_warning_flood and (current_rain_active or recent_rain_exceeds_threshold):
-            return "Flooded", color_for_condition("Flooded"), 0
+        if is_raining_now:
+            return "Wet / Unrideable", color_for_condition("Wet / Unrideable"), 0, "active_rain"
 
-        # Active rain + exceeded threshold = definitely not rideable
-        if current_rain_active and recent_rain_exceeds_threshold:
-            return "Wet / Unrideable", color_for_condition("Wet / Unrideable"), 0
-
-        # Active rain plus trail-level wet signal is still unrideable
-        if current_rain_active and trail_warning_wet:
-            return "Wet / Unrideable", color_for_condition("Wet / Unrideable"), 0
-
-        # Rain event has stopped, but enough rain fell to keep trails off-limits
-        if not current_rain_active and recent_rain_exceeds_threshold:
+        if recent_rain_unavailable:
             if most_recent_fresh_condition == "Muddy":
-                return "Muddy", color_for_condition("Muddy"), 1
+                return "Muddy", color_for_condition("Muddy"), 1, "fresh_report_muddy_no_rain_data"
             if most_recent_fresh_condition == "Damp":
-                return "Damp", color_for_condition("Damp"), 1
-            return "Needs More Time", color_for_condition("Needs More Time"), 0
+                return "Damp", color_for_condition("Damp"), 1, "fresh_report_damp_no_rain_data"
+            if most_recent_fresh_condition in {"Dry", "Hero Dirt"}:
+                return (
+                    most_recent_fresh_condition,
+                    color_for_condition(most_recent_fresh_condition),
+                    1,
+                    "fresh_report_dry_no_rain_data",
+                )
+            return "Unknown", color_for_condition("Unknown"), 0, "recent_rain_unavailable"
 
-        # Weaker trail-level wet warning without dominant regional signal
-        if trail_warning_wet:
+        if not drying_window_established:
+            if storm_rain_total_inches >= 0.50:
+                return (
+                    "Wet / Unrideable",
+                    color_for_condition("Wet / Unrideable"),
+                    0,
+                    "no_drying_window_heavy_rain",
+                )
+            return (
+                "Needs More Time",
+                color_for_condition("Needs More Time"),
+                0,
+                "no_drying_window",
+            )
+
+        required_recovery_hours = get_required_recovery_hours(
+            recovery_class,
+            storm_rain_total_inches,
+        )
+
+        if effective_drying_hours < required_recovery_hours:
             if most_recent_fresh_condition == "Muddy":
-                return "Muddy", color_for_condition("Muddy"), 1
+                return "Muddy", color_for_condition("Muddy"), 1, "fresh_report_muddy_during_recovery"
             if most_recent_fresh_condition == "Damp":
-                return "Damp", color_for_condition("Damp"), 1
-            return "Likely Wet", color_for_condition("Likely Wet"), 0
+                return "Damp", color_for_condition("Damp"), 1, "fresh_report_damp_during_recovery"
+            return (
+                "Needs More Time",
+                color_for_condition("Needs More Time"),
+                0,
+                "insufficient_drying_time",
+            )
 
-        # Fresh rider reports in non-dominant weather conditions
         if most_recent_fresh_condition == "Muddy":
-            return "Muddy", color_for_condition("Muddy"), 1
+            return "Muddy", color_for_condition("Muddy"), 1, "fresh_report_muddy"
 
         if most_recent_fresh_condition == "Damp":
-            return "Damp", color_for_condition("Damp"), 1
+            return "Damp", color_for_condition("Damp"), 1, "fresh_report_damp"
 
         if most_recent_fresh_condition in {"Dry", "Hero Dirt"}:
-            if current_rain_active:
-                return "Wet / Unrideable", color_for_condition("Wet / Unrideable"), 0
-            return most_recent_fresh_condition, color_for_condition(most_recent_fresh_condition), 1
+            return (
+                most_recent_fresh_condition,
+                color_for_condition(most_recent_fresh_condition),
+                1,
+                "fresh_report_dry_family",
+            )
 
-        # No fresh reports, clearly dry weather
-        if not current_rain_active and not recent_rain_unavailable and cached_rain_inches == 0:
-            return "Likely Dry", color_for_condition("Likely Dry"), 0
-
-        # Some rain, but not enough to be certain
-        return "Unknown", color_for_condition("Unknown"), 0
+        return "Likely Dry", color_for_condition("Likely Dry"), 0, "recovered"
 
     def _build_summary(
         self,
@@ -245,12 +280,11 @@ class TrailsRepository:
         most_recent_report = sorted_reports[0] if sorted_reports else None
         most_recent_fresh_report = fresh_reports[0] if fresh_reports else None
 
-        most_recent_raw_condition = (
+        current_condition = normalize_condition(
             most_recent_report.get("primary_condition")
             if most_recent_report
-            else trail.get("current_condition")
+            else None
         )
-        current_condition = normalize_condition(most_recent_raw_condition)
 
         recent_hazards: list[str] = []
         for report in fresh_reports:
@@ -264,7 +298,7 @@ class TrailsRepository:
         last_updated_at = (
             most_recent_report.get("created_at")
             if most_recent_report
-            else trail.get("last_reported_at")
+            else None
         )
 
         most_recent_fresh_condition = normalize_condition(
@@ -273,9 +307,9 @@ class TrailsRepository:
             else None
         )
 
-        display_condition, display_status_color, report_confidence_count = self._resolve_display_status(
-            trail=trail,
+        display_condition, display_status_color, report_confidence_count, resolution_reason = self._resolve_display_status(
             most_recent_fresh_condition=most_recent_fresh_condition,
+            recovery_class=recovery_profile.get("recovery_class") if recovery_profile else None,
             current_weather=current_weather,
             recent_rain=recent_rain,
         )
@@ -290,34 +324,43 @@ class TrailsRepository:
                 "freshness_hours": FRESHNESS_HOURS,
                 "display_condition": display_condition,
                 "display_status_color": display_status_color,
+                "debug": {
+                    "resolution_reason": resolution_reason,
+                    "most_recent_fresh_condition": most_recent_fresh_condition,
+                    "recovery_class": recovery_profile.get("recovery_class") if recovery_profile else None,
+                    "current_rain_active": current_weather_indicates_rain(current_weather),
+                    "storm_rain_total_inches": (
+                        float(recent_rain.get("storm_rain_total_inches", 0) or 0)
+                        if recent_rain
+                        else None
+                    ),
+                    "drying_window_established": (
+                        bool(recent_rain.get("drying_window_established"))
+                        if recent_rain
+                        else None
+                    ),
+                    "effective_drying_hours": (
+                        float(recent_rain.get("effective_drying_hours", 0) or 0)
+                        if recent_rain
+                        else None
+                    ),
+                    "recent_rain_unavailable": (
+                        bool(recent_rain.get("unavailable"))
+                        if recent_rain
+                        else True
+                    ),
+                    "fresh_report_count": len(fresh_reports),
+                },
             },
             "recovery_profile": recovery_profile,
         }
 
     def list_trails(self) -> list[dict[str, Any]]:
+        self._require_client()
+
         recovery_profiles = self._get_recovery_profiles()
         current_weather = get_cached_current_weather()
         recent_rain = get_cached_recent_rain()
-
-        if not self.client:
-            results = []
-            for trail in TRAILS:
-                reports = REPORTS.get(trail["id"], [])
-                results.append(
-                    self._build_summary(
-                        trail,
-                        reports,
-                        recovery_profiles,
-                        current_weather,
-                        recent_rain,
-                    )
-                )
-
-            return sorted(
-                results,
-                key=lambda trail: trail.get("summary", {}).get("last_updated_at") or "",
-                reverse=True,
-            )
 
         trails_res = self.client.table("trails").select("*").execute()
         trails = trails_res.data or []
@@ -352,13 +395,7 @@ class TrailsRepository:
         )
 
     def get_reports(self, trail_id: str) -> list[dict[str, Any]]:
-        if not self.client:
-            reports = REPORTS.get(trail_id, [])
-            return sorted(
-                reports,
-                key=lambda r: r.get("created_at") or "",
-                reverse=True,
-            )
+        self._require_client()
 
         reports_res = (
             self.client.table("trail_reports")
@@ -391,22 +428,11 @@ class TrailsRepository:
         return normalized
 
     def get_trail(self, trail_id: str) -> dict[str, Any] | None:
+        self._require_client()
+
         recovery_profiles = self._get_recovery_profiles()
         current_weather = get_cached_current_weather()
         recent_rain = get_cached_recent_rain()
-
-        if not self.client:
-            trail = next((trail for trail in TRAILS if trail["id"] == trail_id), None)
-            if not trail:
-                return None
-            reports = REPORTS.get(trail_id, [])
-            return self._build_summary(
-                trail,
-                reports,
-                recovery_profiles,
-                current_weather,
-                recent_rain,
-            )
 
         trail_res = (
             self.client.table("trails")
@@ -451,37 +477,7 @@ class TrailsRepository:
             }
 
         if not self.client:
-            fallback = {
-                "mcallister-park": {
-                    "trail_id": "mcallister-park",
-                    "recovery_class": "average",
-                    "average_recovery_hours": 8,
-                    "recovery_confidence": "low",
-                    "rain_events_observed": 0,
-                    "notes": None,
-                    "updated_at": None,
-                },
-                "op-schnabel-park": {
-                    "trail_id": "op-schnabel-park",
-                    "recovery_class": "fast",
-                    "average_recovery_hours": 5,
-                    "recovery_confidence": "low",
-                    "rain_events_observed": 0,
-                    "notes": None,
-                    "updated_at": None,
-                },
-                "government-canyon": {
-                    "trail_id": "government-canyon",
-                    "recovery_class": "slow",
-                    "average_recovery_hours": 14,
-                    "recovery_confidence": "low",
-                    "rain_events_observed": 0,
-                    "notes": None,
-                    "updated_at": None,
-                },
-            }
-
-            return {k: normalize(v) for k, v in fallback.items()}
+            return {}
 
         res = self.client.table("trail_recovery_profiles").select("*").execute()
         rows = res.data or []

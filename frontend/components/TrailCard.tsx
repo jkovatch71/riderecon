@@ -86,16 +86,6 @@ export function TrailCard({
                 <p className="text-emerald-300">✓ No hazards reported</p>
               )}
             </div>
-
-            <div className="min-h-[20px]">
-              {trail.weather_warning ? (
-                <p className="text-amber-300">
-                  ⚠ Weather caution: {trail.weather_warning}
-                </p>
-              ) : (
-                <p className="text-emerald-300">✓ No weather-related issues</p>
-              )}
-            </div>
           </div>
 
           <div className="shrink-0 pb-1">

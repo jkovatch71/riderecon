@@ -29,7 +29,6 @@ export type Trail = {
   status_color: StatusColor;
   current_condition: string;
   last_reported_at?: string | null;
-  weather_warning?: string | null;
   recovery_profile?: TrailRecoveryProfile | null;
   latitude?: number | null;
   longitude?: number | null;

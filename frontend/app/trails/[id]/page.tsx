@@ -117,13 +117,6 @@ export default async function TrailDetailPage({
               </p>
             ) : null}
 
-            <p>
-              Weather:{" "}
-              <span className="text-zinc-100">
-                {trail.weather_warning || "No warning"}
-              </span>
-            </p>
-
             {trail.recovery_profile ? (
               <p>
                 Recovery Profile:{" "}

@@ -2,15 +2,55 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from app.data.seed import REPORTS, TRAILS
 from app.db.supabase_client import get_supabase_admin_client
 
 
-def color_for_condition(primary_condition: str) -> str:
-    if primary_condition in {"Hero Dirt", "Dry"}:
-        return "green"
-    if primary_condition in {"Damp", "Muddy", "Other"}:
+def normalize_condition(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    lowered = value.strip().lower()
+
+    if lowered in {"hero dirt", "hero"}:
+        return "Hero Dirt"
+    if lowered == "dry":
+        return "Dry"
+    if lowered == "damp":
+        return "Damp"
+    if lowered == "muddy":
+        return "Muddy"
+    if lowered == "flooded":
+        return "Flooded"
+    if lowered == "closed":
+        return "Closed"
+    if lowered == "likely wet":
+        return "Likely Wet"
+    if lowered == "likely dry":
+        return "Likely Dry"
+    if lowered == "needs more time":
+        return "Needs More Time"
+    if lowered == "wet / unrideable":
+        return "Wet / Unrideable"
+    if lowered in {"no reports", "unknown"}:
+        return "Unknown"
+    if lowered == "other":
+        return "Other"
+
+    return value.strip()
+
+
+def color_for_condition(primary_condition: str | None) -> str:
+    condition = normalize_condition(primary_condition)
+
+    if not condition:
         return "yellow"
+
+    if condition in {"Hero Dirt", "Dry", "Likely Dry"}:
+        return "green"
+
+    if condition in {"Damp", "Likely Wet", "Unknown", "Other"}:
+        return "yellow"
+
     return "red"
 
 
@@ -18,7 +58,16 @@ class ReportsRepository:
     def __init__(self) -> None:
         self.client = get_supabase_admin_client()
 
+    def _require_client(self) -> None:
+        if not self.client:
+            raise RuntimeError(
+                "Supabase admin client is unavailable. "
+                "Seed/fallback report data has been removed."
+            )
+
     def create_report(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_client()
+
         now = datetime.now(timezone.utc).isoformat()
 
         report = {
@@ -33,24 +82,6 @@ class ReportsRepository:
             "updated_at": now,
             "is_visible": True,
         }
-
-        if not self.client:
-            demo_report = {
-                **report,
-                "hazard_tags": payload.get("hazard_tags", []),
-            }
-
-            REPORTS.setdefault(payload["trail_id"], []).insert(0, demo_report)
-
-            for trail in TRAILS:
-                if trail["id"] == payload["trail_id"]:
-                    trail["current_condition"] = payload["primary_condition"]
-                    trail["status_color"] = color_for_condition(payload["primary_condition"])
-                    trail["last_reported_at"] = now
-                    trail["report_count"] += 1
-                    break
-
-            return demo_report
 
         insert_result = self.client.table("trail_reports").insert(report).execute()
         print("SUPABASE INSERT RESULT:", insert_result)

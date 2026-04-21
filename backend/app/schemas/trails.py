@@ -7,10 +7,9 @@ class TrailOut(BaseModel):
     name: str
     alias: str | None = None
     system_name: str
-    status_color: str
-    current_condition: str
-    last_reported_at: datetime
-    weather_warning: str | None = None
+    status_color: str | None = None
+    current_condition: str | None = None
+    last_reported_at: datetime | None = None
     latitude: float
     longitude: float
     report_count: int
