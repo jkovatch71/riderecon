@@ -3,14 +3,22 @@ import type { Trail } from "@/lib/types";
 type Weather = {
   temperature?: number | null;
   summary?: string | null;
+  is_raining_now?: boolean;
 };
 
 type RecentRain = {
-  window_hours: number;
-  rain_inches: number;
-  threshold_inches: number;
-  exceeds_threshold: boolean;
+  storm_rain_total_inches: number;
+  drying_window_established: boolean;
+  effective_drying_hours: number;
+  hours_since_rain_stopped?: number;
+  storm_window_hours?: number;
   unavailable?: boolean;
+};
+
+type BriefingOptions = {
+  tone?: "rider" | "neutral";
+  detailLevel?: "quick" | "standard" | "detailed";
+  sensitivity?: "conservative" | "balanced" | "aggressive";
 };
 
 type BriefingResult = {
@@ -20,27 +28,41 @@ type BriefingResult = {
   status: "rideable" | "caution" | "not_rideable" | "neutral";
 };
 
-function isBadWeatherNow(summary?: string | null) {
-  if (!summary) return false;
-
-  const s = summary.toLowerCase();
-
-  return (
-    s.includes("rain") ||
-    s.includes("storm") ||
-    s.includes("thunder") ||
-    s.includes("ice") ||
-    s.includes("sleet") ||
-    s.includes("freez")
-  );
+function getDisplayCondition(trail: Trail) {
+  return trail.summary?.display_condition || trail.current_condition || "Unknown";
 }
 
-function condition(trail: Trail) {
-  return (
-    trail.summary?.current_condition ||
-    trail.current_condition ||
-    ""
-  ).toLowerCase();
+function getTrailPhrase(usingFavorites: boolean) {
+  return usingFavorites ? "Your favorite trails" : "Nearby trails";
+}
+
+function ensurePunctuation(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+function applyDetailLevel(
+  text: string,
+  level: "quick" | "standard" | "detailed"
+) {
+  const base = ensurePunctuation(text);
+
+  if (level === "quick") {
+    const firstSentence = base.match(/^.*?[.!?](?:\s|$)/);
+    return firstSentence ? firstSentence[0].trim() : base;
+  }
+
+  if (level === "detailed") {
+    return `${base} Conditions may still vary a bit by trail and terrain.`;
+  }
+
+  return base;
+}
+
+function buildWeatherDetail(weather?: Weather | null) {
+  if (!weather?.summary) return "";
+  return weather.summary;
 }
 
 function getRecoveryMix(trails: Trail[]) {
@@ -63,99 +85,93 @@ function getRecoveryMix(trails: Trail[]) {
     average,
     slow,
     fastRatio: fast / total,
+    averageRatio: average / total,
     slowRatio: slow / total,
   };
 }
 
-function hasUsableRecentRain(recentRain?: RecentRain | null): recentRain is RecentRain {
-  return !!recentRain && !recentRain.unavailable;
-}
-
-function getRideability(trails: Trail[], recentRain?: RecentRain | null) {
-  let good = 0;
-  let caution = 0;
-  let bad = 0;
+function getConditionMix(trails: Trail[]) {
+  let wet = 0;
+  let notReady = 0;
+  let dry = 0;
+  let unknown = 0;
 
   for (const trail of trails) {
-    const c = condition(trail);
+    const c = getDisplayCondition(trail).toLowerCase();
 
-    if (c.includes("hero") || c === "dry") good++;
-    else if (c === "damp" || c === "other") caution++;
-    else if (c === "muddy" || c === "flooded" || c === "closed") bad++;
+    if (
+      c.includes("wet / unrideable") ||
+      c.includes("wet") ||
+      c.includes("muddy") ||
+      c.includes("flooded") ||
+      c.includes("closed")
+    ) {
+      wet++;
+    } else if (
+      c.includes("needs more time") ||
+      c.includes("damp") ||
+      c.includes("likely wet")
+    ) {
+      notReady++;
+    } else if (c.includes("dry") || c.includes("hero")) {
+      dry++;
+    } else {
+      unknown++;
+    }
   }
 
   const total = trails.length || 1;
-  const goodRatio = good / total;
-  const badRatio = bad / total;
-  const recoveryMix = getRecoveryMix(trails);
 
-  if (hasUsableRecentRain(recentRain) && recentRain.exceeds_threshold) {
-    if (badRatio >= 0.5) return "not_rideable";
-
-    if (goodRatio >= 0.6) {
-      if (recoveryMix.slowRatio >= 0.5) return "caution";
-      return "rideable";
-    }
-
-    if (recoveryMix.fastRatio >= 0.6 && goodRatio >= 0.34) {
-      return "caution";
-    }
-
-    return "not_rideable";
-  }
-
-  if (bad >= 2 || (bad >= 1 && good === 0 && caution === 0)) {
-    return "not_rideable";
-  }
-
-  if (good >= 2 || (good >= 1 && bad === 0)) {
-    return "rideable";
-  }
-
-  return "caution";
+  return {
+    wet,
+    notReady,
+    dry,
+    unknown,
+    wetRatio: wet / total,
+    notReadyRatio: notReady / total,
+    dryRatio: dry / total,
+    unknownRatio: unknown / total,
+  };
 }
 
-function shouldMentionRainAmount(recentRain?: RecentRain | null) {
-  if (!hasUsableRecentRain(recentRain)) return false;
-  return recentRain.exceeds_threshold || recentRain.rain_inches >= 0.1;
+function getStormBand(stormTotal: number) {
+  if (stormTotal < 0.1) return "light";
+  if (stormTotal < 0.5) return "moderate";
+  if (stormTotal < 1.5) return "heavy";
+  return "extreme";
 }
 
-function formatRainAmount(inches: number) {
-  return inches.toFixed(2).replace(/\.00$/, "");
+function getSlowTrailPhrase(usingFavorites: boolean) {
+  return usingFavorites
+    ? "Your favorites usually hold moisture longer"
+    : "A lot of these trails usually hold moisture longer";
 }
 
-function buildWeatherDetail(weather?: Weather | null, recentRain?: RecentRain | null) {
-  const parts: string[] = [];
-
-  if (weather?.summary) {
-    parts.push(weather.summary);
-  }
-
-  if (hasUsableRecentRain(recentRain) && shouldMentionRainAmount(recentRain)) {
-    parts.push(
-      `${formatRainAmount(recentRain.rain_inches)}" rain / ${recentRain.window_hours}h`
-    );
-  }
-
-  return parts.join(" · ");
+function getFastTrailPhrase(usingFavorites: boolean) {
+  return usingFavorites
+    ? "Your favorites tend to dry quicker than most"
+    : "Some of these trails tend to dry quicker than most";
 }
 
-function getTrailPhrase(usingFavorites: boolean) {
-  return usingFavorites ? "Your favorite trails" : "Nearby trails";
-}
-
-function ensurePunctuation(text: string) {
-  const trimmed = text.trim();
-  if (!trimmed) return trimmed;
-  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+function riderOrNeutral(
+  tone: "rider" | "neutral",
+  riderText: string,
+  neutralText: string
+) {
+  return tone === "neutral" ? neutralText : riderText;
 }
 
 export function buildBriefing(
   trails: Trail[],
   weather?: Weather | null,
   recentRain?: RecentRain | null,
-  usingFavorites = false
+  usingFavorites = false,
+  options?: BriefingOptions
 ): BriefingResult {
+  const tone = options?.tone ?? "rider";
+  const detailLevel = options?.detailLevel ?? "standard";
+  const sensitivity = options?.sensitivity ?? "balanced";
+
   const trailPhrase = getTrailPhrase(usingFavorites);
 
   if (!trails.length) {
@@ -167,84 +183,340 @@ export function buildBriefing(
     };
   }
 
-  const relevant = trails.slice(0, 3);
-  const rideability = getRideability(relevant, recentRain);
-  const weatherDetail = buildWeatherDetail(weather, recentRain);
+  const relevant = trails.slice(0, 5);
+  const weatherDetail = buildWeatherDetail(weather);
   const recoveryMix = getRecoveryMix(relevant);
+  const conditionMix = getConditionMix(relevant);
 
-  if (isBadWeatherNow(weather?.summary)) {
+  const isActiveRain = !!weather?.is_raining_now;
+  const stormTotal = recentRain?.storm_rain_total_inches ?? 0;
+  const dryingStarted = recentRain?.drying_window_established ?? false;
+  const effectiveDryingHours = recentRain?.effective_drying_hours ?? 0;
+  const rainUnavailable = !!recentRain?.unavailable;
+  const stormBand = getStormBand(stormTotal);
+
+  const stormThreshold =
+    sensitivity === "conservative"
+      ? 0.3
+      : sensitivity === "aggressive"
+        ? 0.8
+        : 0.5;
+
+  const wetThreshold =
+    sensitivity === "conservative"
+      ? 0.5
+      : sensitivity === "aggressive"
+        ? 0.7
+        : 0.6;
+
+  /*
+   * PRIORITY 1: ACTIVE RAIN
+   */
+  if (isActiveRain) {
+    if (stormBand === "extreme" || stormBand === "heavy") {
+      return {
+        headline: riderOrNeutral(
+          tone,
+          "Hang it up for now",
+          "Not rideable right now"
+        ),
+        detail: applyDetailLevel(
+          weatherDetail
+            ? `${weatherDetail}. ${trailPhrase} are soaked and not rideable right now`
+            : `${trailPhrase} are soaked and not rideable right now`,
+          detailLevel
+        ),
+        supporting: riderOrNeutral(
+          tone,
+          "This is rut-making weather. Let the dirt chill.",
+          "Conditions are too wet right now and need time to recover."
+        ),
+        status: "not_rideable",
+      };
+    }
+
     return {
-      headline: "Bad weather right now",
-      detail: ensurePunctuation(
-        weatherDetail || "Current weather looks rough for a ride"
+      headline: riderOrNeutral(
+        tone,
+        "Not worth it right now",
+        "Not rideable right now"
       ),
-      supporting: ensurePunctuation(
-        "Good day to check bolts, sealant, drivetrain or clean your bike"
+      detail: applyDetailLevel(
+        weatherDetail
+          ? `${weatherDetail}. The dirt is too wet to be worth it`
+          : `${trailPhrase} are too wet to ride right now`,
+        detailLevel
+      ),
+      supporting: riderOrNeutral(
+        tone,
+        "Good time to wrench, lube the chain, or wait it out.",
+        "Best to wait until conditions improve."
       ),
       status: "not_rideable",
     };
   }
 
-  if (rideability === "rideable") {
-    let detail = `${trailPhrase} look good to ride`;
-
-    if (
-      hasUsableRecentRain(recentRain) &&
-      recentRain.exceeds_threshold &&
-      recoveryMix.fastRatio >= 0.5
-    ) {
-      detail = `${trailPhrase} look promising, especially the faster-drying ones`;
+  /*
+   * PRIORITY 2: POST-STORM, NO REAL DRYING WINDOW YET
+   */
+  if (!rainUnavailable && !dryingStarted && stormTotal >= stormThreshold) {
+    if (recoveryMix.slowRatio >= 0.5) {
+      return {
+        headline: riderOrNeutral(
+          tone,
+          "Still way too soft",
+          "Still too wet to ride"
+        ),
+        detail: applyDetailLevel(
+          `${trailPhrase} have not started recovering yet after the storm`,
+          detailLevel
+        ),
+        supporting: riderOrNeutral(
+          tone,
+          `${getSlowTrailPhrase(usingFavorites)}. They need real dry time before they come back around.`,
+          "These trails recover slowly and still need meaningful drying time."
+        ),
+        status: "not_rideable",
+      };
     }
 
     return {
-      headline: "Good to go!",
-      detail: ensurePunctuation(
-        weatherDetail ? `${detail}. ${weatherDetail}` : detail
+      headline: riderOrNeutral(
+        tone,
+        "Still too wet to ride",
+        "Still too wet to ride"
       ),
-      supporting: "Get out there and shred.",
+      detail: applyDetailLevel(
+        `${trailPhrase} haven't had time to dry yet`,
+        detailLevel
+      ),
+      supporting: riderOrNeutral(
+        tone,
+        "The rain may have backed off, but the mud remains.",
+        "Rain may have eased, but the trails have not started recovering yet."
+      ),
+      status: "not_rideable",
+    };
+  }
+
+  /*
+   * PRIORITY 3: DRYING HAS STARTED, BUT MOST TRAILS STILL NOT READY
+   */
+  if (conditionMix.wetRatio + conditionMix.notReadyRatio >= wetThreshold) {
+    if (!rainUnavailable && dryingStarted) {
+      if (recoveryMix.fastRatio >= 0.5 && effectiveDryingHours >= 8) {
+        return {
+          headline: riderOrNeutral(
+            tone,
+            "Starting to turn around",
+            "Conditions are improving"
+          ),
+          detail: applyDetailLevel(
+            `${trailPhrase} are still mostly not ready, but the faster-drying ones may be heading the right way`,
+            detailLevel
+          ),
+          supporting: riderOrNeutral(
+            tone,
+            "Not hero dirt yet—still more drying to go.",
+            "Some improvement is underway, but more drying time is still needed."
+          ),
+          status: "caution",
+        };
+      }
+
+      if (recoveryMix.slowRatio >= 0.5) {
+        return {
+          headline: riderOrNeutral(
+            tone,
+            "Needs more time",
+            "Needs more time"
+          ),
+          detail: applyDetailLevel(
+            `${trailPhrase} are still holding moisture and not ready yet`,
+            detailLevel
+          ),
+          supporting: riderOrNeutral(
+            tone,
+            `${getSlowTrailPhrase(usingFavorites)}. Give them a longer runway.`,
+            "These trails recover more slowly and still need additional time."
+          ),
+          status: "not_rideable",
+        };
+      }
+
+      return {
+        headline: riderOrNeutral(
+          tone,
+          "Needs more time",
+          "Needs more time"
+        ),
+        detail: applyDetailLevel(
+          `${trailPhrase} are drying out, but most are still not ready to ride`,
+          detailLevel
+        ),
+        supporting: riderOrNeutral(
+          tone,
+          "Close, but not worth forcing it.",
+          "Conditions are improving, but not enough yet."
+        ),
+        status: "caution",
+      };
+    }
+
+    return {
+      headline: riderOrNeutral(
+        tone,
+        "Still not ready",
+        "Still not ready"
+      ),
+      detail: applyDetailLevel(
+        `${trailPhrase} are still too wet in most spots`,
+        detailLevel
+      ),
+      supporting: riderOrNeutral(
+        tone,
+        "A little patience now keeps the tread from getting wrecked.",
+        "Waiting longer will help protect the trails."
+      ),
+      status: "not_rideable",
+    };
+  }
+
+  /*
+   * PRIORITY 4: MOSTLY DRY / GOOD TO GO
+   */
+  if (conditionMix.dryRatio >= 0.6) {
+    if (recoveryMix.fastRatio >= 0.5) {
+      return {
+        headline: riderOrNeutral(
+          tone,
+          "Looks rideable",
+          "Looks rideable"
+        ),
+        detail: applyDetailLevel(
+          weatherDetail
+            ? `${trailPhrase} are mostly looking good. ${weatherDetail}`
+            : `${trailPhrase} are mostly looking good to roll`,
+          detailLevel
+        ),
+        supporting: riderOrNeutral(
+          tone,
+          `${getFastTrailPhrase(usingFavorites)}. This is the kind of window to jump on.`,
+          "These trails tend to dry faster than most and may be in a better window now."
+        ),
+        status: "rideable",
+      };
+    }
+
+    return {
+      headline: riderOrNeutral(
+        tone,
+        "Good to roll",
+        "Good to ride"
+      ),
+      detail: applyDetailLevel(
+        weatherDetail
+          ? `${trailPhrase} are mostly dry and rideable. ${weatherDetail}`
+          : `${trailPhrase} are mostly dry and rideable`,
+        detailLevel
+      ),
+      supporting: riderOrNeutral(
+        tone,
+        "Could be a good day to grab a lap.",
+        "Conditions look favorable for a ride."
+      ),
       status: "rideable",
     };
   }
 
-  if (rideability === "not_rideable") {
-    let detail = `${trailPhrase} may still be too wet to ride`;
-
-    if (hasUsableRecentRain(recentRain) && recentRain.exceeds_threshold) {
-      detail = `${trailPhrase} likely need more time after recent rain`;
+  /*
+   * PRIORITY 5: TRUE MIXED CONDITIONS
+   */
+  if (
+    conditionMix.dryRatio > 0 &&
+    (conditionMix.wetRatio > 0 || conditionMix.notReadyRatio > 0)
+  ) {
+    if (recoveryMix.fastRatio >= 0.5) {
+      return {
+        headline: riderOrNeutral(
+          tone,
+          "Mixed, but improving",
+          "Conditions are mixed"
+        ),
+        detail: applyDetailLevel(
+          `${trailPhrase} are split right now—faster-drying trails may come around sooner than the rest`,
+          detailLevel
+        ),
+        supporting: riderOrNeutral(
+          tone,
+          "Pick carefully before you load up and head out.",
+          "Some trails are recovering faster than others."
+        ),
+        status: "caution",
+      };
     }
 
     if (recoveryMix.slowRatio >= 0.5) {
-      detail = `${trailPhrase} usually take longer to dry and may still be too soft`;
+      return {
+        headline: riderOrNeutral(
+          tone,
+          "Mixed, lean cautious",
+          "Conditions are mixed"
+        ),
+        detail: applyDetailLevel(
+          `${trailPhrase} are mixed, but the slower-drying ones are still probably holding moisture`,
+          detailLevel
+        ),
+        supporting: riderOrNeutral(
+          tone,
+          "This is one of those days where the safe play is usually the smart play.",
+          "The slower-recovering trails likely still need more time."
+        ),
+        status: "caution",
+      };
     }
 
     return {
-      headline: "Probably too wet today",
-      detail: ensurePunctuation(
-        weatherDetail ? `${detail}. ${weatherDetail}` : detail
+      headline: riderOrNeutral(
+        tone,
+        "Conditions are mixed",
+        "Conditions are mixed"
       ),
-      supporting: ensurePunctuation(
-        "Giving trails more time now helps prevent ruts"
+      detail: applyDetailLevel(
+        `${trailPhrase} are split right now—some sections are getting there, others still need time`,
+        detailLevel
       ),
-      status: "not_rideable",
+      supporting: riderOrNeutral(
+        tone,
+        "Check the trail cards before you commit.",
+        "Review individual trail status before heading out."
+      ),
+      status: "caution",
     };
   }
 
-  let detail = `${trailPhrase} look mixed right now`;
-
-  if (
-    hasUsableRecentRain(recentRain) &&
-    recentRain.exceeds_threshold &&
-    recoveryMix.fastRatio >= 0.5
-  ) {
-    detail = `${trailPhrase} look mixed, but some faster-drying trails may be okay`;
-  }
-
+  /*
+   * PRIORITY 6: FALLBACK / UNKNOWN
+   */
   return {
-    headline: "Use caution today",
-    detail: ensurePunctuation(
-      weatherDetail ? `${detail}. ${weatherDetail}` : detail
+    headline: riderOrNeutral(
+      tone,
+      "Still sorting itself out",
+      "Conditions are still unclear"
     ),
-    supporting: ensurePunctuation("Check conditions before you roll out"),
+    detail: applyDetailLevel(
+      `${trailPhrase} don't look clearly rideable yet based on the latest mix of weather and reports`,
+      detailLevel
+    ),
+    supporting: riderOrNeutral(
+      tone,
+      rainUnavailable
+        ? "Weather data is thin right now, so lean conservative."
+        : "A little more time or another fresh report will tell the story.",
+      rainUnavailable
+        ? "Weather data is limited right now, so it is safer to be cautious."
+        : "More time or a fresh trail report should make the picture clearer."
+    ),
     status: "caution",
   };
 }

@@ -147,14 +147,20 @@ export type CurrentWeather = {
   temperature?: number | null;
   summary?: string | null;
   raw_summary?: string | null;
+  cached_at?: string;
+  is_raining_now?: boolean;
 };
 
 export type RecentRain = {
-  window_hours: number;
-  rain_inches: number;
-  threshold_inches: number;
-  exceeds_threshold: boolean;
+  storm_rain_total_inches: number;
+  drying_window_established: boolean;
+  effective_drying_hours: number;
+  hours_since_rain_stopped?: number;
+  storm_window_hours?: number;
+  drying_window_hours?: number;
   cached_at?: string;
+  cache_status?: string;
+  ttl_seconds?: number;
   unavailable?: boolean;
 };
 

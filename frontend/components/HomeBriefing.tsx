@@ -20,6 +20,10 @@ type BriefingScript = {
   supporting: string | null;
 };
 
+type BriefingTone = "rider" | "neutral";
+type BriefingDetail = "quick" | "standard" | "detailed";
+type TrailSensitivity = "conservative" | "balanced" | "aggressive";
+
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "GOOD MORNING";
@@ -50,6 +54,17 @@ function getWeatherDisplay(weather?: CurrentWeather | null) {
   return icon;
 }
 
+function getSetting<T extends string>(
+  key: string,
+  allowed: readonly T[],
+  fallback: T
+): T {
+  if (typeof window === "undefined") return fallback;
+
+  const value = window.localStorage.getItem(key);
+  return value && allowed.includes(value as T) ? (value as T) : fallback;
+}
+
 export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const { user, profile, session, authLoading } = useAuth();
 
@@ -60,7 +75,14 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
 
+  const [briefingTone, setBriefingTone] = useState<BriefingTone>("rider");
+  const [briefingDetail, setBriefingDetail] =
+    useState<BriefingDetail>("standard");
+  const [trailSensitivity, setTrailSensitivity] =
+    useState<TrailSensitivity>("balanced");
+
   const [script, setScript] = useState<BriefingScript | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [bootComplete, setBootComplete] = useState(false);
 
   const [headingDone, setHeadingDone] = useState(false);
@@ -73,6 +95,36 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
 
   useEffect(() => {
     setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+  setBriefingTone(
+    getSetting("briefing-tone", ["rider", "neutral"] as const, "rider")
+  );
+
+  setBriefingDetail(
+    getSetting(
+      "briefing-detail",
+      ["quick", "standard", "detailed"] as const,
+      "standard"
+    )
+  );
+
+  setTrailSensitivity(
+    getSetting(
+      "trail-sensitivity",
+      ["conservative", "balanced", "aggressive"] as const,
+      "balanced"
+    )
+  );
+}, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setIsInitializing(false);
+    }, 600);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -98,7 +150,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
       }
     }
 
-    loadWeather();
+    void loadWeather();
 
     return () => {
       cancelled = true;
@@ -133,7 +185,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
       }
     }
 
-    loadFavorites();
+    void loadFavorites();
 
     return () => {
       cancelled = true;
@@ -156,9 +208,22 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
       briefingTrails,
       weather ?? undefined,
       recentRain ?? undefined,
-      usingFavorites
+      usingFavorites,
+      {
+        tone: briefingTone,
+        detailLevel: briefingDetail,
+        sensitivity: trailSensitivity,
+      }
     );
-  }, [briefingTrails, weather, recentRain, usingFavorites]);
+  }, [
+    briefingTrails,
+    weather,
+    recentRain,
+    usingFavorites,
+    briefingTone,
+    briefingDetail,
+    trailSensitivity,
+  ]);
 
   const username = profile?.username || null;
 
@@ -210,14 +275,14 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   }, [nextScript]);
 
   useEffect(() => {
-  if (!script) return;
+    if (!script || isInitializing) return;
 
-  const timer = window.setTimeout(() => {
-    setBootComplete(true);
-  }, 1400);
+    const timer = window.setTimeout(() => {
+      setBootComplete(true);
+    }, 300);
 
-  return () => window.clearTimeout(timer);
-}, [script]);
+    return () => window.clearTimeout(timer);
+  }, [script, isInitializing]);
 
   const metaReady =
     !!script &&
@@ -230,28 +295,26 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
     <div className="max-w-2xl">
       <div className="min-h-[240px]">
         <div className="min-h-[62px]">
-          {script ? (
-            <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
-              {!bootComplete ? (
-                <span className="inline-flex items-center gap-1">
-                  <span className="text-zinc-400">Initializing</span>
-                  <span className="flex gap-[2px]">
-                    <span className="h-1 w-1 animate-pulse rounded-full bg-emerald-300" />
-                    <span className="h-1 w-1 animate-pulse rounded-full bg-emerald-300 [animation-delay:120ms]" />
-                    <span className="h-1 w-1 animate-pulse rounded-full bg-emerald-300 [animation-delay:240ms]" />
-                  </span>
+          <h1 className="font-brand text-page-title font-semibold uppercase leading-[1.05] text-zinc-100">
+            {isInitializing ? (
+              <span className="inline-flex items-center gap-1">
+                <span className="text-zinc-400">Initializing</span>
+                <span className="flex gap-[2px]">
+                  <span className="h-1 w-1 animate-pulse rounded-full bg-emerald-300" />
+                  <span className="h-1 w-1 animate-pulse rounded-full bg-emerald-300 [animation-delay:120ms]" />
+                  <span className="h-1 w-1 animate-pulse rounded-full bg-emerald-300 [animation-delay:240ms]" />
                 </span>
-              ) : (
-                <TypingText
-                  text={script.greeting}
-                  speed={48}
-                  startDelay={150}
-                  showCursor={!headingDone}
-                  onComplete={() => setHeadingDone(true)}
-                />
-              )}
-            </h1>
-          ) : null}
+              </span>
+            ) : script && bootComplete ? (
+              <TypingText
+                text={script.greeting}
+                speed={48}
+                startDelay={150}
+                showCursor={!headingDone}
+                onComplete={() => setHeadingDone(true)}
+              />
+            ) : null}
+          </h1>
         </div>
 
         <div className="border-t border-zinc-700" />

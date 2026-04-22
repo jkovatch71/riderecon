@@ -6,7 +6,22 @@ import { useSearchParams } from "next/navigation";
 import { List, Map, Heart } from "lucide-react";
 import type { Trail } from "@/lib/types";
 import { TrailList } from "@/components/TrailList";
-import { TrailMapPlaceholder } from "@/components/TrailMapPlaceholder";
+import dynamic from "next/dynamic";
+
+const TrailMapPlaceholder = dynamic(
+  () =>
+    import("@/components/TrailMapPlaceholder").then(
+      (mod) => mod.TrailMapPlaceholder
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="card p-4">
+        <div className="h-[65vh] min-h-[420px] w-full rounded-2xl bg-zinc-900/40" />
+      </div>
+    ),
+  }
+);
 import { FavoritesManager } from "@/components/FavoritesManager";
 
 type Props = {
