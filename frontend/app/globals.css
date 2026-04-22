@@ -3,15 +3,26 @@
 @tailwind utilities;
 
 :root {
-  /* Define font variables for Rajdhani and Teko */
-  --font-rajdhani: 'Rajdhani', sans-serif;
-  --font-teko: 'Teko', sans-serif;
+  --font-rajdhani: "Rajdhani", sans-serif;
+  --font-teko: "Teko", sans-serif;
 
   color-scheme: dark;
+
+  /* Default text scale */
+  --text-page-title: 2rem;
+  --text-section-title: 1.25rem;
+  --text-body: 1rem;
+  --text-helper: 0.875rem;
+  --text-label: 0.875rem;
+  --text-button: 1rem;
+}
+
+html,
+body {
+  min-height: 100%;
 }
 
 body {
-  /* Apply Rajdhani font for body text */
   font-family: var(--font-rajdhani), sans-serif;
   @apply bg-zinc-950 text-zinc-100;
 }
@@ -38,19 +49,20 @@ body {
 }
 
 .input::placeholder {
-  color: rgb(82 82 91); /* zinc-600-ish */
+  color: rgb(82 82 91);
 }
 
 .label {
-  @apply mb-1 block text-sm font-medium text-zinc-300;
+  @apply mb-1 block font-medium text-zinc-300;
 }
 
 .status-pill {
   @apply inline-flex items-center rounded-xl px-2.5 py-1 text-xs font-semibold uppercase tracking-wide;
 }
 
-/* Font sizes for various sections, using custom root variables */
-.app-text-compact {
+/* Text scale modifiers applied globally by TextSizeProvider */
+html.app-text-compact,
+body.app-text-compact {
   --text-page-title: 1.75rem;
   --text-section-title: 1.125rem;
   --text-body: 0.95rem;
@@ -59,7 +71,8 @@ body {
   --text-button: 0.9rem;
 }
 
-.app-text-standard {
+html.app-text-standard,
+body.app-text-standard {
   --text-page-title: 2rem;
   --text-section-title: 1.25rem;
   --text-body: 1rem;
@@ -68,7 +81,8 @@ body {
   --text-button: 1rem;
 }
 
-.app-text-large {
+html.app-text-large,
+body.app-text-large {
   --text-page-title: 2.25rem;
   --text-section-title: 1.4rem;
   --text-body: 1.1rem;
@@ -77,7 +91,7 @@ body {
   --text-button: 1.05rem;
 }
 
-/* Apply font sizes to text sections */
+/* Semantic text sizing */
 .text-page-title {
   font-size: var(--text-page-title);
   line-height: 1.15;
@@ -108,7 +122,7 @@ body {
   line-height: 1.2;
 }
 
-/* Make shared UI classes participate in scaling */
+/* Shared UI classes participate in scaling */
 .btn,
 .btn-primary,
 .btn-secondary {
@@ -119,7 +133,7 @@ body {
   font-size: var(--text-label);
 }
 
-/* Custom fonts for branding and trail names */
+/* Brand fonts */
 .font-brand {
   font-family: var(--font-teko), sans-serif;
   letter-spacing: 0.08em;
