@@ -5,6 +5,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { AuthStatus } from "@/components/AuthStatus";
 import { FooterNav } from "@/components/FooterNav";
 import { TextSizeProvider } from "@/components/TextSizeProvider";
+import { AppBootSplash } from "@/components/AppBootSplash";
 import { Teko, Rajdhani } from "next/font/google";
 
 const teko = Teko({
@@ -82,6 +83,8 @@ export default function RootLayout({
       >
         <AuthProvider>
           <TextSizeProvider>
+            <AppBootSplash />
+
             <div className="mx-auto min-h-screen max-w-5xl px-4 pb-24 pt-2">
               <AuthStatus />
               {children}
