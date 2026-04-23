@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LatLngBounds, type CircleMarker as LeafletCircleMarker } from "leaflet";
 import {
+  Circle,
   CircleMarker,
   MapContainer,
   Popup,
@@ -14,6 +15,14 @@ import type { Trail } from "@/lib/types";
 import { getFavorites } from "@/lib/api";
 import { getConditionColor } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
+
+type RainBucket = {
+  key: string;
+  center: [number, number];
+  score: number;
+  radius: number;
+  trailCount: number;
+};
 
 function markerColor(condition?: string) {
   const normalized = (condition || "").toLowerCase();
@@ -43,10 +52,106 @@ function haloColor(condition?: string) {
   }
 
   if (normalized.includes("damp")) return "#38bdf8";
-  if (normalized.includes("permanently closed") || normalized.includes("closed"))
+  if (normalized.includes("permanently closed") || normalized.includes("closed")) {
     return "#fb7185";
+  }
 
   return null;
+}
+
+function rainSignalScore(condition?: string) {
+  const normalized = (condition || "").toLowerCase();
+
+  if (
+    normalized.includes("wet / unrideable") ||
+    normalized.includes("flooded")
+  ) {
+    return 1;
+  }
+
+  if (normalized.includes("muddy") || normalized.includes("needs more time")) {
+    return 0.8;
+  }
+
+  if (normalized.includes("damp") || normalized.includes("likely wet")) {
+    return 0.45;
+  }
+
+  return 0;
+}
+
+function rainFillOpacity(score: number) {
+  if (score >= 0.85) return 0.18;
+  if (score >= 0.6) return 0.14;
+  if (score >= 0.35) return 0.1;
+  return 0.07;
+}
+
+function rainRadius(score: number, trailCount: number) {
+  const base = score >= 0.85 ? 3400 : score >= 0.6 ? 2800 : 2200;
+  return base + Math.min(trailCount * 180, 900);
+}
+
+function buildRainBuckets(trails: Trail[]): RainBucket[] {
+  const valid = trails.filter(
+    (trail) =>
+      typeof trail.latitude === "number" &&
+      typeof trail.longitude === "number"
+  );
+
+  if (!valid.length) return [];
+
+  const avgLat =
+    valid.reduce((sum, trail) => sum + (trail.latitude as number), 0) / valid.length;
+  const avgLng =
+    valid.reduce((sum, trail) => sum + (trail.longitude as number), 0) / valid.length;
+
+  const grouped = new Map<
+    string,
+    { latSum: number; lngSum: number; scoreSum: number; trailCount: number }
+  >();
+
+  for (const trail of valid) {
+    const lat = trail.latitude as number;
+    const lng = trail.longitude as number;
+    const condition = trail.summary?.display_condition || trail.current_condition;
+    const score = rainSignalScore(condition);
+
+    if (score <= 0) continue;
+
+    const vertical = lat >= avgLat ? "north" : "south";
+    const horizontal = lng >= avgLng ? "east" : "west";
+    const key = `${vertical}-${horizontal}`;
+
+    const current = grouped.get(key) ?? {
+      latSum: 0,
+      lngSum: 0,
+      scoreSum: 0,
+      trailCount: 0,
+    };
+
+    current.latSum += lat;
+    current.lngSum += lng;
+    current.scoreSum += score;
+    current.trailCount += 1;
+
+    grouped.set(key, current);
+  }
+
+  return Array.from(grouped.entries()).map(([key, value]) => {
+    const avgScore = value.scoreSum / value.trailCount;
+
+    return {
+      key,
+      center: [
+        value.latSum / value.trailCount,
+        value.lngSum / value.trailCount,
+      ],
+      score: avgScore,
+      radius: rainRadius(avgScore, value.trailCount),
+      trailCount: value.trailCount,
+    };
+  });
 }
 
 function FitBounds({ trails }: { trails: Trail[] }) {
@@ -200,6 +305,8 @@ export function TrailMapPlaceholder({
       typeof trail.longitude === "number"
   );
 
+  const rainBuckets = useMemo(() => buildRainBuckets(validTrails), [validTrails]);
+
   if (!validTrails.length) {
     return (
       <div className="card p-4">
@@ -242,6 +349,32 @@ export function TrailMapPlaceholder({
             locateTrigger={locateTrigger}
             onLocated={(coords) => setUserLocation(coords)}
           />
+
+          {rainBuckets.map((bucket) => (
+            <Circle
+              key={bucket.key}
+              center={bucket.center}
+              radius={bucket.radius}
+              pathOptions={{
+                color: "#38bdf8",
+                fillColor: "#38bdf8",
+                fillOpacity: rainFillOpacity(bucket.score),
+                weight: 0,
+              }}
+            >
+              <Popup>
+                <div className="space-y-1.5">
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Weather signal
+                  </p>
+                  <p className="text-xs text-zinc-700">
+                    {bucket.trailCount} nearby trail
+                    {bucket.trailCount === 1 ? "" : "s"} showing wetter conditions.
+                  </p>
+                </div>
+              </Popup>
+            </Circle>
+          ))}
 
           {userLocation ? (
             <CircleMarker
