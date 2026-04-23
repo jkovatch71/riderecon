@@ -1,6 +1,6 @@
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
-import type { Metadata,Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AuthStatus } from "@/components/AuthStatus";
 import { FooterNav } from "@/components/FooterNav";
@@ -19,23 +19,30 @@ const rajdhani = Rajdhani({
   variable: "--font-rajdhani",
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Ride Recon",
   description: "Real-time MTB trail conditions",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Ride Recon",
+    statusBarStyle: "black-translucent",
+  },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/favicon.ico", sizes: "any" },
+      { url: "/icons/favicon-16.png", type: "image/png", sizes: "16x16" },
+      { url: "/icons/favicon-32.png", type: "image/png", sizes: "32x32" },
       { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" }
+      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
     ],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
-    shortcut: ["/favicon.ico"]
-  }
+    shortcut: ["/icons/favicon.ico"],
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#020312"
+  themeColor: "#0b1f14",
 };
 
 export default function RootLayout({
@@ -45,7 +52,34 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${teko.variable} ${rajdhani.variable} font-sans bg-zinc-950 text-zinc-100`}>
+      <head>
+        <meta name="mobile-web-app-capable" content="yes" />
+
+        <link
+          rel="apple-touch-startup-image"
+          href="/splash/splash-1290x2796.png"
+          media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+        />
+        <link
+          rel="apple-touch-startup-image"
+          href="/splash/splash-1170x2532.png"
+          media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+        />
+        <link
+          rel="apple-touch-startup-image"
+          href="/splash/splash-1242x2688.png"
+          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+        />
+        <link
+          rel="apple-touch-startup-image"
+          href="/splash/splash-1125x2436.png"
+          media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+        />
+      </head>
+
+      <body
+        className={`${teko.variable} ${rajdhani.variable} font-sans bg-zinc-950 text-zinc-100`}
+      >
         <AuthProvider>
           <TextSizeProvider>
             <div className="mx-auto min-h-screen max-w-5xl px-4 pb-24 pt-2">
