@@ -46,7 +46,7 @@ function SegmentGroup({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-1">
+    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-1">
       <div className="grid auto-cols-fr grid-flow-col gap-1">
         {options.map((option) => {
           const active = value === option.value;
@@ -56,9 +56,9 @@ function SegmentGroup({
               key={option.value}
               type="button"
               onClick={() => onChange(option.value)}
-              className={`rounded-xl px-3 py-2.5 text-button font-medium uppercase tracking-[0.08em] transition-all duration-150 ${
+              className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.08em] transition-all ${
                 active
-                  ? "bg-emerald-500/14 text-emerald-300 ring-1 ring-inset ring-emerald-500/40"
+                  ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-500/40"
                   : "text-zinc-400 hover:bg-zinc-900/90 hover:text-zinc-200"
               }`}
             >
@@ -71,33 +71,30 @@ function SegmentGroup({
   );
 }
 
-function SectionHeader({
-  eyebrow,
+function SettingsRow({
   title,
   description,
+  children,
 }: {
-  eyebrow?: string;
   title: string;
-  description?: string;
+  description: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
-      {eyebrow ? (
-        <p className="text-helper font-medium uppercase tracking-[0.18em] text-zinc-500">
-          {eyebrow}
+    <div className="grid gap-5 md:grid-cols-2 md:items-start">
+      <div className="space-y-1.5">
+        <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+          {title}
         </p>
-      ) : null}
-      <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-        {title}
-      </h2>
-      {description ? (
-        <p className="text-helper max-w-2xl text-zinc-400">{description}</p>
-      ) : null}
+        <p className="text-helper text-zinc-400">{description}</p>
+      </div>
+
+      <div className="space-y-4">{children}</div>
     </div>
   );
 }
 
-function ControlBlock({
+function Control({
   label,
   helper,
   children,
@@ -107,16 +104,38 @@ function ControlBlock({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-3">
-      <div className="space-y-2">
-        <p className="text-helper font-medium uppercase tracking-[0.16em] text-zinc-500">
-          {label}
-        </p>
-        {helper ? (
-          <p className="text-helper max-w-2xl text-zinc-400">{helper}</p>
-        ) : null}
-      </div>
+    <div className="space-y-2">
+      <p className="text-helper text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+        {label}
+      </p>
+
       {children}
+
+      {helper ? <p className="text-helper text-zinc-400">{helper}</p> : null}
+    </div>
+  );
+}
+
+function HeaderBlock({
+  title,
+  meta,
+  body,
+}: {
+  title: string;
+  meta: string;
+  body?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+        {title}
+      </p>
+      <p className="text-helper text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+        {meta}
+      </p>
+      {body ? (
+        <p className="text-helper mt-2 max-w-2xl text-zinc-400">{body}</p>
+      ) : null}
     </div>
   );
 }
@@ -125,7 +144,7 @@ export default function PreferencesPage() {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
 
   useEffect(() => {
-    const loaded: SettingsState = {
+    setSettings({
       textSize: readStoredSetting(
         "app-text-size",
         ["compact", "standard", "large"] as const,
@@ -146,9 +165,7 @@ export default function PreferencesPage() {
         ["conservative", "balanced", "aggressive"] as const,
         "balanced"
       ),
-    };
-
-    setSettings(loaded);
+    });
   }, []);
 
   function saveSetting<K extends keyof SettingsState>(
@@ -183,35 +200,33 @@ export default function PreferencesPage() {
       case "aggressive":
         return "More willing to call conditions rideable sooner.";
       default:
-        return "A middle-ground read between caution and optimism.";
+        return "Balanced between caution and optimism.";
     }
   }, [settings.trailSensitivity]);
 
   return (
     <main className="space-y-3 pb-4">
       <section className="card p-5 sm:p-6">
-        <div className="space-y-2">
-          <p className="text-helper font-medium uppercase tracking-[0.18em] text-zinc-500">
-            System Controls
-          </p>
+        <div className="space-y-1.5">
           <h1 className="font-brand text-page-title font-semibold uppercase text-zinc-100">
             Command Central
           </h1>
-          <p className="text-helper max-w-2xl text-zinc-400">
+          <p className="text-helper text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+            System Controls
+          </p>
+          <p className="text-helper mt-2 max-w-2xl text-zinc-400">
             Tune how Ride Recon reads conditions, delivers your briefing, and
             helps you make ride-day decisions.
           </p>
         </div>
       </section>
 
-      <section className="card p-5 sm:p-6">
-        <div className="space-y-6">
-          <SectionHeader
-            title="Display"
-            description="Choose a reading size that feels comfortable across the app."
-          />
-
-          <ControlBlock label="Text Size">
+      <section className="card space-y-6 p-5 sm:p-6">
+        <SettingsRow
+          title="Display"
+          description="Choose a reading size that feels comfortable across the app."
+        >
+          <Control label="Text Size">
             <SegmentGroup
               value={settings.textSize}
               onChange={(value) => saveSetting("textSize", value as TextSize)}
@@ -221,16 +236,16 @@ export default function PreferencesPage() {
                 { value: "large", label: "Large" },
               ]}
             />
-          </ControlBlock>
+          </Control>
+        </SettingsRow>
 
-          <SectionDivider />
+        <SectionDivider />
 
-          <SectionHeader
-            title="Briefing Style"
-            description="Choose how your home briefing sounds and how much detail it gives you."
-          />
-
-          <ControlBlock label="Tone">
+        <SettingsRow
+          title="Briefing Style"
+          description="Control how your daily briefing sounds and how much detail it includes."
+        >
+          <Control label="Tone">
             <SegmentGroup
               value={settings.briefingTone}
               onChange={(value) =>
@@ -241,9 +256,9 @@ export default function PreferencesPage() {
                 { value: "neutral", label: "Neutral" },
               ]}
             />
-          </ControlBlock>
+          </Control>
 
-          <ControlBlock label="Detail Level">
+          <Control label="Detail Level">
             <SegmentGroup
               value={settings.briefingDetail}
               onChange={(value) =>
@@ -255,19 +270,16 @@ export default function PreferencesPage() {
                 { value: "detailed", label: "Detailed" },
               ]}
             />
-          </ControlBlock>
+          </Control>
+        </SettingsRow>
 
-          <SectionDivider />
+        <SectionDivider />
 
-          <SectionHeader
-            title="Trail Sensitivity"
-            description="Set how cautious Ride Recon should be when weather and recovery conditions are close."
-          />
-
-          <ControlBlock
-            label="Decision Bias"
-            helper={sensitivityDescription}
-          >
+        <SettingsRow
+          title="Trail Sensitivity"
+          description="Adjust how cautious Ride Recon should be when conditions are borderline."
+        >
+          <Control label="Decision Bias" helper={sensitivityDescription}>
             <SegmentGroup
               value={settings.trailSensitivity}
               onChange={(value) =>
@@ -279,15 +291,15 @@ export default function PreferencesPage() {
                 { value: "aggressive", label: "Aggressive" },
               ]}
             />
-          </ControlBlock>
-        </div>
+          </Control>
+        </SettingsRow>
       </section>
 
       <section className="card p-5 sm:p-6">
-        <SectionHeader
-          eyebrow="Next Up"
+        <HeaderBlock
           title="Ride Alerts"
-          description="Morning briefings, favorite trail rideability alerts, and post-rain updates are planned next."
+          meta="Next Up"
+          body="Morning briefings, favorite trail alerts, and post-rain updates are planned next."
         />
       </section>
     </main>
