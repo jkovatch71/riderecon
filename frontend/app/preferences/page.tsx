@@ -56,7 +56,7 @@ function SegmentGroup({
               key={option.value}
               type="button"
               onClick={() => onChange(option.value)}
-              className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.08em] transition-all ${
+              className={`rounded-lg px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.08em] transition-all ${
                 active
                   ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-500/40"
                   : "text-zinc-400 hover:bg-zinc-900/90 hover:text-zinc-200"
@@ -71,25 +71,21 @@ function SegmentGroup({
   );
 }
 
-function SettingsRow({
+function SectionHeader({
   title,
-  description,
-  children,
+  subtitle,
 }: {
   title: string;
-  description: string;
-  children: React.ReactNode;
+  subtitle: string;
 }) {
   return (
-    <div className="grid gap-5 md:grid-cols-2 md:items-start">
-      <div className="space-y-1.5">
-        <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-          {title}
-        </p>
-        <p className="text-helper text-zinc-400">{description}</p>
-      </div>
-
-      <div className="space-y-4">{children}</div>
+    <div className="space-y-0.5">
+      <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+        {title}
+      </p>
+      <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+        {subtitle}
+      </p>
     </div>
   );
 }
@@ -104,38 +100,29 @@ function Control({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
-      <p className="text-helper text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+    <div className="space-y-1.5">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
         {label}
       </p>
-
       {children}
-
-      {helper ? <p className="text-helper text-zinc-400">{helper}</p> : null}
+      {helper ? <p className="text-[12px] text-zinc-400">{helper}</p> : null}
     </div>
   );
 }
 
-function HeaderBlock({
+function SectionBlock({
   title,
-  meta,
-  body,
+  subtitle,
+  children,
 }: {
   title: string;
-  meta: string;
-  body?: string;
+  subtitle: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
-      <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-        {title}
-      </p>
-      <p className="text-helper text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-        {meta}
-      </p>
-      {body ? (
-        <p className="text-helper mt-2 max-w-2xl text-zinc-400">{body}</p>
-      ) : null}
+    <div className="space-y-3">
+      <SectionHeader title={title} subtitle={subtitle} />
+      <div className="space-y-3">{children}</div>
     </div>
   );
 }
@@ -198,7 +185,7 @@ export default function PreferencesPage() {
       case "conservative":
         return "Leans cautious and gives trails more recovery time.";
       case "aggressive":
-        return "More willing to call conditions rideable sooner.";
+        return "Calls conditions rideable sooner.";
       default:
         return "Balanced between caution and optimism.";
     }
@@ -207,25 +194,18 @@ export default function PreferencesPage() {
   return (
     <main className="space-y-3 pb-4">
       <section className="card p-5 sm:p-6">
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <h1 className="font-brand text-page-title font-semibold uppercase text-zinc-100">
             Command Central
           </h1>
-          <p className="text-helper text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
             System Controls
-          </p>
-          <p className="text-helper mt-2 max-w-2xl text-zinc-400">
-            Tune how Ride Recon reads conditions, delivers your briefing, and
-            helps you make ride-day decisions.
           </p>
         </div>
       </section>
 
-      <section className="card space-y-6 p-5 sm:p-6">
-        <SettingsRow
-          title="Display"
-          description="Choose a reading size that feels comfortable across the app."
-        >
+      <section className="card space-y-5 p-5 sm:p-6">
+        <SectionBlock title="Display" subtitle="Reading Size">
           <Control label="Text Size">
             <SegmentGroup
               value={settings.textSize}
@@ -237,14 +217,11 @@ export default function PreferencesPage() {
               ]}
             />
           </Control>
-        </SettingsRow>
+        </SectionBlock>
 
         <SectionDivider />
 
-        <SettingsRow
-          title="Briefing Style"
-          description="Control how your daily briefing sounds and how much detail it includes."
-        >
+        <SectionBlock title="Briefing Style" subtitle="Voice & Detail">
           <Control label="Tone">
             <SegmentGroup
               value={settings.briefingTone}
@@ -271,15 +248,12 @@ export default function PreferencesPage() {
               ]}
             />
           </Control>
-        </SettingsRow>
+        </SectionBlock>
 
         <SectionDivider />
 
-        <SettingsRow
-          title="Trail Sensitivity"
-          description="Adjust how cautious Ride Recon should be when conditions are borderline."
-        >
-          <Control label="Decision Bias" helper={sensitivityDescription}>
+        <SectionBlock title="Trail Sensitivity" subtitle="Decision Bias">
+          <Control label="Bias" helper={sensitivityDescription}>
             <SegmentGroup
               value={settings.trailSensitivity}
               onChange={(value) =>
@@ -292,15 +266,18 @@ export default function PreferencesPage() {
               ]}
             />
           </Control>
-        </SettingsRow>
+        </SectionBlock>
       </section>
 
       <section className="card p-5 sm:p-6">
-        <HeaderBlock
-          title="Ride Alerts"
-          meta="Next Up"
-          body="Morning briefings, favorite trail alerts, and post-rain updates are planned next."
-        />
+        <div className="space-y-1">
+          <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+            Ride Alerts
+          </p>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+            Next Up
+          </p>
+        </div>
       </section>
     </main>
   );
