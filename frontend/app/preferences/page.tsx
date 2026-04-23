@@ -33,7 +33,7 @@ function readStoredSetting<T extends string>(
 }
 
 function SectionDivider() {
-  return <div className="border-t border-zinc-800" />;
+  return <div className="border-t border-zinc-800/80" />;
 }
 
 function SegmentGroup({
@@ -46,7 +46,7 @@ function SegmentGroup({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/90 p-1.5 shadow-inner shadow-black/40">
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-1">
       <div className="grid auto-cols-fr grid-flow-col gap-1">
         {options.map((option) => {
           const active = value === option.value;
@@ -58,8 +58,8 @@ function SegmentGroup({
               onClick={() => onChange(option.value)}
               className={`rounded-xl px-3 py-2.5 text-button font-medium uppercase tracking-[0.08em] transition-all duration-150 ${
                 active
-                  ? "border border-emerald-500/50 bg-emerald-500/15 text-emerald-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(16,185,129,0.08)]"
-                  : "border border-transparent bg-zinc-900/70 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+                  ? "bg-emerald-500/14 text-emerald-300 ring-1 ring-inset ring-emerald-500/40"
+                  : "text-zinc-400 hover:bg-zinc-900/90 hover:text-zinc-200"
               }`}
             >
               {option.label}
@@ -67,6 +67,32 @@ function SegmentGroup({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      {eyebrow ? (
+        <p className="text-helper font-medium uppercase tracking-[0.18em] text-zinc-500">
+          {eyebrow}
+        </p>
+      ) : null}
+      <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+        {title}
+      </h2>
+      {description ? (
+        <p className="text-helper max-w-2xl text-zinc-400">{description}</p>
+      ) : null}
     </div>
   );
 }
@@ -82,12 +108,12 @@ function ControlBlock({
 }) {
   return (
     <div className="space-y-3">
-      <div>
+      <div className="space-y-2">
         <p className="text-helper font-medium uppercase tracking-[0.16em] text-zinc-500">
           {label}
         </p>
         {helper ? (
-          <p className="text-helper mt-2 max-w-2xl text-zinc-400">{helper}</p>
+          <p className="text-helper max-w-2xl text-zinc-400">{helper}</p>
         ) : null}
       </div>
       {children}
@@ -163,7 +189,7 @@ export default function PreferencesPage() {
 
   return (
     <main className="space-y-3 pb-4">
-      <section className="card p-6">
+      <section className="card p-5 sm:p-6">
         <div className="space-y-2">
           <p className="text-helper font-medium uppercase tracking-[0.18em] text-zinc-500">
             System Controls
@@ -178,115 +204,91 @@ export default function PreferencesPage() {
         </div>
       </section>
 
-      <section className="card p-6">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 sm:p-5">
-          <div className="space-y-6">
-            <div>
-              <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-                Display
-              </p>
-              <p className="text-helper mt-2 text-zinc-400">
-                Choose a reading size that feels comfortable across the app.
-              </p>
-            </div>
+      <section className="card p-5 sm:p-6">
+        <div className="space-y-6">
+          <SectionHeader
+            title="Display"
+            description="Choose a reading size that feels comfortable across the app."
+          />
 
-            <ControlBlock label="Text Size">
-              <SegmentGroup
-                value={settings.textSize}
-                onChange={(value) => saveSetting("textSize", value as TextSize)}
-                options={[
-                  { value: "compact", label: "Compact" },
-                  { value: "standard", label: "Standard" },
-                  { value: "large", label: "Large" },
-                ]}
-              />
-            </ControlBlock>
+          <ControlBlock label="Text Size">
+            <SegmentGroup
+              value={settings.textSize}
+              onChange={(value) => saveSetting("textSize", value as TextSize)}
+              options={[
+                { value: "compact", label: "Compact" },
+                { value: "standard", label: "Standard" },
+                { value: "large", label: "Large" },
+              ]}
+            />
+          </ControlBlock>
 
-            <SectionDivider />
+          <SectionDivider />
 
-            <div>
-              <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-                Briefing Style
-              </p>
-              <p className="text-helper mt-2 text-zinc-400">
-                Choose how your home briefing sounds and how much detail it
-                gives you.
-              </p>
-            </div>
+          <SectionHeader
+            title="Briefing Style"
+            description="Choose how your home briefing sounds and how much detail it gives you."
+          />
 
-            <ControlBlock label="Tone">
-              <SegmentGroup
-                value={settings.briefingTone}
-                onChange={(value) =>
-                  saveSetting("briefingTone", value as BriefingTone)
-                }
-                options={[
-                  { value: "rider", label: "Rider" },
-                  { value: "neutral", label: "Neutral" },
-                ]}
-              />
-            </ControlBlock>
+          <ControlBlock label="Tone">
+            <SegmentGroup
+              value={settings.briefingTone}
+              onChange={(value) =>
+                saveSetting("briefingTone", value as BriefingTone)
+              }
+              options={[
+                { value: "rider", label: "Rider" },
+                { value: "neutral", label: "Neutral" },
+              ]}
+            />
+          </ControlBlock>
 
-            <ControlBlock label="Detail Level">
-              <SegmentGroup
-                value={settings.briefingDetail}
-                onChange={(value) =>
-                  saveSetting("briefingDetail", value as BriefingDetail)
-                }
-                options={[
-                  { value: "quick", label: "Quick" },
-                  { value: "standard", label: "Standard" },
-                  { value: "detailed", label: "Detailed" },
-                ]}
-              />
-            </ControlBlock>
+          <ControlBlock label="Detail Level">
+            <SegmentGroup
+              value={settings.briefingDetail}
+              onChange={(value) =>
+                saveSetting("briefingDetail", value as BriefingDetail)
+              }
+              options={[
+                { value: "quick", label: "Quick" },
+                { value: "standard", label: "Standard" },
+                { value: "detailed", label: "Detailed" },
+              ]}
+            />
+          </ControlBlock>
 
-            <SectionDivider />
+          <SectionDivider />
 
-            <div>
-              <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-                Trail Sensitivity
-              </p>
-              <p className="text-helper mt-2 text-zinc-400">
-                Set how cautious Ride Recon should be when weather and recovery
-                conditions are close.
-              </p>
-            </div>
+          <SectionHeader
+            title="Trail Sensitivity"
+            description="Set how cautious Ride Recon should be when weather and recovery conditions are close."
+          />
 
-            <ControlBlock
-              label="Decision Bias"
-              helper={sensitivityDescription}
-            >
-              <SegmentGroup
-                value={settings.trailSensitivity}
-                onChange={(value) =>
-                  saveSetting(
-                    "trailSensitivity",
-                    value as TrailSensitivity
-                  )
-                }
-                options={[
-                  { value: "conservative", label: "Conservative" },
-                  { value: "balanced", label: "Balanced" },
-                  { value: "aggressive", label: "Aggressive" },
-                ]}
-              />
-            </ControlBlock>
-          </div>
+          <ControlBlock
+            label="Decision Bias"
+            helper={sensitivityDescription}
+          >
+            <SegmentGroup
+              value={settings.trailSensitivity}
+              onChange={(value) =>
+                saveSetting("trailSensitivity", value as TrailSensitivity)
+              }
+              options={[
+                { value: "conservative", label: "Conservative" },
+                { value: "balanced", label: "Balanced" },
+                { value: "aggressive", label: "Aggressive" },
+              ]}
+            />
+          </ControlBlock>
         </div>
       </section>
 
-      <section className="card p-6">
-        <p className="text-helper font-medium uppercase tracking-[0.18em] text-zinc-500">
-          Next Up
-        </p>
-        <p className="font-brand text-section-title mt-2 font-semibold uppercase text-zinc-100">
-          Ride Alerts
-        </p>
-        <p className="text-helper mt-2 text-zinc-400">
-          Morning briefings, favorite trail rideability alerts, and post-rain
-          updates are planned next.
-        </p>
+      <section className="card p-5 sm:p-6">
+        <SectionHeader
+          eyebrow="Next Up"
+          title="Ride Alerts"
+          description="Morning briefings, favorite trail rideability alerts, and post-rain updates are planned next."
+        />
       </section>
     </main>
   );
