@@ -16,11 +16,37 @@ import { getConditionColor } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
 
 function markerColor(condition?: string) {
+  const normalized = (condition || "").toLowerCase();
+
+  if (normalized.includes("permanently closed")) return "#ef4444";
+  if (normalized.includes("closed")) return "#fb7185";
+  if (normalized.includes("flooded")) return "#f43f5e";
+  if (normalized.includes("wet")) return "#f97316";
+
   const color = getConditionColor(condition);
 
   if (color === "green") return "#34d399";
   if (color === "yellow") return "#fbbf24";
   return "#fb7185";
+}
+
+function haloColor(condition?: string) {
+  const normalized = (condition || "").toLowerCase();
+
+  if (
+    normalized.includes("wet") ||
+    normalized.includes("flooded") ||
+    normalized.includes("muddy") ||
+    normalized.includes("needs more time")
+  ) {
+    return "#60a5fa";
+  }
+
+  if (normalized.includes("damp")) return "#38bdf8";
+  if (normalized.includes("permanently closed") || normalized.includes("closed"))
+    return "#fb7185";
+
+  return null;
 }
 
 function FitBounds({ trails }: { trails: Trail[] }) {
@@ -228,7 +254,11 @@ export function TrailMapPlaceholder({
                 weight: 3,
               }}
             >
-              <Popup>You are here</Popup>
+              <Popup>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-zinc-900">You are here</p>
+                </div>
+              </Popup>
             </CircleMarker>
           ) : null}
 
@@ -238,6 +268,7 @@ export function TrailMapPlaceholder({
             const isFavorite = favoriteSet.has(trail.id);
             const isSelected = selectedTrailId === trail.id;
             const fill = markerColor(condition);
+            const halo = haloColor(condition);
             const center: [number, number] = [
               trail.latitude as number,
               trail.longitude as number,
@@ -245,6 +276,19 @@ export function TrailMapPlaceholder({
 
             return (
               <div key={trail.id}>
+                {halo ? (
+                  <CircleMarker
+                    center={center}
+                    radius={isSelected ? 26 : 22}
+                    pathOptions={{
+                      color: halo,
+                      fillColor: halo,
+                      fillOpacity: isSelected ? 0.12 : 0.08,
+                      weight: 0,
+                    }}
+                  />
+                ) : null}
+
                 {isFavorite ? (
                   <CircleMarker
                     center={center}
@@ -272,19 +316,19 @@ export function TrailMapPlaceholder({
                   }}
                 >
                   <Popup>
-                    <div className="space-y-1">
-                      <p className="font-trail text-section-title break-words font-semibold uppercase text-zinc-100">
+                    <div className="space-y-1.5">
+                      <p className="font-trail text-section-title break-words font-semibold uppercase text-zinc-900">
                         {trail.name}
                         {isFavorite ? " ★" : ""}
                       </p>
 
                       {trail.system_name ? (
-                        <p className="text-helper font-medium uppercase tracking-wide text-zinc-500">
+                        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
                           {trail.system_name}
                         </p>
                       ) : null}
 
-                      <p className="text-sm text-zinc-800">
+                      <p className="text-sm font-medium text-zinc-700">
                         Condition: {condition}
                       </p>
 

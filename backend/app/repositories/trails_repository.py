@@ -11,6 +11,11 @@ FRESHNESS_HOURS = 3
 CURRENT_CACHE_KEY = "current_weather"
 RECENT_RAIN_CACHE_KEY = "recent_rain"
 
+PERMANENTLY_CLOSED_TRAIL_IDS = {
+    "700-acres",
+    "devils-backbone",
+}
+
 
 def parse_dt(value: str | None) -> datetime | None:
     if not value:
@@ -39,6 +44,8 @@ def normalize_condition(value: str | None) -> str | None:
         return "Flooded"
     if lowered == "closed":
         return "Closed"
+    if lowered == "permanently closed":
+        return "Permanently Closed"
     if lowered == "likely wet":
         return "Likely Wet"
     if lowered == "likely dry":
@@ -152,6 +159,10 @@ class TrailsRepository:
 
     def _fresh_cutoff(self) -> datetime:
         return datetime.now(timezone.utc) - timedelta(hours=FRESHNESS_HOURS)
+
+    def _is_permanently_closed(self, trail: dict[str, Any]) -> bool:
+        trail_id = str(trail.get("id") or "").strip().lower()
+        return trail_id in PERMANENTLY_CLOSED_TRAIL_IDS
 
     def _resolve_display_status(
         self,
@@ -307,17 +318,27 @@ class TrailsRepository:
             else None
         )
 
-        display_condition, display_status_color, report_confidence_count, resolution_reason = self._resolve_display_status(
-            most_recent_fresh_condition=most_recent_fresh_condition,
-            recovery_class=recovery_profile.get("recovery_class") if recovery_profile else None,
-            current_weather=current_weather,
-            recent_rain=recent_rain,
-        )
+        if self._is_permanently_closed(trail):
+            display_condition = "Permanently Closed"
+            display_status_color = "red"
+            report_confidence_count = 1
+            resolution_reason = "permanently_closed"
+        else:
+            display_condition, display_status_color, report_confidence_count, resolution_reason = self._resolve_display_status(
+                most_recent_fresh_condition=most_recent_fresh_condition,
+                recovery_class=recovery_profile.get("recovery_class") if recovery_profile else None,
+                current_weather=current_weather,
+                recent_rain=recent_rain,
+            )
 
         return {
             **trail,
             "summary": {
-                "current_condition": current_condition,
+                "current_condition": (
+                    "Permanently Closed"
+                    if self._is_permanently_closed(trail)
+                    else current_condition
+                ),
                 "reported_by_count": report_confidence_count,
                 "recent_hazards": recent_hazards,
                 "last_updated_at": last_updated_at,
@@ -326,6 +347,7 @@ class TrailsRepository:
                 "display_status_color": display_status_color,
                 "debug": {
                     "resolution_reason": resolution_reason,
+                    "is_permanently_closed": self._is_permanently_closed(trail),
                     "most_recent_fresh_condition": most_recent_fresh_condition,
                     "recovery_class": recovery_profile.get("recovery_class") if recovery_profile else None,
                     "current_rain_active": current_weather_indicates_rain(current_weather),
