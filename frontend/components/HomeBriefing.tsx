@@ -12,6 +12,7 @@ import {
 import type { Trail } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
 import { TypingText } from "@/components/TypingText";
+import { useAppBoot } from "@/components/AppBootProvider";
 
 type BriefingScript = {
   greeting: string;
@@ -67,6 +68,7 @@ function getSetting<T extends string>(
 
 export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const { user, profile, session, authLoading } = useAuth();
+  const { markAppReady } = useAppBoot();
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [weather, setWeather] = useState<CurrentWeather | null>(null);
@@ -92,32 +94,33 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
 
   const accessToken = session?.access_token;
   const lastScriptKeyRef = useRef("");
+  const appReadySentRef = useRef(false);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
   useEffect(() => {
-  setBriefingTone(
-    getSetting("briefing-tone", ["rider", "neutral"] as const, "rider")
-  );
+    setBriefingTone(
+      getSetting("briefing-tone", ["rider", "neutral"] as const, "rider")
+    );
 
-  setBriefingDetail(
-    getSetting(
-      "briefing-detail",
-      ["quick", "standard", "detailed"] as const,
-      "standard"
-    )
-  );
+    setBriefingDetail(
+      getSetting(
+        "briefing-detail",
+        ["quick", "standard", "detailed"] as const,
+        "standard"
+      )
+    );
 
-  setTrailSensitivity(
-    getSetting(
-      "trail-sensitivity",
-      ["conservative", "balanced", "aggressive"] as const,
-      "balanced"
-    )
-  );
-}, []);
+    setTrailSensitivity(
+      getSetting(
+        "trail-sensitivity",
+        ["conservative", "balanced", "aggressive"] as const,
+        "balanced"
+      )
+    );
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -283,6 +286,14 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
 
     return () => window.clearTimeout(timer);
   }, [script, isInitializing]);
+
+  useEffect(() => {
+    if (appReadySentRef.current) return;
+    if (!script || isInitializing || !bootComplete) return;
+
+    appReadySentRef.current = true;
+    markAppReady();
+  }, [script, isInitializing, bootComplete, markAppReady]);
 
   const metaReady =
     !!script &&
