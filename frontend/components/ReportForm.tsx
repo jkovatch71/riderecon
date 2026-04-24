@@ -227,7 +227,13 @@ export function ReportForm({
           />
         </div>
 
-        <button className="btn-primary w-full" disabled={submitting} type="submit">
+        <button
+          className={`btn-primary w-full transition ${
+            submitting ? "cursor-not-allowed opacity-60 saturate-50" : ""
+          }`}
+          disabled={submitting}
+          type="submit"
+        >
           {submitting
             ? hasHazards
               ? "Pinning location..."
