@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { List, Map, Heart } from "lucide-react";
+import { List, Map, Star } from "lucide-react";
 import type { Trail } from "@/lib/types";
 import { TrailList } from "@/components/TrailList";
 import dynamic from "next/dynamic";
+import { FavoritesManager } from "@/components/FavoritesManager";
 
 const TrailMapPlaceholder = dynamic(
   () =>
@@ -22,7 +23,6 @@ const TrailMapPlaceholder = dynamic(
     ),
   }
 );
-import { FavoritesManager } from "@/components/FavoritesManager";
 
 type Props = {
   trails: Trail[];
@@ -51,7 +51,7 @@ export function TrailsPageClient({ trails }: Props) {
       <div className="card p-1.5">
         <div className="relative grid grid-cols-3 gap-2">
           <div
-            className={`pointer-events-none absolute top-0 bottom-0 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-500/40 transition-all duration-300 ease-out ${
+            className={`pointer-events-none absolute bottom-0 top-0 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-500/40 transition-all duration-300 ease-out ${
               currentView === "list"
                 ? "left-0 w-[calc(33.333%-0.34rem)]"
                 : currentView === "map"
@@ -70,7 +70,7 @@ export function TrailsPageClient({ trails }: Props) {
             aria-current={currentView === "list" ? "page" : undefined}
           >
             <List className="h-4 w-4" />
-            <span>Trail List</span>
+            <span>List</span>
           </Link>
 
           <Link
@@ -83,7 +83,7 @@ export function TrailsPageClient({ trails }: Props) {
             aria-current={currentView === "map" ? "page" : undefined}
           >
             <Map className="h-4 w-4" />
-            <span>Map View</span>
+            <span>Map</span>
           </Link>
 
           <Link
@@ -95,7 +95,7 @@ export function TrailsPageClient({ trails }: Props) {
             }`}
             aria-current={currentView === "favorites" ? "page" : undefined}
           >
-            <Heart className="h-4 w-4" />
+            <Star className="h-4 w-4" />
             <span>Favorites</span>
           </Link>
         </div>

@@ -558,31 +558,35 @@ export function TrailMapPlaceholder({
                   }}
                 >
                   <Popup>
-                    <div className="space-y-1.5">
-                      <p className="font-trail text-section-title break-words font-semibold uppercase text-zinc-900">
-                        {trail.name}
-                        {isFavorite ? " ★" : ""}
-                      </p>
-
-                      {trail.system_name ? (
-                        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-                          {trail.system_name}
+                    <div className="min-w-[210px] space-y-2">
+                      <div className="space-y-0.5">
+                        <p className="font-trail text-[18px] font-semibold uppercase leading-none text-zinc-900">
+                          {trail.name}
+                          {isFavorite ? (
+                            <span className="ml-1 text-yellow-500">★</span>
+                          ) : null}
                         </p>
-                      ) : null}
+
+                        {trail.system_name ? (
+                          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">
+                            {trail.system_name}
+                          </p>
+                        ) : null}
+                      </div>
 
                       <p className="text-sm font-medium text-zinc-700">
                         Condition: {condition}
                       </p>
 
                       {hazards.length ? (
-                        <div className="flex flex-wrap gap-1 pt-1">
+                        <div className="flex flex-wrap gap-1">
                           {hazards.map((hazard) => {
                             const meta = normalizeHazard(hazard);
 
                             return (
                               <span
                                 key={hazard}
-                                className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800"
+                                className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
                               >
                                 {meta.icon} {meta.label}
                               </span>
@@ -593,9 +597,9 @@ export function TrailMapPlaceholder({
 
                       <Link
                         href={`/trails/${trail.id}`}
-                        className="inline-block pt-1 text-sm font-medium text-emerald-700 underline"
+                        className="inline-block text-sm font-medium text-emerald-700 underline"
                       >
-                        View trail details
+                        View details →
                       </Link>
                     </div>
                   </Popup>
