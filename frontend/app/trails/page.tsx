@@ -1,8 +1,5 @@
 import { Suspense } from "react";
-import { getTrails } from "@/lib/api";
-import { TrailsPageClient } from "@/components/TrailsPageClient";
-
-export const dynamic = "force-dynamic";
+import { TrailsPageClientShell } from "@/components/TrailsPageClientShell";
 
 function TrailsPageFallback() {
   return (
@@ -23,12 +20,10 @@ function TrailsPageFallback() {
   );
 }
 
-export default async function TrailsPage() {
-  const trails = await getTrails();
-
+export default function TrailsPage() {
   return (
     <Suspense fallback={<TrailsPageFallback />}>
-      <TrailsPageClient trails={trails} />
+      <TrailsPageClientShell />
     </Suspense>
   );
 }
