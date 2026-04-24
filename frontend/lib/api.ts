@@ -169,3 +169,17 @@ export async function submitFeedback(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+export async function getReportConfirmation(
+  reportId: string,
+  accessToken: string
+): Promise<ConfirmReportResponse> {
+  return fetchJson<ConfirmReportResponse>(
+    `/reports/${reportId}/confirmation`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+}

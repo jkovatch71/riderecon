@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { TrailReport } from "@/lib/types";
-import { confirmReport } from "@/lib/api";
+import { confirmReport, getReportConfirmation } from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -13,6 +13,11 @@ const HAZARD_META: Record<string, { icon: string; label: string }> = {
   bees: { icon: "🐝", label: "Bees" },
   wildlife: { icon: "🐾", label: "Wildlife" },
   other: { icon: "⚠️", label: "Other" },
+};
+
+type ReportWithConfirmations = TrailReport & {
+  confirmation_count?: number;
+  confirmed_by_current_user?: boolean;
 };
 
 type LocalConfirmationState = Record<
@@ -28,11 +33,11 @@ function normalizeHazard(tag: string) {
   return HAZARD_META[key] ?? { icon: "⚠️", label: tag };
 }
 
-function getInitialConfirmationCount(report: TrailReport) {
+function getInitialConfirmationCount(report: ReportWithConfirmations) {
   return report.confirmation_count ?? 0;
 }
 
-function getInitialConfirmedByUser(report: TrailReport) {
+function getInitialConfirmedByUser(report: ReportWithConfirmations) {
   return report.confirmed_by_current_user ?? false;
 }
 
@@ -61,6 +66,53 @@ export function RecentReports({
     if (!reports.length) return "No recent reports yet";
     return `${reports.length} recent report${reports.length === 1 ? "" : "s"}`;
   }, [reports.length]);
+
+  useEffect(() => {
+    if (!user || !accessToken || !reports.length) return;
+
+    const token = accessToken;
+
+    let cancelled = false;
+
+    async function loadConfirmationStates() {
+      const entries = await Promise.all(
+        reports.map(async (report) => {
+          try {
+            const state = await getReportConfirmation(report.id, token);
+
+            return [
+              report.id,
+              {
+                confirmation_count: state.confirmation_count,
+                confirmed_by_current_user: state.confirmed_by_current_user,
+              },
+            ] as const;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      if (cancelled) return;
+
+      const nextState: LocalConfirmationState = {};
+
+      for (const entry of entries) {
+        if (!entry) continue;
+
+        const [reportId, state] = entry;
+        nextState[reportId] = state;
+      }
+
+      setLocalConfirmations(nextState);
+    }
+
+    void loadConfirmationStates();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reports, user, accessToken]);
 
   function toggleExpanded() {
     const nextValue = !isExpanded;
@@ -122,13 +174,17 @@ export function RecentReports({
               </p>
             ) : (
               reports.map((report) => {
+                const typedReport = report as ReportWithConfirmations;
                 const localState = localConfirmations[report.id];
+
                 const confirmationCount =
                   localState?.confirmation_count ??
-                  getInitialConfirmationCount(report);
+                  getInitialConfirmationCount(typedReport);
+
                 const confirmedByCurrentUser =
                   localState?.confirmed_by_current_user ??
-                  getInitialConfirmedByUser(report);
+                  getInitialConfirmedByUser(typedReport);
+
                 const isSaving = savingReportId === report.id;
 
                 return (
@@ -186,8 +242,8 @@ export function RecentReports({
                       </div>
                     ) : null}
 
-                    <div className="mt-4 flex items-center gap-4 text-sm">
-                      <div className="inline-flex items-center gap-1 text-zinc-400">
+                    <div className="mt-4 flex items-center gap-3 text-sm">
+                      <div className="inline-flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-zinc-300">
                         <span aria-hidden="true">🤘</span>
                         <span>{confirmationCount}</span>
                       </div>
@@ -197,17 +253,17 @@ export function RecentReports({
                           type="button"
                           disabled={confirmedByCurrentUser || isSaving}
                           onClick={() => handleConfirm(report)}
-                          className={`transition ${
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] transition ${
                             confirmedByCurrentUser
-                              ? "cursor-default text-emerald-300"
-                              : "text-zinc-400 hover:text-zinc-200"
-                          } ${isSaving ? "opacity-60" : ""}`}
+                              ? "cursor-default border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                              : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-300"
+                          } ${isSaving ? "cursor-wait opacity-60" : ""}`}
                         >
                           {isSaving
                             ? "Confirming..."
                             : confirmedByCurrentUser
                               ? "Confirmed"
-                              : "Confirm Report"}
+                              : "Confirm"}
                         </button>
                       ) : (
                         <span className="text-zinc-500">

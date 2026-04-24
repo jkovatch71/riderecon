@@ -143,3 +143,16 @@ body.app-text-large {
   font-family: var(--font-teko), sans-serif;
   letter-spacing: 0.05em;
 }
+
+.leaflet-popup-content-wrapper {
+  padding: 6px 8px !important;
+  border-radius: 12px;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+}
+
+.leaflet-popup-tip {
+  margin-top: -1px;
+}

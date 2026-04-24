@@ -114,3 +114,25 @@ async def confirm_report(report_id: str, user=Depends(get_current_user)):
                 "trace": traceback.format_exc(),
             },
         )
+    
+@router.get("/{report_id}/confirmation")
+async def get_report_confirmation(report_id: str, user=Depends(get_current_user)):
+    try:
+        user_id = user.get("id")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user")
+
+        return repo.get_report_confirmation_state(report_id, user_id)
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": str(e),
+                "trace": traceback.format_exc(),
+            },
+        )    

@@ -59,6 +59,10 @@ function getSummary(trail: Trail) {
   return trail.summary as TrailSummaryWithHazards | undefined;
 }
 
+function resolvedCondition(trail: Trail) {
+  return getSummary(trail)?.display_condition || trail.current_condition || "Unknown";
+}
+
 function markerColor(condition?: string | null) {
   const normalized = (condition || "").toLowerCase();
 
@@ -97,10 +101,7 @@ function haloColor(condition?: string | null) {
 function rainSignalScore(condition?: string | null) {
   const normalized = (condition || "").toLowerCase();
 
-  if (
-    normalized.includes("wet / unrideable") ||
-    normalized.includes("flooded")
-  ) {
+  if (normalized.includes("wet / unrideable") || normalized.includes("flooded")) {
     return 1;
   }
 
@@ -151,7 +152,7 @@ function buildRainBuckets(trails: Trail[]): RainBucket[] {
   for (const trail of valid) {
     const lat = trail.latitude as number;
     const lng = trail.longitude as number;
-    const condition = getSummary(trail)?.display_condition || trail.current_condition;
+    const condition = resolvedCondition(trail);
     const score = rainSignalScore(condition);
 
     if (score <= 0) continue;
@@ -412,6 +413,7 @@ export function TrailMapPlaceholder({
           {rainBuckets.map((bucket) => (
             <Circle
               key={bucket.key}
+              interactive={false}
               center={bucket.center}
               radius={bucket.radius}
               pathOptions={{
@@ -439,19 +441,19 @@ export function TrailMapPlaceholder({
                 }}
               >
                 <Popup>
-                  <div className="space-y-1.5">
-                    <p className="text-sm font-semibold text-zinc-900">
+                  <div className="min-w-[170px] max-w-[220px] leading-tight">
+                    <p className="text-[13px] font-semibold uppercase text-zinc-900">
                       {primary.icon} Trail hazard
                     </p>
 
-                    <div className="flex flex-wrap gap-1">
+                    <div className="mt-1 flex flex-wrap gap-1">
                       {point.tags.map((tag) => {
                         const meta = normalizeHazard(tag);
 
                         return (
                           <span
                             key={tag}
-                            className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800"
+                            className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
                           >
                             {meta.icon} {meta.label}
                           </span>
@@ -460,20 +462,22 @@ export function TrailMapPlaceholder({
                     </div>
 
                     {point.note ? (
-                      <p className="text-xs text-zinc-700">{point.note}</p>
+                      <p className="mt-1.5 text-[12px] leading-snug text-zinc-700">
+                        {point.note}
+                      </p>
                     ) : null}
 
                     {point.accuracy_meters ? (
-                      <p className="text-[10px] uppercase tracking-wide text-zinc-500">
-                        GPS accuracy: ±{Math.round(point.accuracy_meters)}m
+                      <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                        GPS ±{Math.round(point.accuracy_meters)}m
                       </p>
                     ) : null}
 
                     <Link
                       href={`/trails/${point.trail_id}`}
-                      className="inline-block pt-1 text-sm font-medium text-emerald-700 underline"
+                      className="mt-1.5 inline-block text-[12px] font-medium text-emerald-700 underline"
                     >
-                      View trail details
+                      View details →
                     </Link>
                   </div>
                 </Popup>
@@ -493,8 +497,8 @@ export function TrailMapPlaceholder({
               }}
             >
               <Popup>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-zinc-900">
+                <div className="min-w-[120px] leading-tight">
+                  <p className="text-[13px] font-semibold text-zinc-900">
                     You are here
                   </p>
                 </div>
@@ -503,14 +507,16 @@ export function TrailMapPlaceholder({
           ) : null}
 
           {validTrails.map((trail) => {
-            const summary = getSummary(trail);
-            const condition = summary?.display_condition || trail.current_condition;
-            const hazards = summary?.recent_hazards ?? [];
+            const condition = resolvedCondition(trail);
+            const hazards = getSummary(trail)?.recent_hazards ?? [];
             const isFavorite = favoriteSet.has(trail.id);
             const isSelected = selectedTrailId === trail.id;
             const fill = markerColor(condition);
             const conditionHalo = haloColor(condition);
-            const halo = hazards.length ? "#f59e0b" : conditionHalo;
+            const halo: string | undefined = hazards.length
+              ? "#f59e0b"
+              : conditionHalo ?? undefined;
+
             const center: [number, number] = [
               trail.latitude as number,
               trail.longitude as number,
@@ -520,6 +526,7 @@ export function TrailMapPlaceholder({
               <Fragment key={trail.id}>
                 {halo ? (
                   <CircleMarker
+                    interactive={false}
                     center={center}
                     radius={isSelected ? 27 : 22}
                     pathOptions={{
@@ -533,6 +540,7 @@ export function TrailMapPlaceholder({
 
                 {isFavorite ? (
                   <CircleMarker
+                    interactive={false}
                     center={center}
                     radius={18}
                     pathOptions={{
@@ -558,28 +566,26 @@ export function TrailMapPlaceholder({
                   }}
                 >
                   <Popup>
-                    <div className="min-w-[210px] space-y-2">
-                      <div className="space-y-0.5">
-                        <p className="font-trail text-[18px] font-semibold uppercase leading-none text-zinc-900">
-                          {trail.name}
-                          {isFavorite ? (
-                            <span className="ml-1 text-yellow-500">★</span>
-                          ) : null}
-                        </p>
-
-                        {trail.system_name ? (
-                          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">
-                            {trail.system_name}
-                          </p>
+                    <div className="min-w-[175px] max-w-[220px] leading-tight">
+                      <p className="font-trail text-[13px] font-semibold uppercase text-zinc-900">
+                        {trail.name}
+                        {isFavorite ? (
+                          <span className="ml-1 text-yellow-500">★</span>
                         ) : null}
-                      </div>
+                      </p>
 
-                      <p className="text-sm font-medium text-zinc-700">
+                      {trail.system_name ? (
+                        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                          {trail.system_name}
+                        </p>
+                      ) : null}
+
+                      <p className="mt-1.5 text-[12px] font-medium text-zinc-700">
                         Condition: {condition}
                       </p>
 
                       {hazards.length ? (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="mt-1.5 flex flex-wrap gap-1">
                           {hazards.map((hazard) => {
                             const meta = normalizeHazard(hazard);
 
@@ -597,7 +603,7 @@ export function TrailMapPlaceholder({
 
                       <Link
                         href={`/trails/${trail.id}`}
-                        className="inline-block text-sm font-medium text-emerald-700 underline"
+                        className="mt-1.5 inline-block text-[12px] font-medium text-emerald-700 underline"
                       >
                         View details →
                       </Link>
