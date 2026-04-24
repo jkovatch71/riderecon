@@ -1,19 +1,5 @@
 import type { Trail } from "@/lib/types";
-
-type Weather = {
-  temperature?: number | null;
-  summary?: string | null;
-  is_raining_now?: boolean;
-};
-
-type RecentRain = {
-  storm_rain_total_inches: number;
-  drying_window_established: boolean;
-  effective_drying_hours: number;
-  hours_since_rain_stopped?: number;
-  storm_window_hours?: number;
-  unavailable?: boolean;
-};
+import type { CurrentWeather as Weather, RecentRain } from "@/lib/api";
 
 type BriefingOptions = {
   tone?: "rider" | "neutral";
@@ -135,9 +121,10 @@ function getConditionMix(trails: Trail[]) {
 }
 
 function getStormBand(stormTotal: number) {
-  if (stormTotal < 0.1) return "light";
-  if (stormTotal < 0.5) return "moderate";
-  if (stormTotal < 1.5) return "heavy";
+  const value = stormTotal ?? 0;
+  if (value < 0.1) return "light";
+  if (value < 0.5) return "moderate";
+  if (value < 1.5) return "heavy";
   return "extreme";
 }
 

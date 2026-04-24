@@ -8,6 +8,14 @@ import { StatusPill } from "@/components/StatusPill";
 import { getConditionColor, timeAgo } from "@/lib/utils";
 import { FavoriteButton } from "@/components/FavoriteButton";
 
+const HAZARD_META: Record<string, { icon: string; label: string }> = {
+  obstruction: { icon: "🌳", label: "Obstruction" },
+  obstructed: { icon: "🌳", label: "Obstruction" },
+  bees: { icon: "🐝", label: "Bees" },
+  wildlife: { icon: "🐾", label: "Wildlife" },
+  other: { icon: "⚠️", label: "Other" },
+};
+
 function resolvedCondition(trail: Trail) {
   return trail.summary?.display_condition || trail.current_condition || "Unknown";
 }
@@ -16,6 +24,35 @@ function resolvedColor(trail: Trail): "green" | "yellow" | "red" {
   return (
     trail.summary?.display_status_color ||
     getConditionColor(resolvedCondition(trail))
+  );
+}
+
+function normalizeHazard(tag: string) {
+  const key = tag.trim().toLowerCase();
+  return HAZARD_META[key] ?? { icon: "⚠️", label: tag };
+}
+
+function HazardChips({ hazards }: { hazards?: string[] }) {
+  if (!hazards?.length) {
+    return <p className="text-emerald-300">✓ No hazards reported</p>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {hazards.map((hazard) => {
+        const meta = normalizeHazard(hazard);
+
+        return (
+          <span
+            key={hazard}
+            className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-amber-300"
+          >
+            <span>{meta.icon}</span>
+            <span>{meta.label}</span>
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
@@ -38,6 +75,7 @@ export function TrailCard({
 
   const displayCondition = resolvedCondition(trail);
   const displayColor = resolvedColor(trail);
+  const hazards = trail.summary?.recent_hazards ?? [];
 
   return (
     <Link
@@ -77,14 +115,8 @@ export function TrailCard({
                   : "No recent reports"}
             </p>
 
-            <div className="min-h-[20px]">
-              {trail.summary?.recent_hazards?.length ? (
-                <p className="text-amber-300">
-                  ⚠ {trail.summary.recent_hazards.join(", ")}
-                </p>
-              ) : (
-                <p className="text-emerald-300">✓ No hazards reported</p>
-              )}
+            <div className="min-h-[24px]">
+              <HazardChips hazards={hazards} />
             </div>
           </div>
 

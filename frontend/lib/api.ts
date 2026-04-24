@@ -1,227 +1,134 @@
-import { Trail, TrailReport } from "@/lib/types";
+import type { Trail } from "@/lib/types";
 
-function getApiBaseUrl(): string {
-  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
-  if (envUrl) {
-    return envUrl;
-  }
-
-  if (typeof window !== "undefined") {
-    const { protocol, hostname } = window.location;
-    const apiProtocol = protocol === "https:" ? "https:" : "http:";
-    return `${apiProtocol}//${hostname}:8000`;
-  }
-
-  throw new Error(
-    "NEXT_PUBLIC_API_URL is not set. Server-side requests require a deployed backend URL."
-  );
-}
-
-function authHeaders(
-  accessToken?: string,
-  includeJsonContentType = false
-): HeadersInit {
-  const headers: Record<string, string> = {};
-
-  if (includeJsonContentType) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
-  }
-
-  return headers;
-}
-
-class ApiError extends Error {
-  status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-  }
-}
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const apiUrl = getApiBaseUrl();
-
-  const res = await fetch(`${apiUrl}${path}`, {
-    ...init,
-    headers: {
-      ...(init?.headers || {}),
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    let detail = "";
-    try {
-      detail = await res.text();
-    } catch {
-      detail = "";
-    }
-
-    throw new ApiError(detail || `API request failed: ${res.status}`, res.status);
-  }
-
-  return res.json();
-}
-
-/**
- * Trails
- */
-export async function getTrails(): Promise<Trail[]> {
-  return request<Trail[]>("/trails");
-}
-
-export async function getTrail(id: string): Promise<Trail> {
-  return request<Trail>(`/trails/${id}`);
-}
-
-export async function getTrailReports(id: string): Promise<TrailReport[]> {
-  return request<TrailReport[]>(`/trails/${id}/reports`);
-}
-
-/**
- * Reports
- */
-export async function createReport(
-  payload: {
-    trail_id: string;
-    primary_condition: string;
-    hazard_tags: string[];
-    note?: string;
-  },
-  accessToken?: string
-): Promise<{ message: string }> {
-  return request<{ message: string }>("/reports", {
-    method: "POST",
-    headers: authHeaders(accessToken, true),
-    body: JSON.stringify(payload),
-  });
-}
-
-/**
- * Favorites
- */
-export async function getFavorites(accessToken?: string): Promise<string[]> {
-  if (!accessToken) {
-    return [];
-  }
-
-  const apiUrl = getApiBaseUrl();
-
-  const res = await fetch(`${apiUrl}/favorites`, {
-    headers: authHeaders(accessToken),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new ApiError(`Favorites request failed: ${res.status}`, res.status);
-  }
-
-  return res.json();
-}
-
-export async function addFavorite(trailId: string, accessToken?: string) {
-  return request(`/favorites/${trailId}`, {
-    method: "POST",
-    headers: authHeaders(accessToken),
-  });
-}
-
-export async function removeFavorite(trailId: string, accessToken?: string) {
-  return request(`/favorites/${trailId}`, {
-    method: "DELETE",
-    headers: authHeaders(accessToken),
-  });
-}
-
-/**
- * Weather
- */
 export type CurrentWeather = {
-  temperature?: number | null;
-  summary?: string | null;
+  temperature: number | null;
+  summary: string | null;
   raw_summary?: string | null;
-  cached_at?: string;
   is_raining_now?: boolean;
 };
 
 export type RecentRain = {
-  storm_rain_total_inches: number;
-  drying_window_established: boolean;
-  effective_drying_hours: number;
-  hours_since_rain_stopped?: number;
-  storm_window_hours?: number;
-  drying_window_hours?: number;
-  cached_at?: string;
-  cache_status?: string;
-  ttl_seconds?: number;
+  rain_last_hour_inches: number | null;
+  rain_last_3_hours_inches: number | null;
+  rain_last_6_hours_inches: number | null;
+  rain_last_12_hours_inches: number | null;
+  rain_last_24_hours_inches: number | null;
+  storm_rain_total_inches: number | null;
+  drying_window_established: boolean | null;
+  effective_drying_hours: number | null;
   unavailable?: boolean;
 };
 
-let currentWeatherPromise: Promise<CurrentWeather | null> | null = null;
-let recentRainPromise: Promise<RecentRain | null> | null = null;
+export type CreateReportPayload = {
+  trail_id: string;
+  primary_condition: string;
+  hazard_tags: string[];
+  note?: string;
+  hazard_latitude?: number | null;
+  hazard_longitude?: number | null;
+  hazard_location_accuracy_meters?: number | null;
+};
 
-export async function getCurrentWeather(): Promise<CurrentWeather | null> {
-  if (currentWeatherPromise) {
-    return currentWeatherPromise;
-  }
+export type CreateReportResponse = {
+  message: string;
+  report: unknown;
+};
 
-  currentWeatherPromise = request<CurrentWeather>("/weather/current")
-    .catch((error: unknown) => {
-      console.warn("getCurrentWeather failed:", error);
-      return null;
-    })
-    .finally(() => {
-      currentWeatherPromise = null;
-    });
-
-  return currentWeatherPromise;
-}
-
-export async function getRecentRain(): Promise<RecentRain | null> {
-  if (recentRainPromise) {
-    return recentRainPromise;
-  }
-
-  recentRainPromise = request<RecentRain>("/weather/recent-rain")
-    .catch((error: unknown) => {
-      console.warn("getRecentRain failed:", error);
-      return null;
-    })
-    .finally(() => {
-      recentRainPromise = null;
-    });
-
-  return recentRainPromise;
-}
-
-export async function resolveLoginIdentifier(identifier: string): Promise<string> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-  if (!apiUrl) {
-    throw new Error("API URL is not configured.");
-  }
-
-  const response = await fetch(`${apiUrl}/auth/resolve-login`, {
-    method: "POST",
+async function fetchJson<T>(
+  path: string,
+  options?: RequestInit
+): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
     },
-    body: JSON.stringify({
-      identifier,
-    }),
   });
 
-  if (!response.ok) {
-    throw new Error("Invalid username/email or password.");
+  if (!res.ok) {
+    throw new Error(`Request failed: ${res.status} ${res.statusText}`);
   }
 
-  const data = (await response.json()) as { email: string };
-  return data.email;
+  return res.json();
+}
+
+export async function getTrails(): Promise<Trail[]> {
+  return fetchJson<Trail[]>("/trails");
+}
+
+export async function getTrail(trailId: string): Promise<Trail> {
+  return fetchJson<Trail>(`/trails/${trailId}`);
+}
+
+export async function getTrailReports(trailId: string) {
+  return fetchJson(`/trails/${trailId}/reports`);
+}
+
+export async function createReport(
+  payload: CreateReportPayload,
+  accessToken: string
+): Promise<CreateReportResponse> {
+  return fetchJson<CreateReportResponse>("/reports", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getFavorites(accessToken: string): Promise<string[]> {
+  return fetchJson<string[]>("/favorites", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function addFavorite(
+  trailId: string,
+  accessToken: string
+): Promise<void> {
+  await fetchJson("/favorites", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ trail_id: trailId }),
+  });
+}
+
+export async function removeFavorite(
+  trailId: string,
+  accessToken: string
+): Promise<void> {
+  await fetchJson(`/favorites/${trailId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function getCurrentWeather(): Promise<CurrentWeather> {
+  return fetchJson<CurrentWeather>("/weather/current");
+}
+
+export async function getRecentRain(): Promise<RecentRain> {
+  return fetchJson<RecentRain>("/weather/recent-rain");
+}
+
+export async function submitFeedback(payload: {
+  name?: string;
+  email?: string;
+  message: string;
+}) {
+  return fetchJson("/feedback", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }

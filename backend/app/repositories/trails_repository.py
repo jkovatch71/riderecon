@@ -62,6 +62,58 @@ def normalize_condition(value: str | None) -> str | None:
     return value.strip()
 
 
+def normalize_hazard_tag(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    lowered = value.strip().lower()
+
+    if lowered in {"obstructed", "obstruction"}:
+        return "Obstruction"
+    if lowered == "bees":
+        return "Bees"
+    if lowered == "wildlife":
+        return "Wildlife"
+    if lowered == "other":
+        return "Other"
+
+    return value.strip()
+
+
+def build_hazard_points(fresh_reports: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    points: list[dict[str, Any]] = []
+
+    for report in fresh_reports:
+        lat = report.get("hazard_latitude")
+        lng = report.get("hazard_longitude")
+        tags = report.get("hazard_tags", []) or []
+
+        if lat is None or lng is None or not tags:
+            continue
+
+        normalized_tags = [
+            tag for tag in (normalize_hazard_tag(tag) for tag in tags) if tag
+        ]
+
+        if not normalized_tags:
+            continue
+
+        points.append(
+            {
+                "id": report.get("id"),
+                "trail_id": report.get("trail_id"),
+                "tags": normalized_tags,
+                "note": report.get("note"),
+                "latitude": float(lat),
+                "longitude": float(lng),
+                "accuracy_meters": report.get("hazard_location_accuracy_meters"),
+                "created_at": report.get("created_at"),
+            }
+        )
+
+    return points
+
+
 def color_for_condition(primary_condition: str | None) -> str:
     condition = normalize_condition(primary_condition)
 
@@ -300,8 +352,11 @@ class TrailsRepository:
         recent_hazards: list[str] = []
         for report in fresh_reports:
             for tag in report.get("hazard_tags", []) or []:
-                if tag not in recent_hazards:
-                    recent_hazards.append(tag)
+                normalized_tag = normalize_hazard_tag(tag)
+                if normalized_tag and normalized_tag not in recent_hazards:
+                    recent_hazards.append(normalized_tag)
+
+        hazard_points = build_hazard_points(fresh_reports)
 
         trail_id = trail.get("id")
         recovery_profile = (recovery_profiles or {}).get(trail_id) if trail_id else None
@@ -318,13 +373,20 @@ class TrailsRepository:
             else None
         )
 
-        if self._is_permanently_closed(trail):
+        is_permanently_closed = self._is_permanently_closed(trail)
+
+        if is_permanently_closed:
             display_condition = "Permanently Closed"
             display_status_color = "red"
             report_confidence_count = 1
             resolution_reason = "permanently_closed"
         else:
-            display_condition, display_status_color, report_confidence_count, resolution_reason = self._resolve_display_status(
+            (
+                display_condition,
+                display_status_color,
+                report_confidence_count,
+                resolution_reason,
+            ) = self._resolve_display_status(
                 most_recent_fresh_condition=most_recent_fresh_condition,
                 recovery_class=recovery_profile.get("recovery_class") if recovery_profile else None,
                 current_weather=current_weather,
@@ -335,19 +397,18 @@ class TrailsRepository:
             **trail,
             "summary": {
                 "current_condition": (
-                    "Permanently Closed"
-                    if self._is_permanently_closed(trail)
-                    else current_condition
+                    "Permanently Closed" if is_permanently_closed else current_condition
                 ),
                 "reported_by_count": report_confidence_count,
                 "recent_hazards": recent_hazards,
+                "hazard_points": hazard_points,
                 "last_updated_at": last_updated_at,
                 "freshness_hours": FRESHNESS_HOURS,
                 "display_condition": display_condition,
                 "display_status_color": display_status_color,
                 "debug": {
                     "resolution_reason": resolution_reason,
-                    "is_permanently_closed": self._is_permanently_closed(trail),
+                    "is_permanently_closed": is_permanently_closed,
                     "most_recent_fresh_condition": most_recent_fresh_condition,
                     "recovery_class": recovery_profile.get("recovery_class") if recovery_profile else None,
                     "current_rain_active": current_weather_indicates_rain(current_weather),
@@ -438,8 +499,20 @@ class TrailsRepository:
                     "username": report.get("username") or "rider",
                     "trail_id": report.get("trail_id"),
                     "primary_condition": report.get("primary_condition"),
-                    "hazard_tags": report.get("hazard_tags") or [],
+                    "hazard_tags": [
+                        tag
+                        for tag in (
+                            normalize_hazard_tag(tag)
+                            for tag in (report.get("hazard_tags") or [])
+                        )
+                        if tag
+                    ],
                     "note": report.get("note"),
+                    "hazard_latitude": report.get("hazard_latitude"),
+                    "hazard_longitude": report.get("hazard_longitude"),
+                    "hazard_location_accuracy_meters": report.get(
+                        "hazard_location_accuracy_meters"
+                    ),
                     "created_at": report.get("created_at"),
                     "updated_at": report.get("updated_at"),
                     "is_edited": report.get("is_edited", False),

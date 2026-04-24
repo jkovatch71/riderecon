@@ -5,16 +5,45 @@ import { useRouter } from "next/navigation";
 import { createReport } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
-const primaryConditions = [
-  "Hero",
-  "Dry",
-  "Damp",
-  "Muddy",
-  "Flooded",
-  "Closed",
+const primaryConditions = ["Hero", "Dry", "Damp", "Muddy", "Flooded", "Closed"];
+
+const hazardTags = [
+  { value: "Obstruction", icon: "🌳" },
+  { value: "Bees", icon: "🐝" },
+  { value: "Wildlife", icon: "🐾" },
+  { value: "Other", icon: "⚠️" },
 ];
 
-const hazardTags = ["Obstructed", "Bees", "Wildlife"];
+type HazardLocation = {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+};
+
+function getCurrentLocation(): Promise<HazardLocation | null> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy ?? null,
+        });
+      },
+      () => resolve(null),
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 30000,
+      }
+    );
+  });
+}
 
 export function ReportForm({
   trailId,
@@ -30,10 +59,13 @@ export function ReportForm({
   const [selectedHazards, setSelectedHazards] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
+  const [messageType, setMessageType] = useState<"success" | "error" | null>(
+    null
+  );
   const [submitting, setSubmitting] = useState(false);
 
   const accessToken = session?.access_token;
+  const hasHazards = selectedHazards.length > 0;
 
   function toggleHazard(tag: string) {
     setSelectedHazards((prev) =>
@@ -55,12 +87,17 @@ export function ReportForm({
     }
 
     try {
+      const location = hasHazards ? await getCurrentLocation() : null;
+
       const result = await createReport(
         {
           trail_id: trailId,
           primary_condition: primaryCondition,
           hazard_tags: selectedHazards,
           note,
+          hazard_latitude: location?.latitude ?? null,
+          hazard_longitude: location?.longitude ?? null,
+          hazard_location_accuracy_meters: location?.accuracy ?? null,
         },
         accessToken
       );
@@ -83,8 +120,10 @@ export function ReportForm({
   return (
     <form className="card p-5" onSubmit={onSubmit}>
       <div>
-        <h3 className="text-xl font-semibold">Report Trail Conditions</h3>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h3 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+          Report Trail Conditions
+        </h3>
+        <p className="text-helper mt-1 text-zinc-400">
           Nearest trail confirmed as {trailName}
         </p>
       </div>
@@ -148,24 +187,29 @@ export function ReportForm({
 
         <div>
           <p className="label">Hazards</p>
+          <p className="text-helper mt-1 text-zinc-500">
+            Hazard reports will try to use your current location for map
+            placement.
+          </p>
 
           <div className="mt-2 flex flex-wrap gap-2">
             {hazardTags.map((tag) => {
-              const active = selectedHazards.includes(tag);
+              const active = selectedHazards.includes(tag.value);
 
               return (
                 <button
                   type="button"
-                  key={tag}
-                  onClick={() => toggleHazard(tag)}
+                  key={tag.value}
+                  onClick={() => toggleHazard(tag.value)}
                   aria-pressed={active}
                   className={
                     active
-                      ? "rounded-xl border border-amber-500 bg-amber-500/15 px-4 py-2 text-sm font-medium text-amber-300 transition"
-                      : "rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-700"
+                      ? "rounded-xl border border-amber-500 bg-amber-500/15 px-3 py-2 text-sm font-medium text-amber-300 transition"
+                      : "rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-700"
                   }
                 >
-                  {tag}
+                  <span className="mr-1">{tag.icon}</span>
+                  {tag.value}
                 </button>
               );
             })}
@@ -179,12 +223,16 @@ export function ReportForm({
             maxLength={255}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Example: back half still tacky, creek crossing is slick"
+            placeholder="Example: tree down about 2 miles south of the trailhead"
           />
         </div>
 
         <button className="btn-primary w-full" disabled={submitting} type="submit">
-          {submitting ? "Submitting..." : "Submit report"}
+          {submitting
+            ? hasHazards
+              ? "Pinning location..."
+              : "Submitting..."
+            : "Submit report"}
         </button>
 
         {message ? (

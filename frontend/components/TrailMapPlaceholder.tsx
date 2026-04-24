@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LatLngBounds, type CircleMarker as LeafletCircleMarker } from "leaflet";
 import {
   Circle,
@@ -24,7 +24,42 @@ type RainBucket = {
   trailCount: number;
 };
 
-function markerColor(condition?: string) {
+type HazardPoint = {
+  id?: string;
+  trail_id?: string;
+  tags: string[];
+  note?: string | null;
+  latitude: number;
+  longitude: number;
+  accuracy_meters?: number | null;
+  created_at?: string | null;
+};
+
+type TrailSummaryWithHazards = {
+  display_condition?: string | null;
+  display_status_color?: "green" | "yellow" | "red" | null;
+  recent_hazards?: string[];
+  hazard_points?: HazardPoint[];
+};
+
+const HAZARD_META: Record<string, { icon: string; label: string }> = {
+  obstruction: { icon: "🌳", label: "Obstruction" },
+  obstructed: { icon: "🌳", label: "Obstruction" },
+  bees: { icon: "🐝", label: "Bees" },
+  wildlife: { icon: "🐾", label: "Wildlife" },
+  other: { icon: "⚠️", label: "Other" },
+};
+
+function normalizeHazard(tag: string) {
+  const key = tag.trim().toLowerCase();
+  return HAZARD_META[key] ?? { icon: "⚠️", label: tag };
+}
+
+function getSummary(trail: Trail) {
+  return trail.summary as TrailSummaryWithHazards | undefined;
+}
+
+function markerColor(condition?: string | null) {
   const normalized = (condition || "").toLowerCase();
 
   if (normalized.includes("permanently closed")) return "#ef4444";
@@ -32,14 +67,14 @@ function markerColor(condition?: string) {
   if (normalized.includes("flooded")) return "#f43f5e";
   if (normalized.includes("wet")) return "#f97316";
 
-  const color = getConditionColor(condition);
+  const color = getConditionColor(condition || undefined);
 
   if (color === "green") return "#34d399";
   if (color === "yellow") return "#fbbf24";
   return "#fb7185";
 }
 
-function haloColor(condition?: string) {
+function haloColor(condition?: string | null) {
   const normalized = (condition || "").toLowerCase();
 
   if (
@@ -59,7 +94,7 @@ function haloColor(condition?: string) {
   return null;
 }
 
-function rainSignalScore(condition?: string) {
+function rainSignalScore(condition?: string | null) {
   const normalized = (condition || "").toLowerCase();
 
   if (
@@ -102,9 +137,11 @@ function buildRainBuckets(trails: Trail[]): RainBucket[] {
   if (!valid.length) return [];
 
   const avgLat =
-    valid.reduce((sum, trail) => sum + (trail.latitude as number), 0) / valid.length;
+    valid.reduce((sum, trail) => sum + (trail.latitude as number), 0) /
+    valid.length;
   const avgLng =
-    valid.reduce((sum, trail) => sum + (trail.longitude as number), 0) / valid.length;
+    valid.reduce((sum, trail) => sum + (trail.longitude as number), 0) /
+    valid.length;
 
   const grouped = new Map<
     string,
@@ -114,7 +151,7 @@ function buildRainBuckets(trails: Trail[]): RainBucket[] {
   for (const trail of valid) {
     const lat = trail.latitude as number;
     const lng = trail.longitude as number;
-    const condition = trail.summary?.display_condition || trail.current_condition;
+    const condition = getSummary(trail)?.display_condition || trail.current_condition;
     const score = rainSignalScore(condition);
 
     if (score <= 0) continue;
@@ -151,6 +188,24 @@ function buildRainBuckets(trails: Trail[]): RainBucket[] {
       radius: rainRadius(avgScore, value.trailCount),
       trailCount: value.trailCount,
     };
+  });
+}
+
+function getTrailHazardPoints(trails: Trail[]): HazardPoint[] {
+  return trails.flatMap((trail) => {
+    const points = getSummary(trail)?.hazard_points ?? [];
+
+    return points
+      .filter(
+        (point) =>
+          typeof point.latitude === "number" &&
+          typeof point.longitude === "number" &&
+          point.tags?.length
+      )
+      .map((point) => ({
+        ...point,
+        trail_id: point.trail_id || trail.id,
+      }));
   });
 }
 
@@ -241,9 +296,7 @@ function LocateMe({
         onLocated(coords);
         map.flyTo(coords, 13, { duration: 0.8 });
       },
-      () => {
-        // silent for now
-      },
+      () => {},
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }, [locateTrigger, map, onLocated]);
@@ -306,6 +359,10 @@ export function TrailMapPlaceholder({
   );
 
   const rainBuckets = useMemo(() => buildRainBuckets(validTrails), [validTrails]);
+  const hazardPoints = useMemo(
+    () => getTrailHazardPoints(validTrails),
+    [validTrails]
+  );
 
   if (!validTrails.length) {
     return (
@@ -340,11 +397,13 @@ export function TrailMapPlaceholder({
           />
 
           <FitBounds trails={validTrails} />
+
           <FocusSelectedTrail
             trails={validTrails}
             selectedTrailId={selectedTrailId}
             markerRefs={markerRefs}
           />
+
           <LocateMe
             locateTrigger={locateTrigger}
             onLocated={(coords) => setUserLocation(coords)}
@@ -361,20 +420,66 @@ export function TrailMapPlaceholder({
                 fillOpacity: rainFillOpacity(bucket.score),
                 weight: 0,
               }}
-            >
-              <Popup>
-                <div className="space-y-1.5">
-                  <p className="text-sm font-semibold text-zinc-900">
-                    Weather signal
-                  </p>
-                  <p className="text-xs text-zinc-700">
-                    {bucket.trailCount} nearby trail
-                    {bucket.trailCount === 1 ? "" : "s"} showing wetter conditions.
-                  </p>
-                </div>
-              </Popup>
-            </Circle>
+            />
           ))}
+
+          {hazardPoints.map((point) => {
+            const primary = normalizeHazard(point.tags[0]);
+
+            return (
+              <CircleMarker
+                key={point.id ?? `${point.latitude}-${point.longitude}`}
+                center={[point.latitude, point.longitude]}
+                radius={12}
+                pathOptions={{
+                  color: "#f59e0b",
+                  fillColor: "#f59e0b",
+                  fillOpacity: 0.92,
+                  weight: 3,
+                }}
+              >
+                <Popup>
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-semibold text-zinc-900">
+                      {primary.icon} Trail hazard
+                    </p>
+
+                    <div className="flex flex-wrap gap-1">
+                      {point.tags.map((tag) => {
+                        const meta = normalizeHazard(tag);
+
+                        return (
+                          <span
+                            key={tag}
+                            className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800"
+                          >
+                            {meta.icon} {meta.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    {point.note ? (
+                      <p className="text-xs text-zinc-700">{point.note}</p>
+                    ) : null}
+
+                    {point.accuracy_meters ? (
+                      <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                        GPS accuracy: ±{Math.round(point.accuracy_meters)}m
+                      </p>
+                    ) : null}
+
+                    <Link
+                      href={`/trails/${point.trail_id}`}
+                      className="inline-block pt-1 text-sm font-medium text-emerald-700 underline"
+                    >
+                      View trail details
+                    </Link>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          })}
 
           {userLocation ? (
             <CircleMarker
@@ -389,34 +494,38 @@ export function TrailMapPlaceholder({
             >
               <Popup>
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-zinc-900">You are here</p>
+                  <p className="text-sm font-semibold text-zinc-900">
+                    You are here
+                  </p>
                 </div>
               </Popup>
             </CircleMarker>
           ) : null}
 
           {validTrails.map((trail) => {
-            const condition =
-              trail.summary?.display_condition || trail.current_condition;
+            const summary = getSummary(trail);
+            const condition = summary?.display_condition || trail.current_condition;
+            const hazards = summary?.recent_hazards ?? [];
             const isFavorite = favoriteSet.has(trail.id);
             const isSelected = selectedTrailId === trail.id;
             const fill = markerColor(condition);
-            const halo = haloColor(condition);
+            const conditionHalo = haloColor(condition);
+            const halo = hazards.length ? "#f59e0b" : conditionHalo;
             const center: [number, number] = [
               trail.latitude as number,
               trail.longitude as number,
             ];
 
             return (
-              <div key={trail.id}>
+              <Fragment key={trail.id}>
                 {halo ? (
                   <CircleMarker
                     center={center}
-                    radius={isSelected ? 26 : 22}
+                    radius={isSelected ? 27 : 22}
                     pathOptions={{
                       color: halo,
                       fillColor: halo,
-                      fillOpacity: isSelected ? 0.12 : 0.08,
+                      fillOpacity: hazards.length ? 0.13 : 0.08,
                       weight: 0,
                     }}
                   />
@@ -465,6 +574,23 @@ export function TrailMapPlaceholder({
                         Condition: {condition}
                       </p>
 
+                      {hazards.length ? (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {hazards.map((hazard) => {
+                            const meta = normalizeHazard(hazard);
+
+                            return (
+                              <span
+                                key={hazard}
+                                className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-800"
+                              >
+                                {meta.icon} {meta.label}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+
                       <Link
                         href={`/trails/${trail.id}`}
                         className="inline-block pt-1 text-sm font-medium text-emerald-700 underline"
@@ -474,7 +600,7 @@ export function TrailMapPlaceholder({
                     </div>
                   </Popup>
                 </CircleMarker>
-              </div>
+              </Fragment>
             );
           })}
         </MapContainer>
