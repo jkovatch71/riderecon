@@ -56,17 +56,15 @@ async function fetchJson<T>(
   return res.json();
 }
 
-export type ResolveLoginIdentifierResponse = {
-  email: string;
-};
-
 export async function resolveLoginIdentifier(
   identifier: string
-): Promise<ResolveLoginIdentifierResponse> {
-  return fetchJson<ResolveLoginIdentifierResponse>("/profiles/resolve-login", {
+): Promise<string> {
+  const data = await fetchJson<{ email: string }>("/profiles/resolve-login", {
     method: "POST",
     body: JSON.stringify({ identifier }),
   });
+
+  return data.email;
 }
 
 export async function getTrails(): Promise<Trail[]> {
