@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Navigation } from "lucide-react";
+import { Navigation, Star } from "lucide-react";
 import type { Trail } from "@/lib/types";
 import { getFavorites, removeFavorite } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
@@ -148,20 +148,10 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
                   {isSaving ? (
                     <span className="text-xl text-zinc-400">…</span>
                   ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      className="h-6 w-6 text-zinc-500"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M21 8.25c0-2.485-2.239-4.5-5-4.5-1.74 0-3.27.81-4 2.09-.73-1.28-2.26-2.09-4-2.09-2.761 0-5 2.015-5 4.5 0 6.75 9 11.25 9 11.25s9-4.5 9-11.25z"
-                      />
-                    </svg>
+                    <Star
+                      className="h-6 w-6 text-zinc-500 fill-current"
+                      strokeWidth={1.6}
+                    />
                   )}
                 </button>
               </div>
