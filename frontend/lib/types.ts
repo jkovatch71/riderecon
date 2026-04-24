@@ -46,6 +46,8 @@ export type TrailReport = {
   created_at: string;
   updated_at?: string;
   is_edited: boolean;
+  confirmation_count?: number;
+  confirmed_by_current_user?: boolean;
   reaction_summary?: {
     thumb: number;
     rock: number;

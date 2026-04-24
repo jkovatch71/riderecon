@@ -14,6 +14,7 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 router = APIRouter(prefix="/reports", tags=["reports"])
 repo = ReportsRepository()
 
+
 def get_profile_username(user_id: str) -> str:
     profile_res = (
         repo.client.table("profiles")
@@ -28,6 +29,7 @@ def get_profile_username(user_id: str) -> str:
 
     return "rider"
 
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
@@ -37,7 +39,10 @@ async def get_current_user(authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Missing auth token")
 
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        raise HTTPException(status_code=500, detail="Supabase auth environment variables are missing")
+        raise HTTPException(
+            status_code=500,
+            detail="Supabase auth environment variables are missing",
+        )
 
     token = authorization.replace("Bearer ", "")
 
@@ -55,6 +60,7 @@ async def get_current_user(authorization: str = Header(None)):
 
     return res.json()
 
+
 @router.post("")
 async def create_report(payload: ReportCreate, user=Depends(get_current_user)):
     try:
@@ -68,9 +74,37 @@ async def create_report(payload: ReportCreate, user=Depends(get_current_user)):
         })
 
         return {
-            "message": "Report submitted. Any image would remain under review until approved.",
+            "message": "Report submitted.",
             "report": result,
         }
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": str(e),
+                "trace": traceback.format_exc(),
+            },
+        )
+
+
+@router.post("/{report_id}/confirm")
+async def confirm_report(report_id: str, user=Depends(get_current_user)):
+    try:
+        user_id = user.get("id")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user")
+
+        result = repo.confirm_report(report_id, user_id)
+
+        return {
+            "message": "Report confirmed.",
+            **result,
+        }
+
+    except HTTPException:
+        raise
 
     except Exception as e:
         return JSONResponse(

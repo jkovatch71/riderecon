@@ -44,6 +44,13 @@ export type CreateReportResponse = {
   report: unknown;
 };
 
+export type ConfirmReportResponse = {
+  message: string;
+  report_id: string;
+  confirmation_count: number;
+  confirmed_by_current_user: boolean;
+};
+
 async function fetchJson<T>(
   path: string,
   options?: RequestInit
@@ -63,10 +70,22 @@ async function fetchJson<T>(
   return res.json();
 }
 
+export async function confirmReport(
+  reportId: string,
+  accessToken: string
+): Promise<ConfirmReportResponse> {
+  return fetchJson<ConfirmReportResponse>(`/reports/${reportId}/confirm`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
 export async function resolveLoginIdentifier(
   identifier: string
 ): Promise<string> {
-  const data = await fetchJson<{ email: string }>("/profiles/resolve-login", {
+  const data = await fetchJson<{ email: string }>("/auth/resolve-login", {
     method: "POST",
     body: JSON.stringify({ identifier }),
   });

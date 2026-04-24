@@ -104,11 +104,8 @@ export function ReportForm({
 
       setMessage(result.message);
       setMessageType("success");
-      setNote("");
-      setSelectedHazards([]);
-      setPrimaryCondition("Dry");
 
-      router.refresh();
+      window.location.reload();
     } catch {
       setMessage("Unable to submit report right now.");
       setMessageType("error");

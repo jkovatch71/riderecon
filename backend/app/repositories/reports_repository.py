@@ -78,6 +78,11 @@ class ReportsRepository:
             "primary_condition": payload["primary_condition"],
             "hazard_tags": payload.get("hazard_tags", []),
             "note": payload.get("note"),
+            "hazard_latitude": payload.get("hazard_latitude"),
+            "hazard_longitude": payload.get("hazard_longitude"),
+            "hazard_location_accuracy_meters": payload.get(
+                "hazard_location_accuracy_meters"
+            ),
             "created_at": now,
             "updated_at": now,
             "is_visible": True,
@@ -115,4 +120,56 @@ class ReportsRepository:
         return {
             **report,
             "hazard_tags": payload.get("hazard_tags", []),
+        }
+
+    def confirm_report(self, report_id: str, user_id: str) -> dict[str, Any]:
+        self._require_client()
+
+        existing = (
+            self.client.table("report_confirmations")
+            .select("id")
+            .eq("report_id", report_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+
+        if existing.data:
+            return self.get_report_confirmation_state(report_id, user_id)
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        self.client.table("report_confirmations").insert(
+            {
+                "id": str(uuid4()),
+                "report_id": report_id,
+                "user_id": user_id,
+                "created_at": now,
+            }
+        ).execute()
+
+        return self.get_report_confirmation_state(report_id, user_id)
+
+    def get_report_confirmation_state(
+        self, report_id: str, user_id: str | None = None
+    ) -> dict[str, Any]:
+        self._require_client()
+
+        confirmations = (
+            self.client.table("report_confirmations")
+            .select("id, user_id")
+            .eq("report_id", report_id)
+            .execute()
+        )
+
+        rows = confirmations.data or []
+
+        return {
+            "report_id": report_id,
+            "confirmation_count": len(rows),
+            "confirmed_by_current_user": (
+                any(row.get("user_id") == user_id for row in rows)
+                if user_id
+                else False
+            ),
         }

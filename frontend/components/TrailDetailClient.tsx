@@ -7,17 +7,18 @@ import { ReportAccess } from "@/components/ReportAccess";
 import { RecentReports } from "@/components/RecentReports";
 import { getConditionColor, timeAgo } from "@/lib/utils";
 
-function recoveryLabel(recoveryClass?: string | null) {
-  switch (recoveryClass) {
-    case "fast":
-      return "Dries Fast";
-    case "average":
-      return "Average Dry Time";
-    case "slow":
-      return "Needs More Dry Time";
-    default:
-      return "Unknown";
-  }
+type TrailSummaryDebug = {
+  resolution_reason?: string | null;
+};
+
+type TrailWithDebugSummary = Trail & {
+  summary?: Trail["summary"] & {
+    debug?: TrailSummaryDebug;
+  };
+};
+
+function getResolutionReason(trail: Trail) {
+  return (trail as TrailWithDebugSummary).summary?.debug?.resolution_reason;
 }
 
 function resolvedCondition(trail: Trail) {
@@ -41,12 +42,22 @@ function confirmationLine(trail: Trail) {
     }`;
   }
 
-  return `${displayCondition} — no fresh rider confirmations`;
+  return `${displayCondition} — no recent confirmations`;
 }
 
 function formatHazards(hazards?: string[]) {
   if (!hazards?.length) return null;
   return hazards.join(", ");
+}
+
+function isFreshReport(report: TrailReport, freshnessHours: number) {
+  const timestamp = report.updated_at || report.created_at;
+  if (!timestamp) return false;
+
+  const reportTime = new Date(timestamp).getTime();
+  const cutoff = Date.now() - freshnessHours * 60 * 60 * 1000;
+
+  return reportTime >= cutoff;
 }
 
 export function TrailDetailClient({
@@ -63,29 +74,44 @@ export function TrailDetailClient({
 
   const displayCondition = resolvedCondition(trail);
   const displayColor = resolvedColor(trail);
+  const freshnessHours = trail.summary?.freshness_hours ?? 3;
 
-  const freshnessText = trail.summary?.last_updated_at
-    ? timeAgo(trail.summary.last_updated_at)
-    : trail.last_reported_at
-      ? timeAgo(trail.last_reported_at)
-      : "unknown";
+  const freshReports = useMemo(
+    () => reports.filter((report) => isFreshReport(report, freshnessHours)),
+    [reports, freshnessHours]
+  );
 
-  const freshConfirmations = trail.summary?.reported_by_count ?? 0;
-  const totalReports = trail.report_count ?? reports.length;
-  const recentReportCount = reports.length;
   const hazards = trail.summary?.recent_hazards ?? [];
   const hazardText = formatHazards(hazards);
 
-  const recoveryText = useMemo(() => {
-    if (!trail.recovery_profile) return null;
+  const updatedText = useMemo(() => {
+    const reason = getResolutionReason(trail);
 
-    const base = recoveryLabel(trail.recovery_profile.recovery_class);
-    const dryTime = trail.recovery_profile.average_recovery_hours
-      ? ` (${trail.recovery_profile.average_recovery_hours}h typical dry time)`
-      : "";
+    if (
+      reason &&
+      [
+        "active_rain",
+        "no_drying_window_heavy_rain",
+        "no_drying_window",
+        "insufficient_drying_time",
+        "recovered",
+        "recent_rain_unavailable",
+        "permanently_closed",
+      ].includes(reason)
+    ) {
+      return "Status updated from weather and recovery signals";
+    }
 
-    return `${base}${dryTime}`;
-  }, [trail.recovery_profile]);
+    if (trail.summary?.last_updated_at) {
+      return `Last rider update ${timeAgo(trail.summary.last_updated_at)}`;
+    }
+
+    if (trail.last_reported_at) {
+      return `Last rider update ${timeAgo(trail.last_reported_at)}`;
+    }
+
+    return "No recent rider updates";
+  }, [trail]);
 
   function expandReports() {
     setReportsExpanded(true);
@@ -121,52 +147,24 @@ export function TrailDetailClient({
             <p className="text-lg font-semibold text-zinc-100">
               {confirmationLine(trail)}
             </p>
-            <p className="mt-1 text-sm text-zinc-400">
-              Last updated {freshnessText}
-            </p>
+            <p className="mt-1 text-sm text-zinc-400">{updatedText}</p>
           </div>
 
           <div className="space-y-1 text-sm text-zinc-300">
-            <p>
-              Fresh confirmations:{" "}
-              <span className="text-zinc-100">{freshConfirmations}</span>
-            </p>
-
-            {recentReportCount > 0 ? (
+            {freshReports.length > 0 ? (
               <button
                 type="button"
                 onClick={expandReports}
                 className="text-left text-emerald-300 underline-offset-4 transition hover:text-emerald-200 hover:underline"
               >
-                Recent reports:{" "}
-                <span className="font-semibold">{recentReportCount}</span>
+                Reports:{" "}
+                <span className="font-semibold">{freshReports.length}</span>
               </button>
             ) : (
               <p>
-                Recent reports: <span className="text-zinc-100">0</span>
+                Reports: <span className="text-zinc-100">0</span>
               </p>
             )}
-
-            <p>
-              Total reports:{" "}
-              <span className="text-zinc-100">{totalReports}</span>
-            </p>
-
-            {trail.summary?.freshness_hours ? (
-              <p>
-                Freshness window:{" "}
-                <span className="text-zinc-100">
-                  last {trail.summary.freshness_hours} hours
-                </span>
-              </p>
-            ) : null}
-
-            {recoveryText ? (
-              <p>
-                Recovery profile:{" "}
-                <span className="text-zinc-100">{recoveryText}</span>
-              </p>
-            ) : null}
 
             {hazardText ? (
               <p className="text-amber-300">Hazards: {hazardText}</p>
@@ -177,47 +175,42 @@ export function TrailDetailClient({
         </div>
       </section>
 
-      <section className="card p-5">
-        {!reportFormOpen ? (
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-                Report Conditions
-              </p>
-              <p className="text-helper mt-1 text-zinc-400">
-                Share fresh trail intel when something changes.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="btn-primary shrink-0"
-              onClick={() => setReportFormOpen(true)}
-            >
-              Report
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <button
-              type="button"
-              onClick={() => setReportFormOpen(false)}
-              className="text-helper text-zinc-500 transition hover:text-zinc-300"
-            >
-              ← Hide report form
-            </button>
-
-            <ReportAccess trailId={trail.id} trailName={trail.name} />
-          </div>
-        )}
-      </section>
-
       <section ref={recentReportsRef}>
         <RecentReports
-          reports={reports}
+          reports={freshReports}
           expanded={reportsExpanded}
           onExpandedChange={setReportsExpanded}
         />
+      </section>
+
+      <section className="card p-5">
+        <button
+          type="button"
+          onClick={() => setReportFormOpen((prev) => !prev)}
+          className="flex w-full items-center justify-between gap-4 text-left"
+          aria-expanded={reportFormOpen}
+        >
+          <div>
+            <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+              Report Conditions
+            </p>
+            <p className="text-helper mt-1 text-zinc-400">
+              Tap here to submit trail conditions or hazards
+            </p>
+          </div>
+
+          <span className="text-sm text-zinc-400">
+            {reportFormOpen ? "▲" : "▼"}
+          </span>
+        </button>
+
+        {reportFormOpen ? (
+          <>
+            <div className="my-4 h-px bg-zinc-800" />
+
+            <ReportAccess trailId={trail.id} trailName={trail.name} />
+          </>
+        ) : null}
       </section>
     </main>
   );
