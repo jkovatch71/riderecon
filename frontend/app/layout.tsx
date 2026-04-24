@@ -87,9 +87,14 @@ export default function RootLayout({
             <AppBootProvider>
               <AppBootSplash />
 
-              <div className="mx-auto min-h-screen max-w-5xl px-4 pb-24 pt-2">
-                <AuthStatus />
-                {children}
+              <div className="mx-auto min-h-screen max-w-5xl px-4 pb-24">
+                <div className="sticky top-0 z-40 bg-zinc-950/95 pt-2 backdrop-blur">
+                  <AuthStatus />
+                </div>
+
+                <div>
+                  {children}
+                </div>
               </div>
 
               <FooterNav />
