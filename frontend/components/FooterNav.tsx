@@ -2,54 +2,73 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  House,
-  Map,
-  Settings,
-  NotebookPen,
-} from "lucide-react";
+import { Home, Map, LifeBuoy, Settings, BookOpen } from "lucide-react";
+import clsx from "clsx";
 
-const items = [
-  { href: "/", label: "Home", icon: House },
-  { href: "/trails", label: "Trails", icon: Map },
-  { href: "/preferences", label: "Preferences", icon: Settings },
-  { href: "/blog", label: "Blog", icon: NotebookPen },
+const navItems = [
+  {
+    href: "/",
+    label: "Home",
+    icon: Home,
+  },
+  {
+    href: "/trails",
+    label: "Trails",
+    icon: Map,
+  },
+  {
+    href: "/help",
+    label: "Help",
+    icon: LifeBuoy,
+  },
+  {
+    href: "/preferences",
+    label: "Preferences",
+    icon: Settings,
+  },
+
+  // 🚧 Future feature (keep for later)
+  /*
+  {
+    href: "/blog",
+    label: "Blog",
+    icon: BookOpen,
+  },
+  */
 ];
 
 export function FooterNav() {
   const pathname = usePathname();
 
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
-
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
-      <div className="mx-auto grid max-w-5xl grid-cols-4">
-        {items.map((item) => {
-          const active = isActive(item.href);
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
+      <div className="mx-auto flex max-w-5xl items-center justify-around px-2 py-2">
+        {navItems.map((item) => {
+          const isActive =
+            item.href === "/"
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
+
           const Icon = item.icon;
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center px-2 py-2 text-xs transition ${
-                active
+              className={clsx(
+                "flex flex-col items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium transition",
+                isActive
                   ? "text-emerald-300"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
+                  : "text-zinc-500 hover:text-zinc-300"
+              )}
             >
-              <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
-              <span className={active ? "mt-1 font-semibold" : "mt-1"}>
-                {item.label}
-              </span>
-              <div
-                className={`mt-1 h-1 w-6 rounded-xl transition ${
-                  active ? "bg-emerald-300" : "bg-transparent"
-                }`}
+              <Icon
+                className={clsx(
+                  "h-5 w-5 transition",
+                  isActive ? "scale-110" : "scale-100"
+                )}
               />
+              <span>{item.label}</span>
             </Link>
           );
         })}
