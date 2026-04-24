@@ -1,4 +1,4 @@
-import type { Trail } from "@/lib/types";
+import type { Trail, TrailReport } from "@/lib/types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
@@ -75,8 +75,8 @@ export async function getTrail(trailId: string): Promise<Trail> {
   return fetchJson<Trail>(`/trails/${trailId}`);
 }
 
-export async function getTrailReports(trailId: string) {
-  return fetchJson(`/trails/${trailId}/reports`);
+export async function getTrailReports(trailId: string): Promise<TrailReport[]> {
+  return fetchJson<TrailReport[]>(`/trails/${trailId}/reports`);
 }
 
 export async function createReport(
