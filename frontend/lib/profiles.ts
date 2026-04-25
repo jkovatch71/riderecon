@@ -25,6 +25,34 @@ function normalizeOptionalText(value?: string): string | null {
   return trimmed ? trimmed : null;
 }
 
+function isDuplicateUsernameError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+
+  const supabaseError = error as {
+    code?: string;
+    message?: string;
+    details?: string;
+  };
+
+  const combined = `${supabaseError.message ?? ""} ${
+    supabaseError.details ?? ""
+  }`.toLowerCase();
+
+  return (
+    supabaseError.code === "23505" ||
+    combined.includes("profiles_username") ||
+    combined.includes("username") && combined.includes("duplicate")
+  );
+}
+
+function throwProfileError(error: unknown): never {
+  if (isDuplicateUsernameError(error)) {
+    throw new Error("That username is already taken.");
+  }
+
+  throw error;
+}
+
 export async function getProfileByUserId(
   userId: string
 ): Promise<MyProfile | null> {
@@ -35,7 +63,7 @@ export async function getProfileByUserId(
     .maybeSingle();
 
   if (error) {
-    throw error;
+    throwProfileError(error);
   }
 
   return data;
@@ -66,7 +94,7 @@ export async function createProfileForUser(
     .single();
 
   if (error) {
-    throw error;
+    throwProfileError(error);
   }
 
   return data;
@@ -107,7 +135,7 @@ export async function updateProfileForUser(
     .single();
 
   if (error) {
-    throw error;
+    throwProfileError(error);
   }
 
   return data;
