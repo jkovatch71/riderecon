@@ -6,6 +6,14 @@ import { useAuth } from "@/components/AuthProvider";
 import { getFavorites } from "@/lib/api";
 import type { Trail } from "@/lib/types";
 
+type RideBucket = "bad" | "caution" | "good";
+
+type GroupedTrails = {
+  good: Trail[];
+  caution: Trail[];
+  bad: Trail[];
+};
+
 function resolvedCondition(trail: Trail) {
   return trail.summary?.display_condition || trail.current_condition || "Unknown";
 }
@@ -14,15 +22,63 @@ function resolvedColor(trail: Trail): "green" | "yellow" | "red" {
   return trail.summary?.display_status_color || "yellow";
 }
 
-function getBucketFromResolved(
-  color: "green" | "yellow" | "red"
-): "good" | "caution" | "bad" {
+function normalizeCondition(trail: Trail) {
+  return resolvedCondition(trail).trim().toLowerCase();
+}
+
+function isPermanentlyClosed(trail: Trail) {
+  const condition = normalizeCondition(trail);
+  const trailId = String(trail.id || "").toLowerCase();
+
+  return (
+    condition.includes("permanently closed") ||
+    trailId === "700-acres" ||
+    trailId === "devils-backbone"
+  );
+}
+
+function getRideBucket(trail: Trail): RideBucket | null {
+  if (isPermanentlyClosed(trail)) {
+    return null;
+  }
+
+  const condition = normalizeCondition(trail);
+  const color = resolvedColor(trail);
+
+  if (
+    condition.includes("closed") ||
+    condition.includes("flooded") ||
+    condition.includes("muddy") ||
+    condition.includes("wet / unrideable") ||
+    condition.includes("needs more time")
+  ) {
+    return "bad";
+  }
+
+  if (
+    condition.includes("damp") ||
+    condition.includes("likely wet") ||
+    condition.includes("unknown") ||
+    condition.includes("other")
+  ) {
+    return "caution";
+  }
+
+  if (
+    condition.includes("hero") ||
+    condition.includes("dry") ||
+    condition.includes("likely dry")
+  ) {
+    return "good";
+  }
+
   if (color === "green") return "good";
   if (color === "red") return "bad";
+
   return "caution";
 }
 
-function groupLabel(bucket: "good" | "caution" | "bad") {
+function groupLabel(bucket: RideBucket) {
   if (bucket === "good") return "Good to ride";
   if (bucket === "caution") return "Use caution";
   return "Needs more time";
@@ -32,6 +88,15 @@ function statusClass(color: "green" | "yellow" | "red") {
   if (color === "green") return "text-emerald-300";
   if (color === "yellow") return "text-amber-300";
   return "text-rose-300";
+}
+
+function sortByFreshness(trails: Trail[]) {
+  return [...trails].sort((a, b) => {
+    const aTime = a.summary?.last_updated_at || a.last_reported_at || "";
+    const bTime = b.summary?.last_updated_at || b.last_reported_at || "";
+
+    return bTime.localeCompare(aTime);
+  });
 }
 
 export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
@@ -66,25 +131,30 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
   }, [user, accessToken, authLoading]);
 
   const relevantTrails = useMemo(() => {
+    const openTrails = trails.filter((trail) => !isPermanentlyClosed(trail));
+
     if (!favoriteIds.length) {
-      return trails.slice(0, 3);
+      return sortByFreshness(openTrails).slice(0, 3);
     }
 
     const favoriteSet = new Set(favoriteIds);
-    const favorites = trails.filter((trail) => favoriteSet.has(trail.id));
+    const favorites = openTrails.filter((trail) => favoriteSet.has(trail.id));
 
-    return favorites.slice(0, 5);
+    return sortByFreshness(favorites).slice(0, 5);
   }, [trails, favoriteIds]);
 
   const grouped = useMemo(() => {
-    const groups = {
-      good: [] as Trail[],
-      caution: [] as Trail[],
-      bad: [] as Trail[],
+    const groups: GroupedTrails = {
+      good: [],
+      caution: [],
+      bad: [],
     };
 
     for (const trail of relevantTrails) {
-      const bucket = getBucketFromResolved(resolvedColor(trail));
+      const bucket = getRideBucket(trail);
+
+      if (!bucket) continue;
+
       groups[bucket].push(trail);
     }
 
@@ -101,12 +171,12 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
       <section className="card p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
+            <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+              No trail data yet
+            </h2>
             <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
               Based on your trails
             </p>
-            <h2 className="mt-1 font-brand text-section-title font-semibold uppercase text-zinc-100">
-              No trail data yet
-            </h2>
           </div>
 
           <Link
@@ -125,7 +195,7 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
   }
 
   const orderedGroups: Array<{
-    key: "bad" | "caution" | "good";
+    key: RideBucket;
     trails: Trail[];
   }> = [
     { key: "bad", trails: grouped.bad },
@@ -137,7 +207,7 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
     <section className="card p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="mt-1 font-brand text-section-title font-semibold uppercase text-zinc-100">
+          <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
             Briefing breakdown
           </h2>
           <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
@@ -146,7 +216,7 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
         </div>
 
         <Link
-          href="/favorites"
+          href="/trails"
           className="text-helper font-semibold uppercase tracking-wide text-emerald-300"
         >
           View all
@@ -192,18 +262,22 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
                           </div>
 
                           <div className="shrink-0 text-right">
-                            <p className={`text-body font-semibold ${statusClass(displayColor)}`}>
+                            <p
+                              className={`text-body font-semibold ${statusClass(
+                                displayColor
+                              )}`}
+                            >
                               {displayCondition}
                             </p>
                           </div>
                         </div>
                       </Link>
 
-                      {index < groupTrails.length - 1 && (
+                      {index < groupTrails.length - 1 ? (
                         <div className="my-2 flex justify-center">
                           <div className="h-px w-16 bg-zinc-800" />
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}
