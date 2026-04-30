@@ -58,3 +58,8 @@ If the backend does not see a Supabase URL and service role key, it falls back t
 - add profile editing
 - add favorite trails
 - package web MVP for testing with local riders
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Roadmap](docs/roadmap.md)

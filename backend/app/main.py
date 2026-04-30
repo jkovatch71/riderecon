@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers.favorites import router as favorites_router
 from app.routers.weather import router as weather_router
 from app.routers.auth import router as auth_router
+from app.routers.admin import router as admin_router
 
 from app.core.config import settings
 from app.routers import feedback, reports, trails, weather
@@ -29,3 +30,4 @@ app.include_router(feedback.router)
 app.include_router(favorites_router)
 app.include_router(weather_router)
 app.include_router(auth_router)
+app.include_router(admin_router)
