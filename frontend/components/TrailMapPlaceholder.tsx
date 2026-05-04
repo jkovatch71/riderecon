@@ -63,13 +63,42 @@ const ASSIST_META: Record<
   string,
   { icon: string; label: string; color: string }
 > = {
-  flat: { icon: "🛞", label: "Flat", color: "#f97316" },
-  mechanical: { icon: "🔧", label: "Mechanical", color: "#f97316" },
-  tool: { icon: "🧰", label: "Tool", color: "#38bdf8" },
-  co2: { icon: "💨", label: "CO₂", color: "#38bdf8" },
+  tire: { icon: "🛞", label: "Tire", color: "#f97316" },
+  flat: { icon: "🛞", label: "Tire", color: "#f97316" },
+  co2: { icon: "🛞", label: "Tire", color: "#f97316" },
+  mechanical: { icon: "🔧", label: "Mechanical", color: "#38bdf8" },
+  tool: { icon: "🔧", label: "Mechanical", color: "#38bdf8" },
   crash: { icon: "🚑", label: "Crash", color: "#ef4444" },
   other: { icon: "⚠️", label: "Other", color: "#f59e0b" },
 };
+
+const ASSIST_DETAIL_LABELS: Record<string, string> = {
+  need_air: "Need Air",
+  tube_patch: "Tube / Patch",
+  plug_sealant: "Plug / Sealant",
+  tire_off_bead: "Tire Off Bead",
+  brakes: "Brakes",
+  chain: "Chain",
+  shifting: "Shifting",
+  wheel_rotor: "Wheel / Rotor",
+  cockpit: "Cockpit",
+  im_ok: "I'm OK",
+  need_help: "Need Help",
+  injury: "Injury",
+  call_911: "Call 911",
+  water: "Water",
+  phone: "Phone",
+  lost_rider: "Lost Rider",
+  animal: "Animal",
+  heat_issue: "Heat Issue",
+  not_sure: "Not Sure",
+  other: "Other",
+};
+
+function getAssistDetailLabel(detail?: string | null) {
+  if (!detail) return null;
+  return ASSIST_DETAIL_LABELS[detail] ?? detail;
+}
 
 function getAssistMeta(type?: string | null) {
   if (!type) return ASSIST_META.other;
@@ -484,6 +513,11 @@ export function TrailMapPlaceholder({
 
                     <p className="mt-1 text-[12px] font-medium text-zinc-700">
                       {meta.label}
+                      {getAssistDetailLabel(request.assist_detail) ? (
+                        <p className="mt-1 text-[12px] font-semibold text-zinc-800">
+                          {getAssistDetailLabel(request.assist_detail)}
+                        </p>
+                      ) : null}
                     </p>
 
                     {request.note ? (

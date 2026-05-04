@@ -52,11 +52,31 @@ export type ConfirmReportResponse = {
 };
 
 export type RiderAssistType =
-  | "flat"
+  | "tire"
   | "mechanical"
-  | "tool"
-  | "co2"
   | "crash"
+  | "other";
+
+export type RiderAssistDetail =
+  | "need_air"
+  | "tube_patch"
+  | "plug_sealant"
+  | "tire_off_bead"
+  | "brakes"
+  | "chain"
+  | "shifting"
+  | "wheel_rotor"
+  | "cockpit"
+  | "im_ok"
+  | "need_help"
+  | "injury"
+  | "call_911"
+  | "water"
+  | "phone"
+  | "lost_rider"
+  | "animal"
+  | "heat_issue"
+  | "not_sure"
   | "other";
 
 export type RiderAssistRequest = {
@@ -64,6 +84,7 @@ export type RiderAssistRequest = {
   user_id: string;
   username?: string | null;
   assist_type: RiderAssistType | string;
+  assist_detail?: RiderAssistDetail | string | null;
   note?: string | null;
   latitude?: number | null;
   longitude?: number | null;
@@ -75,6 +96,7 @@ export type RiderAssistRequest = {
 
 export type CreateRiderAssistPayload = {
   assist_type: RiderAssistType;
+  assist_detail?: RiderAssistDetail | null;
   note?: string;
   latitude?: number | null;
   longitude?: number | null;

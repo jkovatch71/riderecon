@@ -23,6 +23,7 @@ class RiderAssistRepository:
             "user_id": payload["user_id"],
             "username": payload.get("username") or "rider",
             "assist_type": payload["assist_type"],
+            "assist_detail": payload.get("assist_detail"),
             "note": payload.get("note"),
             "latitude": payload.get("latitude"),
             "longitude": payload.get("longitude"),
