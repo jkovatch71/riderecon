@@ -18,6 +18,7 @@ import {
   getFavorites,
   getRiderAssistRequests,
   respondToRiderAssistRequest,
+  resolveRiderAssistRequest,
   type RiderAssistRequest,
 } from "@/lib/api";
 
@@ -438,6 +439,14 @@ export function TrailMapPlaceholder({
     };
   }, [loadFavorites, loadAssistRequests]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void loadAssistRequests();
+    }, 15000); // every 15s
+
+    return () => clearInterval(interval);
+  }, [loadAssistRequests]);
+
   async function handleRespondToAssistRequest(requestId: string) {
     if (!accessToken) return;
 
@@ -460,6 +469,18 @@ export function TrailMapPlaceholder({
     );
   }
   
+  async function handleResolveAssistRequest(requestId: string) {
+    if (!accessToken) return;
+
+    const result = await resolveRiderAssistRequest(requestId, accessToken);
+
+    setAssistRequests((prev) =>
+      prev.map((request) =>
+        request.id === requestId ? result.request : request
+      )
+    );
+  }
+
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 
   const validTrails = trails.filter(
@@ -469,6 +490,11 @@ export function TrailMapPlaceholder({
   );
 
   const rainBuckets = useMemo(() => buildRainBuckets(validTrails), [validTrails]);
+  
+  const activeAssistRequests = useMemo(() => {
+    return assistRequests.filter((request) => request.status !== "resolved");
+  }, [assistRequests]);
+  
   const hazardPoints = useMemo(
     () => getTrailHazardPoints(validTrails),
     [validTrails]
@@ -534,82 +560,115 @@ export function TrailMapPlaceholder({
             />
           ))}
 
-          {assistRequests.map((request) => {
-            if (
-              typeof request.latitude !== "number" ||
-              typeof request.longitude !== "number"
-            ) {
-              return null;
-            }
+          {activeAssistRequests.map((request) => {
+  if (
+    typeof request.latitude !== "number" ||
+    typeof request.longitude !== "number"
+  ) {
+    return null;
+  }
 
-            const meta = getAssistMeta(request.assist_type);
+  const meta = getAssistMeta(request.assist_type);
+  const detailLabel = getAssistDetailLabel(request.assist_detail);
 
-            return (
-              <CircleMarker
-                key={request.id}
-                center={[request.latitude, request.longitude]}
-                radius={14}
-                pathOptions={{
-                  color: meta.color,
-                  fillColor: meta.color,
-                  fillOpacity: 0.95,
-                  weight: 3,
-                }}
+  return (
+    <Fragment key={request.id}>
+      {!request.responder_username ? (
+        <CircleMarker
+          interactive={false}
+          center={[request.latitude, request.longitude]}
+          radius={22}
+          pathOptions={{
+            color: meta.color,
+            fillColor: meta.color,
+            fillOpacity: 0.15,
+            weight: 0,
+          }}
+        />
+      ) : null}
+
+      <CircleMarker
+        center={[request.latitude, request.longitude]}
+        radius={request.responder_username ? 14 : 16}
+        pathOptions={{
+          color: meta.color,
+          fillColor: meta.color,
+          fillOpacity: 0.95,
+          weight: 3,
+        }}
+      >
+        <Popup>
+          <div className="min-w-[180px] max-w-[240px] leading-tight">
+            <p className="text-[13px] font-semibold uppercase text-zinc-900">
+              {meta.icon} Rider Assist
+            </p>
+
+            <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+              Tap to help this rider
+            </p>
+
+            <p className="mt-1 text-[12px] font-medium text-zinc-700">
+              {meta.label}
+            </p>
+
+            {detailLabel ? (
+              <p className="mt-1 text-[12px] font-semibold text-zinc-800">
+                {detailLabel}
+              </p>
+            ) : null}
+
+            {request.note ? (
+              <p className="mt-1.5 text-[12px] leading-snug text-zinc-700">
+                {request.note}
+              </p>
+            ) : null}
+
+            {request.responder_username ? (
+              <div className="mt-1.5 space-y-2">
+                <p className="rounded-lg bg-emerald-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                  {request.responder_username} responding
+                </p>
+
+                {accessToken ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleResolveAssistRequest(request.id)}
+                    className="w-full rounded-lg bg-zinc-800 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-100"
+                  >
+                    Mark Resolved
+                  </button>
+                ) : null}
+              </div>
+            ) : accessToken ? (
+              <button
+                type="button"
+                onClick={() => void handleRespondToAssistRequest(request.id)}
+                className="mt-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white"
               >
-                <Popup>
-                  <div className="min-w-[180px] max-w-[240px] leading-tight">
-                    <p className="text-[13px] font-semibold uppercase text-zinc-900">
-                      {meta.icon} Rider Assist
-                    </p>
+                I&apos;m Responding
+              </button>
+            ) : (
+              <p className="mt-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                Sign in to respond
+              </p>
+            )}
 
-                    <p className="mt-1 text-[12px] font-medium text-zinc-700">
-                      {meta.label}
-                      {getAssistDetailLabel(request.assist_detail) ? (
-                        <p className="mt-1 text-[12px] font-semibold text-zinc-800">
-                          {getAssistDetailLabel(request.assist_detail)}
-                        </p>
-                      ) : null}
-                    </p>
+            <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+              @{request.username || "rider"}
+            </p>
 
-                    {request.note ? (
-                      <p className="mt-1.5 text-[12px] leading-snug text-zinc-700">
-                        {request.note}
-                      </p>
-                    ) : null}
-
-                    {request.responder_username ? (
-                      <p className="mt-1.5 rounded-lg bg-emerald-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
-                        {request.responder_username} responding
-                      </p>
-                    ) : accessToken ? (
-                      <button
-                        type="button"
-                        onClick={() => void handleRespondToAssistRequest(request.id)}
-                        className="mt-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white"
-                      >
-                        I&apos;m Responding
-                      </button>
-                    ) : (
-                      <p className="mt-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
-                        Sign in to respond
-                      </p>
-                    )}
-
-                    <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
-                      @{request.username || "rider"}
-                    </p>
-
-                    {request.location_accuracy_meters ? (
-                      <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
-                        GPS ±{Math.round(request.location_accuracy_meters)}m
-                      </p>
-                    ) : null}
-                  </div>
-                </Popup>
-              </CircleMarker>
-            );
-          })}
-          {assistRequests.map((request) => {
+            {request.location_accuracy_meters ? (
+              <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                GPS ±{Math.round(request.location_accuracy_meters)}m
+              </p>
+            ) : null}
+          </div>
+        </Popup>
+      </CircleMarker>
+    </Fragment>
+  );
+})}
+          {activeAssistRequests.map((request) => {
             if (
               typeof request.responder_latitude !== "number" ||
               typeof request.responder_longitude !== "number"

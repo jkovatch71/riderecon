@@ -284,3 +284,18 @@ export async function respondToRiderAssistRequest(
     }
   );
 }
+
+export async function resolveRiderAssistRequest(
+  requestId: string,
+  accessToken: string
+): Promise<{ message: string; request: RiderAssistRequest }> {
+  return fetchJson<{ message: string; request: RiderAssistRequest }>(
+    `/rider-assist/${requestId}/resolve`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+}

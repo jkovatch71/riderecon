@@ -91,3 +91,33 @@ class RiderAssistRepository:
             raise ValueError("Assist request not found or no longer active.")
 
         return rows[0]
+    
+    def resolve_request(
+        self,
+        request_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        self._require_client()
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        result = (
+            self.client.table("rider_assist_requests")
+            .update(
+                {
+                    "status": "resolved",
+                    "resolved_at": now,
+                    "updated_at": now,
+                }
+            )
+            .eq("id", request_id)
+            .eq("status", "active")
+            .execute()
+        )
+
+        rows = result.data or []
+
+        if not rows:
+            raise ValueError("Assist request not found or already resolved.")
+
+        return rows[0]
