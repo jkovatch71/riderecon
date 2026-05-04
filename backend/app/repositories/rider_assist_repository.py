@@ -55,3 +55,39 @@ class RiderAssistRepository:
         )
 
         return result.data or []
+    
+    def respond_to_request(
+        self,
+        request_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        self._require_client()
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        update_payload = {
+            "responder_user_id": payload["user_id"],
+            "responder_username": payload.get("username") or "rider",
+            "responder_latitude": payload.get("latitude"),
+            "responder_longitude": payload.get("longitude"),
+            "responder_location_accuracy_meters": payload.get(
+                "location_accuracy_meters"
+            ),
+            "responded_at": now,
+            "updated_at": now,
+        }
+
+        result = (
+            self.client.table("rider_assist_requests")
+            .update(update_payload)
+            .eq("id", request_id)
+            .eq("status", "active")
+            .execute()
+        )
+
+        rows = result.data or []
+
+        if not rows:
+            raise ValueError("Assist request not found or no longer active.")
+
+        return rows[0]

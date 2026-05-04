@@ -92,6 +92,13 @@ export type RiderAssistRequest = {
   status: string;
   created_at: string;
   updated_at?: string | null;
+  responder_user_id?: string | null;
+  responder_username?: string | null;
+  responder_latitude?: number | null;
+  responder_longitude?: number | null;
+  responder_location_accuracy_meters?: number | null;
+  responded_at?: string | null;
+  resolved_at?: string | null;
 };
 
 export type CreateRiderAssistPayload = {
@@ -247,6 +254,27 @@ export async function createRiderAssistRequest(
 ): Promise<{ message: string; request: RiderAssistRequest }> {
   return fetchJson<{ message: string; request: RiderAssistRequest }>(
     "/rider-assist",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function respondToRiderAssistRequest(
+  requestId: string,
+  payload: {
+    latitude?: number | null;
+    longitude?: number | null;
+    location_accuracy_meters?: number | null;
+  },
+  accessToken: string
+): Promise<{ message: string; request: RiderAssistRequest }> {
+  return fetchJson<{ message: string; request: RiderAssistRequest }>(
+    `/rider-assist/${requestId}/respond`,
     {
       method: "POST",
       headers: {

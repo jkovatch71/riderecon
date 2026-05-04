@@ -17,6 +17,7 @@ import { useAuth } from "@/components/AuthProvider";
 import {
   getFavorites,
   getRiderAssistRequests,
+  respondToRiderAssistRequest,
   type RiderAssistRequest,
 } from "@/lib/api";
 
@@ -110,6 +111,35 @@ function getSummary(trail: Trail) {
 
 function resolvedCondition(trail: Trail) {
   return getSummary(trail)?.display_condition || trail.current_condition || "Unknown";
+}
+
+function getCurrentLocation(): Promise<{
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+} | null> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy ?? null,
+        });
+      },
+      () => resolve(null),
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 15000,
+      }
+    );
+  });
 }
 
 function markerColor(condition?: string | null) {
@@ -408,6 +438,28 @@ export function TrailMapPlaceholder({
     };
   }, [loadFavorites, loadAssistRequests]);
 
+  async function handleRespondToAssistRequest(requestId: string) {
+    if (!accessToken) return;
+
+    const location = await getCurrentLocation();
+
+    const result = await respondToRiderAssistRequest(
+      requestId,
+      {
+        latitude: location?.latitude ?? null,
+        longitude: location?.longitude ?? null,
+        location_accuracy_meters: location?.accuracy ?? null,
+      },
+      accessToken
+    );
+
+    setAssistRequests((prev) =>
+      prev.map((request) =>
+        request.id === requestId ? result.request : request
+      )
+    );
+  }
+  
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 
   const validTrails = trails.filter(
@@ -525,6 +577,24 @@ export function TrailMapPlaceholder({
                       </p>
                     ) : null}
 
+                    {request.responder_username ? (
+                      <p className="mt-1.5 rounded-lg bg-emerald-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                        {request.responder_username} responding
+                      </p>
+                    ) : accessToken ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleRespondToAssistRequest(request.id)}
+                        className="mt-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white"
+                      >
+                        I&apos;m Responding
+                      </button>
+                    ) : (
+                      <p className="mt-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                        Sign in to respond
+                      </p>
+                    )}
+
                     <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
                       @{request.username || "rider"}
                     </p>
@@ -534,6 +604,39 @@ export function TrailMapPlaceholder({
                         GPS ±{Math.round(request.location_accuracy_meters)}m
                       </p>
                     ) : null}
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          })}
+          {assistRequests.map((request) => {
+            if (
+              typeof request.responder_latitude !== "number" ||
+              typeof request.responder_longitude !== "number"
+            ) {
+              return null;
+            }
+
+            return (
+              <CircleMarker
+                key={`${request.id}-responder`}
+                center={[request.responder_latitude, request.responder_longitude]}
+                radius={9}
+                pathOptions={{
+                  color: "#ffffff",
+                  fillColor: "#22c55e",
+                  fillOpacity: 0.95,
+                  weight: 3,
+                }}
+              >
+                <Popup>
+                  <div className="min-w-[160px] leading-tight">
+                    <p className="text-[13px] font-semibold uppercase text-zinc-900">
+                      Responder
+                    </p>
+                    <p className="mt-1 text-[12px] text-zinc-700">
+                      @{request.responder_username || "rider"} is responding
+                    </p>
                   </div>
                 </Popup>
               </CircleMarker>

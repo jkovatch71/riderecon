@@ -5,7 +5,7 @@ import traceback
 
 from app.core.config import settings
 from app.repositories.rider_assist_repository import RiderAssistRepository
-from app.schemas.rider_assist import RiderAssistCreate
+from app.schemas.rider_assist import RiderAssistCreate, RiderAssistRespond
 
 router = APIRouter(prefix="/rider-assist", tags=["rider-assist"])
 repo = RiderAssistRepository()
@@ -84,6 +84,46 @@ async def create_assist_request(
             "message": "Assist request posted.",
             "request": result,
         }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e), "trace": traceback.format_exc()},
+        )
+    
+@router.post("/{request_id}/respond")
+async def respond_to_assist_request(
+    request_id: str,
+    payload: RiderAssistRespond,
+    user=Depends(get_current_user),
+):
+    try:
+        user_id = user.get("id")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user")
+
+        username = get_profile_username(user_id)
+
+        result = repo.respond_to_request(
+            request_id,
+            {
+                **payload.model_dump(),
+                "user_id": user_id,
+                "username": username,
+            },
+        )
+
+        return {
+            "message": "Response posted.",
+            "request": result,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
     except HTTPException:
         raise

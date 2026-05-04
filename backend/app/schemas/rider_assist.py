@@ -8,3 +8,8 @@ class RiderAssistCreate(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     location_accuracy_meters: float | None = None
+
+class RiderAssistRespond(BaseModel):
+    latitude: float | None = None
+    longitude: float | None = None
+    location_accuracy_meters: float | None = None
