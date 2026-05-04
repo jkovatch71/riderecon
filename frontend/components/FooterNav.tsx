@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Map, LifeBuoy, Settings, BookOpen } from "lucide-react";
+import { Home, List, Map, LifeBuoy, Settings, BookOpen } from "lucide-react";
 import clsx from "clsx";
 
 const navItems = [
@@ -14,6 +14,11 @@ const navItems = [
   {
     href: "/trails",
     label: "Trails",
+    icon: List,
+  },
+  {
+    href: "/map",
+    label: "Map",
     icon: Map,
   },
   {
@@ -27,7 +32,6 @@ const navItems = [
     icon: Settings,
   },
 
-  // 🚧 Future feature (keep for later)
   /*
   {
     href: "/blog",

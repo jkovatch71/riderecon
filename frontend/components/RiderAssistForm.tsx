@@ -138,32 +138,27 @@ const detailsByType: Record<RiderAssistType, AssistDetailOption[]> = {
       helper: "Mechanical issue, but not sure what is wrong.",
     },
   ],
-  crash: [
-    {
-      detail: "im_ok",
-      label: "I'm OK",
-      icon: Cross,
-      helper: "Crash happened, but mostly need a check-in or bike help.",
-    },
-    {
-      detail: "need_help",
-      label: "Need Help",
-      icon: AlertTriangle,
-      helper: "Need another rider to come assist.",
-    },
-    {
-      detail: "injury",
-      label: "Injury",
-      icon: ShieldAlert,
-      helper: "Possible injury. Riders nearby should use caution and help.",
-    },
-    {
-      detail: "call_911",
-      label: "Call 911",
-      icon: Phone,
-      helper: "Emergency situation. Call 911 directly; Ride Recon does not contact emergency services.",
-    },
-  ],
+ crash: [
+  {
+    detail: "minor_first_aid",
+    label: "First Aid",
+    icon: Cross,
+    helper: "Scrapes, cuts, bruises, bandage, wipes, or minor first-aid help.",
+  },
+  {
+    detail: "bike_check",
+    label: "Bike Check",
+    icon: Bike,
+    helper: "Crash happened and the bike may need a quick safety check.",
+  },
+  {
+    detail: "rider_help",
+    label: "Rider Help",
+    icon: AlertTriangle,
+    helper:
+      "Need another rider nearby. Includes serious situations. Call 911 directly if emergency.",
+  },
+],
   other: [
     {
       detail: "water",
@@ -438,7 +433,11 @@ export function RiderAssistForm() {
             What do you need? Tap the closest match.
           </p>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div
+            className={`mt-4 grid gap-2 ${
+                assistType === "crash" ? "grid-cols-3" : "grid-cols-2"
+            }`}
+            >
             {detailOptions.map((option) => {
               const Icon = option.icon;
               const active = assistDetail === option.detail;
@@ -497,12 +496,11 @@ export function RiderAssistForm() {
             {submitting ? "Dropping pin..." : "Request Assist"}
           </button>
 
-          {assistDetail === "call_911" ? (
+          {assistDetail === "rider_help" ? (
             <p className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
-              Ride Recon does not contact emergency services. Call 911 directly
-              if there is an emergency.
+                If this is an emergency, call 911 directly. Ride Recon does not contact emergency services.
             </p>
-          ) : null}
+            ) : null}
 
           {message ? (
             <p className="mt-3 text-sm text-rose-300">{message}</p>
