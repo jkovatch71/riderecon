@@ -51,6 +51,36 @@ export type ConfirmReportResponse = {
   confirmed_by_current_user: boolean;
 };
 
+export type RiderAssistType =
+  | "flat"
+  | "mechanical"
+  | "tool"
+  | "co2"
+  | "crash"
+  | "other";
+
+export type RiderAssistRequest = {
+  id: string;
+  user_id: string;
+  username?: string | null;
+  assist_type: RiderAssistType | string;
+  note?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  location_accuracy_meters?: number | null;
+  status: string;
+  created_at: string;
+  updated_at?: string | null;
+};
+
+export type CreateRiderAssistPayload = {
+  assist_type: RiderAssistType;
+  note?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  location_accuracy_meters?: number | null;
+};
+
 async function fetchJson<T>(
   path: string,
   options?: RequestInit
@@ -181,6 +211,26 @@ export async function getReportConfirmation(
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+    }
+  );
+}
+
+export async function getRiderAssistRequests(): Promise<RiderAssistRequest[]> {
+  return fetchJson<RiderAssistRequest[]>("/rider-assist");
+}
+
+export async function createRiderAssistRequest(
+  payload: CreateRiderAssistPayload,
+  accessToken: string
+): Promise<{ message: string; request: RiderAssistRequest }> {
+  return fetchJson<{ message: string; request: RiderAssistRequest }>(
+    "/rider-assist",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
     }
   );
 }

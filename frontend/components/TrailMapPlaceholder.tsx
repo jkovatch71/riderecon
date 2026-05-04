@@ -12,9 +12,13 @@ import {
   useMap,
 } from "react-leaflet";
 import type { Trail } from "@/lib/types";
-import { getFavorites } from "@/lib/api";
 import { getConditionColor } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
+import {
+  getFavorites,
+  getRiderAssistRequests,
+  type RiderAssistRequest,
+} from "@/lib/api";
 
 type RainBucket = {
   key: string;
@@ -53,6 +57,23 @@ const HAZARD_META: Record<string, { icon: string; label: string }> = {
 function normalizeHazard(tag: string) {
   const key = tag.trim().toLowerCase();
   return HAZARD_META[key] ?? { icon: "⚠️", label: tag };
+}
+
+const ASSIST_META: Record<
+  string,
+  { icon: string; label: string; color: string }
+> = {
+  flat: { icon: "🛞", label: "Flat", color: "#f97316" },
+  mechanical: { icon: "🔧", label: "Mechanical", color: "#f97316" },
+  tool: { icon: "🧰", label: "Tool", color: "#38bdf8" },
+  co2: { icon: "💨", label: "CO₂", color: "#38bdf8" },
+  crash: { icon: "🚑", label: "Crash", color: "#ef4444" },
+  other: { icon: "⚠️", label: "Other", color: "#f59e0b" },
+};
+
+function getAssistMeta(type?: string | null) {
+  if (!type) return ASSIST_META.other;
+  return ASSIST_META[type] ?? ASSIST_META.other;
 }
 
 function getSummary(trail: Trail) {
@@ -315,6 +336,7 @@ export function TrailMapPlaceholder({
   const { user, session, authLoading } = useAuth();
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [assistRequests, setAssistRequests] = useState<RiderAssistRequest[]>([]);
   const [locateTrigger, setLocateTrigger] = useState(0);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
@@ -332,15 +354,22 @@ export function TrailMapPlaceholder({
     setFavoriteIds(ids);
   }, [user, accessToken]);
 
+  const loadAssistRequests = useCallback(async () => {
+    const requests = await getRiderAssistRequests().catch((): RiderAssistRequest[] => []);
+    setAssistRequests(requests);
+  }, []);
+
   useEffect(() => {
     if (authLoading) return;
     void loadFavorites();
-  }, [authLoading, loadFavorites]);
+    void loadAssistRequests();
+  }, [authLoading, loadFavorites, loadAssistRequests]);
 
   useEffect(() => {
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
         void loadFavorites();
+        void loadAssistRequests();
       }
     }
 
@@ -349,7 +378,7 @@ export function TrailMapPlaceholder({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [loadFavorites]);
+  }, [loadFavorites, loadAssistRequests]);
 
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 
@@ -425,6 +454,58 @@ export function TrailMapPlaceholder({
             />
           ))}
 
+          {assistRequests.map((request) => {
+            if (
+              typeof request.latitude !== "number" ||
+              typeof request.longitude !== "number"
+            ) {
+              return null;
+            }
+
+            const meta = getAssistMeta(request.assist_type);
+
+            return (
+              <CircleMarker
+                key={request.id}
+                center={[request.latitude, request.longitude]}
+                radius={14}
+                pathOptions={{
+                  color: meta.color,
+                  fillColor: meta.color,
+                  fillOpacity: 0.95,
+                  weight: 3,
+                }}
+              >
+                <Popup>
+                  <div className="min-w-[180px] max-w-[240px] leading-tight">
+                    <p className="text-[13px] font-semibold uppercase text-zinc-900">
+                      {meta.icon} Rider Assist
+                    </p>
+
+                    <p className="mt-1 text-[12px] font-medium text-zinc-700">
+                      {meta.label}
+                    </p>
+
+                    {request.note ? (
+                      <p className="mt-1.5 text-[12px] leading-snug text-zinc-700">
+                        {request.note}
+                      </p>
+                    ) : null}
+
+                    <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                      @{request.username || "rider"}
+                    </p>
+
+                    {request.location_accuracy_meters ? (
+                      <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                        GPS ±{Math.round(request.location_accuracy_meters)}m
+                      </p>
+                    ) : null}
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          })}
           {hazardPoints.map((point) => {
             const primary = normalizeHazard(point.tags[0]);
 

@@ -1,4 +1,5 @@
-import { AlertTriangle, PackageSearch, Wrench } from "lucide-react";
+import { AlertTriangle, PackageSearch } from "lucide-react";
+import { RiderAssistForm } from "@/components/RiderAssistForm";
 
 function HelpFeatureCard({
   icon: Icon,
@@ -57,16 +58,9 @@ export default function HelpPage() {
             Help, gear, tools, parts
           </p>
         </div>
-
       </section>
 
-      <HelpFeatureCard
-        icon={Wrench}
-        eyebrow="Coming Soon"
-        title="Rider Assist"
-        description="Request help with a flat, mechanical issue, missing tool, crash, or other trail-side problem."
-        status="Planned Feature"
-      />
+      <RiderAssistForm />
 
       <HelpFeatureCard
         icon={PackageSearch}
