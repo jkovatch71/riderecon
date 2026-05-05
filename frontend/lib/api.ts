@@ -190,12 +190,11 @@ export async function addFavorite(
   trailId: string,
   accessToken: string
 ): Promise<void> {
-  await fetchJson("/favorites", {
+  await fetchJson(`/favorites/${trailId}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ trail_id: trailId }),
   });
 }
 
