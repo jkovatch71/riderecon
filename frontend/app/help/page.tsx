@@ -55,7 +55,7 @@ export default function HelpPage() {
           </h1>
 
           <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-            Help, gear, tools, parts
+            Help | gear | tools | parts
           </p>
         </div>
       </section>

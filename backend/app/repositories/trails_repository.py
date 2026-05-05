@@ -247,28 +247,30 @@ class TrailsRepository:
             else True
         )
 
-        if most_recent_fresh_condition == "Closed":
-            return "Closed", color_for_condition("Closed"), 1, "fresh_report_closed"
-
-        if most_recent_fresh_condition == "Flooded":
-            return "Flooded", color_for_condition("Flooded"), 1, "fresh_report_flooded"
+        # Fresh rider report wins.
+        if most_recent_fresh_condition:
+            return (
+                most_recent_fresh_condition,
+                color_for_condition(most_recent_fresh_condition),
+                1,
+                "fresh_rider_report",
+            )
 
         if is_raining_now:
-            return "Wet / Unrideable", color_for_condition("Wet / Unrideable"), 0, "active_rain"
+            return (
+                "Wet / Unrideable",
+                color_for_condition("Wet / Unrideable"),
+                0,
+                "active_rain",
+            )
 
         if recent_rain_unavailable:
-            if most_recent_fresh_condition == "Muddy":
-                return "Muddy", color_for_condition("Muddy"), 1, "fresh_report_muddy_no_rain_data"
-            if most_recent_fresh_condition == "Damp":
-                return "Damp", color_for_condition("Damp"), 1, "fresh_report_damp_no_rain_data"
-            if most_recent_fresh_condition in {"Dry", "Hero Dirt"}:
-                return (
-                    most_recent_fresh_condition,
-                    color_for_condition(most_recent_fresh_condition),
-                    1,
-                    "fresh_report_dry_no_rain_data",
-                )
-            return "Unknown", color_for_condition("Unknown"), 0, "recent_rain_unavailable"
+            return (
+                "Unknown",
+                color_for_condition("Unknown"),
+                0,
+                "recent_rain_unavailable",
+            )
 
         if not drying_window_established:
             if storm_rain_total_inches >= 0.50:
@@ -278,6 +280,7 @@ class TrailsRepository:
                     0,
                     "no_drying_window_heavy_rain",
                 )
+
             return (
                 "Needs More Time",
                 color_for_condition("Needs More Time"),
@@ -291,29 +294,11 @@ class TrailsRepository:
         )
 
         if effective_drying_hours < required_recovery_hours:
-            if most_recent_fresh_condition == "Muddy":
-                return "Muddy", color_for_condition("Muddy"), 1, "fresh_report_muddy_during_recovery"
-            if most_recent_fresh_condition == "Damp":
-                return "Damp", color_for_condition("Damp"), 1, "fresh_report_damp_during_recovery"
             return (
                 "Needs More Time",
                 color_for_condition("Needs More Time"),
                 0,
                 "insufficient_drying_time",
-            )
-
-        if most_recent_fresh_condition == "Muddy":
-            return "Muddy", color_for_condition("Muddy"), 1, "fresh_report_muddy"
-
-        if most_recent_fresh_condition == "Damp":
-            return "Damp", color_for_condition("Damp"), 1, "fresh_report_damp"
-
-        if most_recent_fresh_condition in {"Dry", "Hero Dirt"}:
-            return (
-                most_recent_fresh_condition,
-                color_for_condition(most_recent_fresh_condition),
-                1,
-                "fresh_report_dry_family",
             )
 
         return "Likely Dry", color_for_condition("Likely Dry"), 0, "recovered"
@@ -399,7 +384,7 @@ class TrailsRepository:
                 "current_condition": (
                     "Permanently Closed" if is_permanently_closed else current_condition
                 ),
-                "reported_by_count": report_confidence_count,
+                "reported_by_count": len(fresh_reports),
                 "recent_hazards": recent_hazards,
                 "hazard_points": hazard_points,
                 "last_updated_at": last_updated_at,

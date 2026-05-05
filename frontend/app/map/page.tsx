@@ -20,7 +20,7 @@ export default async function MapPage() {
   const trails = await getTrails();
 
   return (
-    <main className="space-y-3 pb-4">
+    <main className="space-y-3 pb-28">
       <section className="card p-6">
         <div className="space-y-1">
           <h1 className="font-brand text-page-title font-semibold uppercase text-zinc-100">
