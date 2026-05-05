@@ -412,7 +412,7 @@ export function buildBriefing(
             ),
             supporting: riderOrNeutral(
               tone,
-              "Not hero dirt yet—still more drying to go.",
+              "Not hero yet—still more drying to go.",
               "Some improvement is underway, but more drying time is still needed."
             ),
             status: "caution",
