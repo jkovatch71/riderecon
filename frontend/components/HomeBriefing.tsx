@@ -90,7 +90,6 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
   const [headingDone, setHeadingDone] = useState(false);
   const [statusDone, setStatusDone] = useState(false);
   const [detailDone, setDetailDone] = useState(false);
-  const [supportingDone, setSupportingDone] = useState(false);
 
   const accessToken = session?.access_token;
   const lastScriptKeyRef = useRef("");
@@ -274,7 +273,6 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
     setHeadingDone(false);
     setStatusDone(false);
     setDetailDone(false);
-    setSupportingDone(false);
   }, [nextScript]);
 
   useEffect(() => {
@@ -295,12 +293,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
     markAppReady();
   }, [script, isInitializing, bootComplete, markAppReady]);
 
-  const metaReady =
-    !!script &&
-    headingDone &&
-    statusDone &&
-    detailDone &&
-    (!script.supporting || supportingDone);
+  const metaReady = !!script && headingDone && statusDone && detailDone;
 
   return (
     <div className="max-w-2xl">
@@ -355,24 +348,6 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
             </p>
           ) : null}
 
-          {script && bootComplete && detailDone && script.supporting ? (
-            <p className="text-body font-medium text-zinc-200">
-              <TypingText
-                text={script.supporting}
-                speed={48}
-                startDelay={300}
-                showCursor={!supportingDone}
-                onComplete={() => setSupportingDone(true)}
-                enableSound={true}
-              />
-
-              {supportingDone && (
-                <span className="ml-0.5 inline-block animate-pulse text-emerald-300">
-                  ▌
-                </span>
-              )}
-            </p>
-          ) : null}
         </div>
 
         <div className="mt-6 flex items-end justify-between gap-3">
