@@ -7,7 +7,8 @@ from app.db.weather_cache import (
     get_fresh_weather_cache_payload,
 )
 
-FRESHNESS_HOURS = 3
+FRESHNESS_HOURS = 8
+VISIBLE_REPORT_HOURS = 168
 CURRENT_CACHE_KEY = "current_weather"
 RECENT_RAIN_CACHE_KEY = "recent_rain"
 
@@ -211,6 +212,9 @@ class TrailsRepository:
 
     def _fresh_cutoff(self) -> datetime:
         return datetime.now(timezone.utc) - timedelta(hours=FRESHNESS_HOURS)
+    
+    def _visible_report_cutoff(self) -> datetime:
+        return datetime.now(timezone.utc) - timedelta(hours=VISIBLE_REPORT_HOURS)
 
     def _is_permanently_closed(self, trail: dict[str, Any]) -> bool:
         trail_id = str(trail.get("id") or "").strip().lower()
@@ -319,14 +323,23 @@ class TrailsRepository:
             reverse=True,
         )
 
+        visible_cutoff = self._visible_report_cutoff()
+
         fresh_reports: list[dict[str, Any]] = []
+        visible_reports: list[dict[str, Any]] = []
+
         for report in sorted_reports:
             created_at = parse_dt(report.get("created_at"))
+
             if created_at and created_at >= cutoff:
                 fresh_reports.append(report)
 
+            if created_at and created_at >= visible_cutoff:
+                visible_reports.append(report)
+
         most_recent_report = sorted_reports[0] if sorted_reports else None
         most_recent_fresh_report = fresh_reports[0] if fresh_reports else None
+        most_recent_visible_report = visible_reports[0] if visible_reports else None
 
         current_condition = normalize_condition(
             most_recent_report.get("primary_condition")
@@ -378,6 +391,22 @@ class TrailsRepository:
                 recent_rain=recent_rain,
             )
 
+        last_visible_report_created_at = (
+            parse_dt(most_recent_visible_report.get("created_at"))
+            if most_recent_visible_report
+            else None
+        )
+
+        last_visible_report_age_hours = (
+            round(
+                (datetime.now(timezone.utc) - last_visible_report_created_at).total_seconds()
+                / 3600,
+                1,
+            )
+            if last_visible_report_created_at
+            else None
+        )
+
         return {
             **trail,
             "summary": {
@@ -385,6 +414,20 @@ class TrailsRepository:
                     "Permanently Closed" if is_permanently_closed else current_condition
                 ),
                 "reported_by_count": len(fresh_reports),
+                "visible_report_count": len(visible_reports),
+                "last_visible_report": (
+                    {
+                        "condition": normalize_condition(
+                            most_recent_visible_report.get("primary_condition")
+                        ),
+                        "note": most_recent_visible_report.get("note"),
+                        "username": most_recent_visible_report.get("username") or "rider",
+                        "created_at": most_recent_visible_report.get("created_at"),
+                        "age_hours": last_visible_report_age_hours,
+                    }
+                    if most_recent_visible_report
+                    else None
+                ),
                 "recent_hazards": recent_hazards,
                 "hazard_points": hazard_points,
                 "last_updated_at": last_updated_at,
@@ -394,6 +437,8 @@ class TrailsRepository:
                 "debug": {
                     "resolution_reason": resolution_reason,
                     "is_permanently_closed": is_permanently_closed,
+                    "visible_report_count": len(visible_reports),
+                    "visible_report_hours": VISIBLE_REPORT_HOURS,
                     "most_recent_fresh_condition": most_recent_fresh_condition,
                     "recovery_class": recovery_profile.get("recovery_class") if recovery_profile else None,
                     "current_rain_active": current_weather_indicates_rain(current_weather),
