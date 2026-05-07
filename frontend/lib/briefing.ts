@@ -27,6 +27,49 @@ const HAZARD_LABELS: Record<string, string> = {
   other: "hazard",
 };
 
+const RIDER_SUPPORTING = {
+  prime: [
+    "You’re not going to see better conditions than this.",
+    "This is the kind of window to jump on.",
+    "Might be a good day to grab a lap.",
+    "Load up and get after it.",
+  ],
+  rideable: [
+    "Could be a good day to grab a lap.",
+    "Worth checking out if you’ve got time.",
+    "Looks like a decent window to ride.",
+    "Might be worth loading up.",
+  ],
+  caution: [
+    "Pick your lines and don’t force it.",
+    "Check the trail cards before you commit.",
+    "Ride smart and be ready to turn back.",
+    "Scout it before you send it.",
+  ],
+  wait: [
+    "Might be a good day to wrench instead.",
+    "A little patience now keeps the tread from getting wrecked.",
+    "Let the dirt chill a bit longer.",
+    "Good time to lube the chain and wait it out.",
+  ],
+  unclear: [
+    "A fresh report would tell the story.",
+    "Recon recommended before you commit.",
+    "Could go either way right now.",
+    "Check individual trail cards before heading out.",
+  ],
+  storm: [
+    "This is rut-making weather. Let the dirt chill.",
+    "Might be a good day to wrench instead.",
+    "Give the trails room to recover.",
+    "No shame in calling it early today.",
+  ],
+};
+
+function pickPhrase(phrases: string[]) {
+  return phrases[0];
+}
+
 function getSummary(trail: Trail) {
   return trail.summary as TrailSummaryWithHazards | undefined;
 }
@@ -328,7 +371,7 @@ export function buildBriefing(
         ),
         supporting: riderOrNeutral(
           tone,
-          "This is rut-making weather. Let the dirt chill.",
+          pickPhrase(RIDER_SUPPORTING.storm),
           "Conditions are too wet right now and need time to recover."
         ),
         status: "not_rideable",
@@ -349,7 +392,7 @@ export function buildBriefing(
       ),
       supporting: riderOrNeutral(
         tone,
-        "Good time to wrench, lube the chain, or wait it out.",
+        pickPhrase(RIDER_SUPPORTING.wait),
         "Best to wait until conditions improve."
       ),
       status: "not_rideable",
@@ -370,7 +413,7 @@ export function buildBriefing(
         ),
         supporting: riderOrNeutral(
           tone,
-          `${getSlowTrailPhrase(usingFavorites)}. They need real dry time before they come back around.`,
+          pickPhrase(RIDER_SUPPORTING.wait),
           "These trails recover slowly and still need meaningful drying time."
         ),
         status: "not_rideable",
@@ -389,7 +432,7 @@ export function buildBriefing(
       ),
       supporting: riderOrNeutral(
         tone,
-        "The rain may have backed off, but the mud remains.",
+        pickPhrase(RIDER_SUPPORTING.wait),
         "Rain may have eased, but the trails have not started recovering yet."
       ),
       status: "not_rideable",
@@ -412,7 +455,7 @@ export function buildBriefing(
             ),
             supporting: riderOrNeutral(
               tone,
-              "Not hero yet—still more drying to go.",
+              pickPhrase(RIDER_SUPPORTING.caution),
               "Some improvement is underway, but more drying time is still needed."
             ),
             status: "caution",
@@ -436,7 +479,7 @@ export function buildBriefing(
           ),
           supporting: riderOrNeutral(
             tone,
-            `${getSlowTrailPhrase(usingFavorites)}. Give them a longer runway.`,
+            pickPhrase(RIDER_SUPPORTING.wait),
             "These trails recover more slowly and still need additional time."
           ),
           status: "not_rideable",
@@ -456,7 +499,7 @@ export function buildBriefing(
           ),
           supporting: riderOrNeutral(
             tone,
-            "Close, but not worth forcing it.",
+            pickPhrase(RIDER_SUPPORTING.caution),
             "Conditions are improving, but not enough yet."
           ),
           status: "caution",
@@ -479,7 +522,7 @@ export function buildBriefing(
       ),
       supporting: riderOrNeutral(
         tone,
-        "A little patience now keeps the tread from getting wrecked.",
+        pickPhrase(RIDER_SUPPORTING.wait),
         "Waiting longer will help protect the trails."
       ),
       status: "not_rideable",
@@ -503,8 +546,8 @@ export function buildBriefing(
           ),
           supporting: riderOrNeutral(
             tone,
-            `${getFastTrailPhrase(usingFavorites)}. This is the kind of window to jump on.`,
-            "These trails tend to dry faster than most and may be in a better window now."
+            pickPhrase(RIDER_SUPPORTING.rideable),
+            "Conditions look favorable for a ride."
           ),
           status: "rideable",
         },
@@ -529,7 +572,7 @@ export function buildBriefing(
         ),
         supporting: riderOrNeutral(
           tone,
-          "Could be a good day to grab a lap.",
+          pickPhrase(RIDER_SUPPORTING.rideable),
           "Conditions look favorable for a ride."
         ),
         status: "rideable",
@@ -558,7 +601,7 @@ export function buildBriefing(
           ),
           supporting: riderOrNeutral(
             tone,
-            "Pick carefully before you load up and head out.",
+            pickPhrase(RIDER_SUPPORTING.caution),
             "Some trails are recovering faster than others."
           ),
           status: "caution",
@@ -583,7 +626,7 @@ export function buildBriefing(
           ),
           supporting: riderOrNeutral(
             tone,
-            "This is one of those days where the safe play is usually the smart play.",
+            pickPhrase(RIDER_SUPPORTING.caution),
             "The slower-recovering trails likely still need more time."
           ),
           status: "caution",
@@ -607,7 +650,7 @@ export function buildBriefing(
         ),
         supporting: riderOrNeutral(
           tone,
-          "Check the trail cards before you commit.",
+          pickPhrase(RIDER_SUPPORTING.caution),
           "Review individual trail status before heading out."
         ),
         status: "caution",
@@ -631,9 +674,7 @@ export function buildBriefing(
       ),
       supporting: riderOrNeutral(
         tone,
-        rainUnavailable
-          ? "Weather data is thin right now, so lean conservative."
-          : "A little more time or another fresh report will tell the story.",
+        pickPhrase(RIDER_SUPPORTING.unclear),
         rainUnavailable
           ? "Weather data is limited right now, so it is safer to be cautious."
           : "More time or a fresh trail report should make the picture clearer."

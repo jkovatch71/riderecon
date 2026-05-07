@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     weather_rain_threshold_inches: float = 0.20
     weather_window_hours: int = 72
-    report_freshness_hours: int = 3
+    report_freshness_hours: int = 8
 
     admin_review_email: str = ""
 
