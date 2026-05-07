@@ -1,8 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LatLngBounds, type CircleMarker as LeafletCircleMarker } from "leaflet";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  LatLngBounds,
+  type CircleMarker as LeafletCircleMarker,
+} from "leaflet";
 import {
   Circle,
   CircleMarker,
@@ -21,6 +31,8 @@ import {
   resolveRiderAssistRequest,
   type RiderAssistRequest,
 } from "@/lib/api";
+
+export type MapFilter = "rideable" | "assist" | "hazards" | "all";
 
 type RainBucket = {
   key: string;
@@ -55,11 +67,6 @@ const HAZARD_META: Record<string, { icon: string; label: string }> = {
   wildlife: { icon: "🐾", label: "Wildlife" },
   other: { icon: "⚠️", label: "Other" },
 };
-
-function normalizeHazard(tag: string) {
-  const key = tag.trim().toLowerCase();
-  return HAZARD_META[key] ?? { icon: "⚠️", label: tag };
-}
 
 const ASSIST_META: Record<
   string,
@@ -96,6 +103,11 @@ const ASSIST_DETAIL_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+function normalizeHazard(tag: string) {
+  const key = tag.trim().toLowerCase();
+  return HAZARD_META[key] ?? { icon: "⚠️", label: tag };
+}
+
 function getAssistDetailLabel(detail?: string | null) {
   if (!detail) return null;
   return ASSIST_DETAIL_LABELS[detail] ?? detail;
@@ -111,7 +123,9 @@ function getSummary(trail: Trail) {
 }
 
 function resolvedCondition(trail: Trail) {
-  return getSummary(trail)?.display_condition || trail.current_condition || "Unknown";
+  return (
+    getSummary(trail)?.display_condition || trail.current_condition || "Unknown"
+  );
 }
 
 function getCurrentLocation(): Promise<{
@@ -171,7 +185,11 @@ function haloColor(condition?: string | null) {
   }
 
   if (normalized.includes("damp")) return "#38bdf8";
-  if (normalized.includes("permanently closed") || normalized.includes("closed")) {
+
+  if (
+    normalized.includes("permanently closed") ||
+    normalized.includes("closed")
+  ) {
     return "#fb7185";
   }
 
@@ -181,7 +199,10 @@ function haloColor(condition?: string | null) {
 function rainSignalScore(condition?: string | null) {
   const normalized = (condition || "").toLowerCase();
 
-  if (normalized.includes("wet / unrideable") || normalized.includes("flooded")) {
+  if (
+    normalized.includes("wet / unrideable") ||
+    normalized.includes("flooded")
+  ) {
     return 1;
   }
 
@@ -292,8 +313,11 @@ function getTrailHazardPoints(trails: Trail[]): HazardPoint[] {
 
 function FitBounds({ trails }: { trails: Trail[] }) {
   const map = useMap();
+  const hasFitRef = useRef(false);
 
   useEffect(() => {
+    if (hasFitRef.current) return;
+
     const validTrails = trails.filter(
       (trail) =>
         typeof trail.latitude === "number" &&
@@ -301,6 +325,8 @@ function FitBounds({ trails }: { trails: Trail[] }) {
     );
 
     if (!validTrails.length) return;
+
+    hasFitRef.current = true;
 
     if (validTrails.length === 1) {
       map.setView(
@@ -313,7 +339,10 @@ function FitBounds({ trails }: { trails: Trail[] }) {
     const bounds = new LatLngBounds(
       validTrails.map(
         (trail) =>
-          [trail.latitude as number, trail.longitude as number] as [number, number]
+          [trail.latitude as number, trail.longitude as number] as [
+            number,
+            number,
+          ]
       )
     );
 
@@ -388,19 +417,24 @@ function LocateMe({
 export function TrailMapPlaceholder({
   trails,
   selectedTrailId,
+  mapFilter = "all",
 }: {
   trails: Trail[];
   selectedTrailId?: string | null;
+  mapFilter?: MapFilter;
 }) {
   const { user, session, authLoading } = useAuth();
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [assistRequests, setAssistRequests] = useState<RiderAssistRequest[]>([]);
+  const [assistRequests, setAssistRequests] = useState<RiderAssistRequest[]>(
+    []
+  );
   const [locateTrigger, setLocateTrigger] = useState(0);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    null
+  );
 
   const markerRefs = useRef<Record<string, LeafletCircleMarker | null>>({});
-
   const accessToken = session?.access_token;
 
   const loadFavorites = useCallback(async () => {
@@ -414,9 +448,49 @@ export function TrailMapPlaceholder({
   }, [user, accessToken]);
 
   const loadAssistRequests = useCallback(async () => {
-    const requests = await getRiderAssistRequests().catch((): RiderAssistRequest[] => []);
+    const requests = await getRiderAssistRequests().catch(
+      (): RiderAssistRequest[] => []
+    );
     setAssistRequests(requests);
   }, []);
+
+  const handleLocated = useCallback((coords: [number, number]) => {
+    setUserLocation(coords);
+  }, []);
+
+  async function handleRespondToAssistRequest(requestId: string) {
+    if (!accessToken) return;
+
+    const location = await getCurrentLocation();
+
+    const result = await respondToRiderAssistRequest(
+      requestId,
+      {
+        latitude: location?.latitude ?? null,
+        longitude: location?.longitude ?? null,
+        location_accuracy_meters: location?.accuracy ?? null,
+      },
+      accessToken
+    );
+
+    setAssistRequests((prev) =>
+      prev.map((request) =>
+        request.id === requestId ? result.request : request
+      )
+    );
+  }
+
+  async function handleResolveAssistRequest(requestId: string) {
+    if (!accessToken) return;
+
+    const result = await resolveRiderAssistRequest(requestId, accessToken);
+
+    setAssistRequests((prev) =>
+      prev.map((request) =>
+        request.id === requestId ? result.request : request
+      )
+    );
+  }
 
   useEffect(() => {
     if (authLoading) return;
@@ -440,65 +514,53 @@ export function TrailMapPlaceholder({
   }, [loadFavorites, loadAssistRequests]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       void loadAssistRequests();
-    }, 15000); // every 15s
+    }, 15000);
 
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, [loadAssistRequests]);
-
-  async function handleRespondToAssistRequest(requestId: string) {
-    if (!accessToken) return;
-
-    const location = await getCurrentLocation();
-
-    const result = await respondToRiderAssistRequest(
-      requestId,
-      {
-        latitude: location?.latitude ?? null,
-        longitude: location?.longitude ?? null,
-        location_accuracy_meters: location?.accuracy ?? null,
-      },
-      accessToken
-    );
-
-    setAssistRequests((prev) =>
-      prev.map((request) =>
-        request.id === requestId ? result.request : request
-      )
-    );
-  }
-  
-  async function handleResolveAssistRequest(requestId: string) {
-    if (!accessToken) return;
-
-    const result = await resolveRiderAssistRequest(requestId, accessToken);
-
-    setAssistRequests((prev) =>
-      prev.map((request) =>
-        request.id === requestId ? result.request : request
-      )
-    );
-  }
 
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 
-  const validTrails = trails.filter(
-    (trail) =>
-      typeof trail.latitude === "number" &&
-      typeof trail.longitude === "number"
+  const validTrails = useMemo(
+    () =>
+      trails.filter(
+        (trail) =>
+          typeof trail.latitude === "number" &&
+          typeof trail.longitude === "number"
+      ),
+    [trails]
   );
 
-  const rainBuckets = useMemo(() => buildRainBuckets(validTrails), [validTrails]);
-  
-  const activeAssistRequests = useMemo(() => {
-    return assistRequests.filter((request) => request.status !== "resolved");
-  }, [assistRequests]);
-  
-  const hazardPoints = useMemo(
-    () => getTrailHazardPoints(validTrails),
-    [validTrails]
+  const mapTrails = useMemo(() => {
+    if (mapFilter !== "rideable") return validTrails;
+
+    return validTrails.filter((trail) => {
+      const condition = resolvedCondition(trail).toLowerCase();
+
+      return (
+        condition.includes("hero") ||
+        condition === "dry" ||
+        condition.includes("likely dry")
+      );
+    });
+  }, [mapFilter, validTrails]);
+
+  const rainBuckets = useMemo(() => buildRainBuckets(mapTrails), [mapTrails]);
+
+  const activeAssistRequests = useMemo(
+    () => assistRequests.filter((request) => request.status !== "resolved"),
+    [assistRequests]
   );
+
+  const hazardPoints = useMemo(
+    () => getTrailHazardPoints(mapTrails),
+    [mapTrails]
+  );
+
+  const showAssistLayer = mapFilter === "assist" || mapFilter === "all";
+  const showHazardLayer = mapFilter === "hazards" || mapFilter === "all";
 
   if (!validTrails.length) {
     return (
@@ -532,18 +594,15 @@ export function TrailMapPlaceholder({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          <FitBounds trails={validTrails} />
+          <FitBounds trails={mapTrails} />
 
           <FocusSelectedTrail
-            trails={validTrails}
+            trails={mapTrails}
             selectedTrailId={selectedTrailId}
             markerRefs={markerRefs}
           />
 
-          <LocateMe
-            locateTrigger={locateTrigger}
-            onLocated={(coords) => setUserLocation(coords)}
-          />
+          <LocateMe locateTrigger={locateTrigger} onLocated={handleLocated} />
 
           {rainBuckets.map((bucket) => (
             <Circle
@@ -560,206 +619,226 @@ export function TrailMapPlaceholder({
             />
           ))}
 
-          {activeAssistRequests.map((request) => {
-  if (
-    typeof request.latitude !== "number" ||
-    typeof request.longitude !== "number"
-  ) {
-    return null;
-  }
+          {showAssistLayer ? (
+            <>
+              {activeAssistRequests.map((request) => {
+                if (
+                  typeof request.latitude !== "number" ||
+                  typeof request.longitude !== "number"
+                ) {
+                  return null;
+                }
 
-  const meta = getAssistMeta(request.assist_type);
-  const detailLabel = getAssistDetailLabel(request.assist_detail);
+                const meta = getAssistMeta(request.assist_type);
+                const detailLabel = getAssistDetailLabel(
+                  request.assist_detail
+                );
 
-  return (
-    <Fragment key={request.id}>
-      {!request.responder_username ? (
-        <CircleMarker
-          interactive={false}
-          center={[request.latitude, request.longitude]}
-          radius={22}
-          pathOptions={{
-            color: meta.color,
-            fillColor: meta.color,
-            fillOpacity: 0.15,
-            weight: 0,
-          }}
-        />
-      ) : null}
-
-      <CircleMarker
-        center={[request.latitude, request.longitude]}
-        radius={request.responder_username ? 14 : 16}
-        pathOptions={{
-          color: meta.color,
-          fillColor: meta.color,
-          fillOpacity: 0.95,
-          weight: 3,
-        }}
-      >
-        <Popup>
-          <div className="min-w-[180px] max-w-[240px] leading-tight">
-            <p className="text-[13px] font-semibold uppercase text-zinc-900">
-              {meta.icon} Rider Assist
-            </p>
-
-            <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
-              Tap to help this rider
-            </p>
-
-            <p className="mt-1 text-[12px] font-medium text-zinc-700">
-              {meta.label}
-            </p>
-
-            {detailLabel ? (
-              <p className="mt-1 text-[12px] font-semibold text-zinc-800">
-                {detailLabel}
-              </p>
-            ) : null}
-
-            {request.note ? (
-              <p className="mt-1.5 text-[12px] leading-snug text-zinc-700">
-                {request.note}
-              </p>
-            ) : null}
-
-            {request.responder_username ? (
-              <div className="mt-1.5 space-y-2">
-                <p className="rounded-lg bg-emerald-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
-                  {request.responder_username} responding
-                </p>
-
-                {accessToken ? (
-                  <button
-                    type="button"
-                    onClick={() => void handleResolveAssistRequest(request.id)}
-                    className="w-full rounded-lg bg-zinc-800 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-100"
-                  >
-                    Mark Resolved
-                  </button>
-                ) : null}
-              </div>
-            ) : accessToken ? (
-              <button
-                type="button"
-                onClick={() => void handleRespondToAssistRequest(request.id)}
-                className="mt-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white"
-              >
-                I&apos;m Responding
-              </button>
-            ) : (
-              <p className="mt-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
-                Sign in to respond
-              </p>
-            )}
-
-            <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
-              @{request.username || "rider"}
-            </p>
-
-            {request.location_accuracy_meters ? (
-              <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
-                GPS ±{Math.round(request.location_accuracy_meters)}m
-              </p>
-            ) : null}
-          </div>
-        </Popup>
-      </CircleMarker>
-    </Fragment>
-  );
-})}
-          {activeAssistRequests.map((request) => {
-            if (
-              typeof request.responder_latitude !== "number" ||
-              typeof request.responder_longitude !== "number"
-            ) {
-              return null;
-            }
-
-            return (
-              <CircleMarker
-                key={`${request.id}-responder`}
-                center={[request.responder_latitude, request.responder_longitude]}
-                radius={9}
-                pathOptions={{
-                  color: "#ffffff",
-                  fillColor: "#22c55e",
-                  fillOpacity: 0.95,
-                  weight: 3,
-                }}
-              >
-                <Popup>
-                  <div className="min-w-[160px] leading-tight">
-                    <p className="text-[13px] font-semibold uppercase text-zinc-900">
-                      Responder
-                    </p>
-                    <p className="mt-1 text-[12px] text-zinc-700">
-                      @{request.responder_username || "rider"} is responding
-                    </p>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            );
-          })}
-          {hazardPoints.map((point) => {
-            const primary = normalizeHazard(point.tags[0]);
-
-            return (
-              <CircleMarker
-                key={point.id ?? `${point.latitude}-${point.longitude}`}
-                center={[point.latitude, point.longitude]}
-                radius={12}
-                pathOptions={{
-                  color: "#f59e0b",
-                  fillColor: "#f59e0b",
-                  fillOpacity: 0.92,
-                  weight: 3,
-                }}
-              >
-                <Popup>
-                  <div className="min-w-[170px] max-w-[220px] leading-tight">
-                    <p className="text-[13px] font-semibold uppercase text-zinc-900">
-                      {primary.icon} Trail hazard
-                    </p>
-
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {point.tags.map((tag) => {
-                        const meta = normalizeHazard(tag);
-
-                        return (
-                          <span
-                            key={tag}
-                            className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
-                          >
-                            {meta.icon} {meta.label}
-                          </span>
-                        );
-                      })}
-                    </div>
-
-                    {point.note ? (
-                      <p className="mt-1.5 text-[12px] leading-snug text-zinc-700">
-                        {point.note}
-                      </p>
+                return (
+                  <Fragment key={request.id}>
+                    {!request.responder_username ? (
+                      <CircleMarker
+                        interactive={false}
+                        center={[request.latitude, request.longitude]}
+                        radius={22}
+                        pathOptions={{
+                          color: meta.color,
+                          fillColor: meta.color,
+                          fillOpacity: 0.15,
+                          weight: 0,
+                        }}
+                      />
                     ) : null}
 
-                    {point.accuracy_meters ? (
-                      <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
-                        GPS ±{Math.round(point.accuracy_meters)}m
-                      </p>
-                    ) : null}
-
-                    <Link
-                      href={`/trails/${point.trail_id}`}
-                      className="mt-1.5 inline-block text-[12px] font-medium text-emerald-700 underline"
+                    <CircleMarker
+                      center={[request.latitude, request.longitude]}
+                      radius={request.responder_username ? 14 : 16}
+                      pathOptions={{
+                        color: meta.color,
+                        fillColor: meta.color,
+                        fillOpacity: 0.95,
+                        weight: 3,
+                      }}
                     >
-                      View details →
-                    </Link>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            );
-          })}
+                      <Popup>
+                        <div className="min-w-[180px] max-w-[240px] leading-tight">
+                          <p className="text-[13px] font-semibold uppercase text-zinc-900">
+                            {meta.icon} Rider Assist
+                          </p>
+
+                          <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                            Tap to help this rider
+                          </p>
+
+                          <p className="mt-1 text-[12px] font-medium text-zinc-700">
+                            {meta.label}
+                          </p>
+
+                          {detailLabel ? (
+                            <p className="mt-1 text-[12px] font-semibold text-zinc-800">
+                              {detailLabel}
+                            </p>
+                          ) : null}
+
+                          {request.note ? (
+                            <p className="mt-1.5 text-[12px] leading-snug text-zinc-700">
+                              {request.note}
+                            </p>
+                          ) : null}
+
+                          {request.responder_username ? (
+                            <div className="mt-1.5 space-y-2">
+                              <p className="rounded-lg bg-emerald-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                                {request.responder_username} responding
+                              </p>
+
+                              {accessToken ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleResolveAssistRequest(request.id)
+                                  }
+                                  className="w-full rounded-lg bg-zinc-800 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-100"
+                                >
+                                  Mark Resolved
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : accessToken ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleRespondToAssistRequest(request.id)
+                              }
+                              className="mt-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-white"
+                            >
+                              I&apos;m Responding
+                            </button>
+                          ) : (
+                            <p className="mt-1.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                              Sign in to respond
+                            </p>
+                          )}
+
+                          <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                            @{request.username || "rider"}
+                          </p>
+
+                          {request.location_accuracy_meters ? (
+                            <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                              GPS ±
+                              {Math.round(request.location_accuracy_meters)}m
+                            </p>
+                          ) : null}
+                        </div>
+                      </Popup>
+                    </CircleMarker>
+                  </Fragment>
+                );
+              })}
+
+              {activeAssistRequests.map((request) => {
+                if (
+                  typeof request.responder_latitude !== "number" ||
+                  typeof request.responder_longitude !== "number"
+                ) {
+                  return null;
+                }
+
+                return (
+                  <CircleMarker
+                    key={`${request.id}-responder`}
+                    center={[
+                      request.responder_latitude,
+                      request.responder_longitude,
+                    ]}
+                    radius={9}
+                    pathOptions={{
+                      color: "#ffffff",
+                      fillColor: "#22c55e",
+                      fillOpacity: 0.95,
+                      weight: 3,
+                    }}
+                  >
+                    <Popup>
+                      <div className="min-w-[160px] leading-tight">
+                        <p className="text-[13px] font-semibold uppercase text-zinc-900">
+                          Responder
+                        </p>
+                        <p className="mt-1 text-[12px] text-zinc-700">
+                          @{request.responder_username || "rider"} is responding
+                        </p>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+            </>
+          ) : null}
+
+          {showHazardLayer ? (
+            <>
+              {hazardPoints.map((point) => {
+                const primary = normalizeHazard(point.tags[0]);
+
+                return (
+                  <CircleMarker
+                    key={point.id ?? `${point.latitude}-${point.longitude}`}
+                    center={[point.latitude, point.longitude]}
+                    radius={12}
+                    pathOptions={{
+                      color: "#f59e0b",
+                      fillColor: "#f59e0b",
+                      fillOpacity: 0.92,
+                      weight: 3,
+                    }}
+                  >
+                    <Popup>
+                      <div className="min-w-[170px] max-w-[220px] leading-tight">
+                        <p className="text-[13px] font-semibold uppercase text-zinc-900">
+                          {primary.icon} Trail hazard
+                        </p>
+
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {point.tags.map((tag) => {
+                            const meta = normalizeHazard(tag);
+
+                            return (
+                              <span
+                                key={tag}
+                                className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
+                              >
+                                {meta.icon} {meta.label}
+                              </span>
+                            );
+                          })}
+                        </div>
+
+                        {point.note ? (
+                          <p className="mt-1.5 text-[12px] leading-snug text-zinc-700">
+                            {point.note}
+                          </p>
+                        ) : null}
+
+                        {point.accuracy_meters ? (
+                          <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                            GPS ±{Math.round(point.accuracy_meters)}m
+                          </p>
+                        ) : null}
+
+                        <Link
+                          href={`/trails/${point.trail_id}`}
+                          className="mt-1.5 inline-block text-[12px] font-medium text-emerald-700 underline"
+                        >
+                          View details →
+                        </Link>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+            </>
+          ) : null}
 
           {userLocation ? (
             <CircleMarker
@@ -782,7 +861,7 @@ export function TrailMapPlaceholder({
             </CircleMarker>
           ) : null}
 
-          {validTrails.map((trail) => {
+          {mapTrails.map((trail) => {
             const condition = resolvedCondition(trail);
             const hazards = getSummary(trail)?.recent_hazards ?? [];
             const isFavorite = favoriteSet.has(trail.id);
