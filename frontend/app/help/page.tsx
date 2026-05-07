@@ -1,4 +1,4 @@
-import { AlertTriangle, PackageSearch } from "lucide-react";
+import { PackageSearch } from "lucide-react";
 import { RiderAssistForm } from "@/components/RiderAssistForm";
 
 function HelpFeatureCard({
@@ -68,14 +68,6 @@ export default function HelpPage() {
         title="Lost & Found"
         description="Did you find/lose sunglasses, water bottle, bike part or other gear?"
         status="Planned Feature"
-      />
-
-      <HelpFeatureCard
-        icon={AlertTriangle}
-        eyebrow="Future Expansion"
-        title="Trail Notices"
-        description="A future place for high-visibility trail alerts like closures, flooding, bees, obstructions, or temporary hazards."
-        status="Future Idea"
       />
     </main>
   );
