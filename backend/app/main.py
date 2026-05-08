@@ -8,6 +8,7 @@ from app.routers.rider_assist import router as rider_assist_router
 
 from app.core.config import settings
 from app.routers import feedback, reports, trails, weather
+from app.routers import feedback, reports, trails, weather, trail_suggestions
 
 app = FastAPI(title=settings.app_name)
 
@@ -33,3 +34,4 @@ app.include_router(weather_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(rider_assist_router)
+app.include_router(trail_suggestions.router)

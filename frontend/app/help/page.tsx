@@ -1,5 +1,6 @@
 import { PackageSearch } from "lucide-react";
 import { RiderAssistForm } from "@/components/RiderAssistForm";
+import { SuggestTrailForm } from "@/components/SuggestTrailForm";
 
 function HelpFeatureCard({
   icon: Icon,
@@ -61,6 +62,8 @@ export default function HelpPage() {
       </section>
 
       <RiderAssistForm />
+
+      <SuggestTrailForm />
 
       <HelpFeatureCard
         icon={PackageSearch}

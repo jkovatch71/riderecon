@@ -186,6 +186,19 @@ export async function getFavorites(accessToken: string): Promise<string[]> {
   });
 }
 
+export async function createTrailSuggestion(
+  payload: CreateTrailSuggestionPayload,
+  accessToken: string
+): Promise<TrailSuggestionResponse> {
+  return fetchJson<TrailSuggestionResponse>("/trail-suggestions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function addFavorite(
   trailId: string,
   accessToken: string
@@ -283,6 +296,24 @@ export async function respondToRiderAssistRequest(
     }
   );
 }
+
+export type CreateTrailSuggestionPayload = {
+  trail_name: string;
+  system_name?: string;
+  city?: string;
+  state?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  location_accuracy_meters?: number | null;
+  notes?: string;
+};
+
+export type TrailSuggestionResponse = {
+  message: string;
+  suggestion: unknown;
+};
+
+
 
 export async function resolveRiderAssistRequest(
   requestId: string,

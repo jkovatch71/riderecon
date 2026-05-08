@@ -405,7 +405,7 @@ export function RiderAssistForm() {
         <>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-helper text-zinc-500">Step 1</p>
+              
               <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
                 {selectedCategory?.label}
               </p>
