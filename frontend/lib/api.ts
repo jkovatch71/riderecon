@@ -308,12 +308,61 @@ export type CreateTrailSuggestionPayload = {
   notes?: string;
 };
 
+export type TrailSuggestion = {
+  id: string;
+  user_id?: string | null;
+  username?: string | null;
+  trail_name: string;
+  system_name?: string | null;
+  city?: string | null;
+  state?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  location_accuracy_meters?: number | null;
+  notes?: string | null;
+  status: "pending" | "approved" | "rejected" | string;
+  created_at: string;
+  updated_at?: string | null;
+};
+
+export async function getAdminTrailSuggestions(
+  accessToken: string
+): Promise<TrailSuggestion[]> {
+  return fetchJson<TrailSuggestion[]>("/admin/trail-suggestions", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function approveTrailSuggestion(
+  suggestionId: string,
+  accessToken: string
+) {
+  return fetchJson(`/admin/trail-suggestions/${suggestionId}/approve`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
+export async function rejectTrailSuggestion(
+  suggestionId: string,
+  accessToken: string
+) {
+  return fetchJson(`/admin/trail-suggestions/${suggestionId}/reject`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}
+
 export type TrailSuggestionResponse = {
   message: string;
   suggestion: unknown;
 };
-
-
 
 export async function resolveRiderAssistRequest(
   requestId: string,

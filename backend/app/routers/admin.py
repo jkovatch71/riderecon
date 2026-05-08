@@ -1,4 +1,7 @@
 import os
+import re
+from datetime import datetime, timezone
+
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Depends
 
@@ -40,13 +43,29 @@ async def get_admin_user(authorization: str = Header(None)):
     return user
 
 
-@router.post("/weather/clear")
-def clear_weather_cache(_admin=Depends(get_admin_user)):
+def get_admin_client():
     client = get_supabase_admin_client()
 
     if not client:
         raise HTTPException(status_code=500, detail="Supabase client unavailable")
 
+    return client
+
+
+def slugify(value: str) -> str:
+    cleaned = value.strip().lower()
+    cleaned = re.sub(r"[^a-z0-9]+", "-", cleaned)
+    cleaned = re.sub(r"-+", "-", cleaned).strip("-")
+    return cleaned or "trail"
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+@router.post("/weather/clear")
+def clear_weather_cache(_admin=Depends(get_admin_user)):
+    client = get_admin_client()
     client.table("weather_cache").delete().neq("cache_key", "").execute()
 
     return {"message": "Weather cache cleared"}
@@ -56,4 +75,147 @@ def clear_weather_cache(_admin=Depends(get_admin_user)):
 def refresh_weather(_admin=Depends(get_admin_user)):
     return {
         "message": "Weather refresh ready. Clear cache, then reload weather endpoints."
+    }
+
+
+@router.get("/trail-suggestions")
+def list_trail_suggestions(_admin=Depends(get_admin_user)):
+    client = get_admin_client()
+
+    res = (
+        client.table("trail_suggestions")
+        .select("*")
+        .order("created_at", desc=True)
+        .execute()
+    )
+
+    return res.data or []
+
+
+@router.post("/trail-suggestions/{suggestion_id}/approve")
+def approve_trail_suggestion(
+    suggestion_id: str,
+    _admin=Depends(get_admin_user),
+):
+    client = get_admin_client()
+
+    suggestion_res = (
+        client.table("trail_suggestions")
+        .select("*")
+        .eq("id", suggestion_id)
+        .limit(1)
+        .execute()
+    )
+
+    suggestions = suggestion_res.data or []
+
+    if not suggestions:
+        raise HTTPException(status_code=404, detail="Trail suggestion not found")
+
+    suggestion = suggestions[0]
+
+    if suggestion.get("status") == "approved":
+        raise HTTPException(status_code=409, detail="Trail suggestion already approved")
+
+    trail_name = suggestion.get("trail_name")
+    if not trail_name:
+        raise HTTPException(status_code=400, detail="Trail suggestion is missing name")
+
+    trail_id = slugify(trail_name)
+
+    existing_res = (
+        client.table("trails")
+        .select("id")
+        .eq("id", trail_id)
+        .limit(1)
+        .execute()
+    )
+
+    if existing_res.data:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Trail already exists with id: {trail_id}",
+        )
+
+    timestamp = now_iso()
+
+    trail_payload = {
+        "id": trail_id,
+        "name": trail_name.strip(),
+        "alias": None,
+        "system_name": suggestion.get("system_name"),
+        "city": suggestion.get("city"),
+        "state": suggestion.get("state") or "TX",
+        "latitude": suggestion.get("latitude"),
+        "longitude": suggestion.get("longitude"),
+        "status_color": "yellow",
+        "current_condition": "Unknown",
+        "last_reported_at": None,
+        "weather_warning": None,
+        "report_count": 0,
+        "is_active": True,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+
+    trail_res = client.table("trails").insert(trail_payload).execute()
+    trail_rows = trail_res.data or []
+
+    recovery_payload = {
+        "trail_id": trail_id,
+        "recovery_class": "average",
+        "average_recovery_hours": 8,
+        "recovery_confidence": "low",
+        "rain_events_observed": 0,
+        "notes": "Starter estimate created from approved trail suggestion.",
+        "updated_at": timestamp,
+    }
+
+    client.table("trail_recovery_profiles").upsert(
+        recovery_payload,
+        on_conflict="trail_id",
+    ).execute()
+
+    client.table("trail_suggestions").update(
+        {
+            "status": "approved",
+            "updated_at": timestamp,
+        }
+    ).eq("id", suggestion_id).execute()
+
+    return {
+        "message": "Trail suggestion approved.",
+        "trail": trail_rows[0] if trail_rows else trail_payload,
+    }
+
+
+@router.post("/trail-suggestions/{suggestion_id}/reject")
+def reject_trail_suggestion(
+    suggestion_id: str,
+    _admin=Depends(get_admin_user),
+):
+    client = get_admin_client()
+
+    timestamp = now_iso()
+
+    res = (
+        client.table("trail_suggestions")
+        .update(
+            {
+                "status": "rejected",
+                "updated_at": timestamp,
+            }
+        )
+        .eq("id", suggestion_id)
+        .execute()
+    )
+
+    rows = res.data or []
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="Trail suggestion not found")
+
+    return {
+        "message": "Trail suggestion rejected.",
+        "suggestion": rows[0],
     }
