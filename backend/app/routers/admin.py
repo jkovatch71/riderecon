@@ -174,7 +174,6 @@ def approve_trail_suggestion(
         "status_color": "yellow",
         "current_condition": "Unknown",
         "last_reported_at": None,
-        "weather_warning": None,
         "report_count": 0,
         "is_active": True,
         "created_at": timestamp,

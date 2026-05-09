@@ -431,8 +431,11 @@ class TrailsRepository:
             else None
         )
 
+        trail_payload = dict(trail)
+        trail_payload.pop("weather_warning", None)
+
         return {
-            **trail,
+            **trail_payload,
             "summary": {
                 "current_condition": (
                     "Permanently Closed" if is_permanently_closed else current_condition
