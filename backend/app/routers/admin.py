@@ -123,6 +123,22 @@ def approve_trail_suggestion(
 
     trail_id = slugify(trail_name)
 
+    latitude = suggestion.get("latitude")
+    longitude = suggestion.get("longitude")
+
+    if latitude is None or longitude is None:
+        client.table("trail_suggestions").update(
+            {
+                "status": "needs_location",
+                "updated_at": timestamp,
+            }
+        ).eq("id", suggestion_id).execute()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Trail suggestion needs GPS coordinates before approval.",
+        )
+
     existing_res = (
         client.table("trails")
         .select("id")
@@ -132,6 +148,13 @@ def approve_trail_suggestion(
     )
 
     if existing_res.data:
+        client.table("trail_suggestions").update(
+            {
+                "status": "duplicate",
+                "updated_at": timestamp,
+            }
+        ).eq("id", suggestion_id).execute()
+
         raise HTTPException(
             status_code=409,
             detail=f"Trail already exists with id: {trail_id}",

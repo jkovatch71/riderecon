@@ -146,7 +146,7 @@ export function SuggestTrailForm() {
           </p>
 
           <p className="text-helper mt-2 text-zinc-300">
-            Thanks for the intel. I’ll review it before adding it to Ride Recon.
+            Thanks for the intel. We’ll review it before adding it to Ride Recon.
           </p>
         </div>
 
@@ -159,115 +159,113 @@ export function SuggestTrailForm() {
 
   return (
     <section className="card p-5">
-      <div className="flex items-start gap-4">
+        <div className="flex items-start gap-4">
         <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
-          <MapPinned className="h-5 w-5" />
+            <MapPinned className="h-5 w-5" />
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="space-y-0.5">
+        <div className="min-w-0 flex-1 space-y-0.5">
             <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-              Suggest a Trail
+            Suggest a Trail
             </h2>
 
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-              Help expand coverage
+            Help expand coverage
             </p>
-          </div>
-
-          <div className="my-3 h-px bg-zinc-800" />
-
-          <div className="space-y-4">
-            <div>
-              <label className="label">Trail or System Name</label>
-              <input
-                className="input mt-2"
-                value={trailName}
-                onChange={(e) => setTrailName(e.target.value)}
-                placeholder="Example: Flat Rock Ranch"
-              />
-            </div>
-
-            <div>
-              <label className="label">System Name</label>
-              <input
-                className="input mt-2"
-                value={systemName}
-                onChange={(e) => setSystemName(e.target.value)}
-                placeholder="Optional"
-              />
-            </div>
-
-            <div className="grid grid-cols-[1fr_76px] gap-2">
-              <div>
-                <label className="label">City</label>
-                <input
-                  className="input mt-2"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Comfort"
-                />
-              </div>
-
-              <div>
-                <label className="label">State</label>
-                <input
-                  className="input mt-2"
-                  value={stateValue}
-                  onChange={(e) => setStateValue(e.target.value)}
-                  placeholder="TX"
-                />
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleUseLocation}
-              disabled={locating}
-              className="btn-secondary flex w-full items-center justify-center gap-2"
-            >
-              <LocateFixed className="h-4 w-4" />
-              {locating ? "Capturing Location..." : "Use My Current Location"}
-            </button>
-
-            {location ? (
-              <p className="text-helper text-emerald-300">
-                GPS captured: {location.latitude.toFixed(5)},{" "}
-                {location.longitude.toFixed(5)}
-              </p>
-            ) : (
-              <p className="text-helper text-zinc-500">
-                GPS is optional, but it helps place the trail faster.
-              </p>
-            )}
-
-            <div>
-              <label className="label">Notes</label>
-              <textarea
-                className="input mt-2 min-h-24"
-                maxLength={500}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Example: Private ranch, MTB trails, race venue, good candidate for future coverage."
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!canSubmit}
-              className={`btn-primary flex w-full items-center justify-center gap-2 ${
-                !canSubmit ? "cursor-not-allowed opacity-60 saturate-50" : ""
-              }`}
-            >
-              <Send className="h-4 w-4" />
-              {submitting ? "Sending..." : "Submit Suggestion"}
-            </button>
-
-            {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-          </div>
         </div>
-      </div>
+        </div>
+
+        <div className="my-3 h-px bg-zinc-800" />
+
+        <div className="space-y-4">
+        <div>
+            <label className="label">Trail or System Name</label>
+            <input
+            className="input mt-2"
+            value={trailName}
+            onChange={(e) => setTrailName(e.target.value)}
+            placeholder="Example: Flat Rock Ranch"
+            />
+        </div>
+
+        <div>
+            <label className="label">System Name</label>
+            <input
+            className="input mt-2"
+            value={systemName}
+            onChange={(e) => setSystemName(e.target.value)}
+            placeholder="Optional"
+            />
+        </div>
+
+        <div className="grid grid-cols-[1fr_76px] gap-2">
+            <div>
+            <label className="label">City</label>
+            <input
+                className="input mt-2"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Comfort"
+            />
+            </div>
+
+            <div>
+            <label className="label">State</label>
+            <input
+                className="input mt-2"
+                value={stateValue}
+                onChange={(e) => setStateValue(e.target.value)}
+                placeholder="TX"
+            />
+            </div>
+        </div>
+
+        <button
+            type="button"
+            onClick={handleUseLocation}
+            disabled={locating}
+            className="btn-secondary flex w-full items-center justify-center gap-2"
+        >
+            <LocateFixed className="h-4 w-4" />
+            {locating ? "Capturing Location..." : "Use My Current Location"}
+        </button>
+
+        {location ? (
+            <p className="text-helper text-emerald-300">
+            GPS captured: {location.latitude.toFixed(5)},{" "}
+            {location.longitude.toFixed(5)}
+            </p>
+        ) : (
+            <p className="text-helper text-zinc-500">
+            GPS is optional, but it helps place the trail faster.
+            </p>
+        )}
+
+        <div>
+            <label className="label">Notes</label>
+            <textarea
+            className="input mt-2 min-h-24"
+            maxLength={500}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Example: Private ranch, MTB trails, race venue, good candidate for future coverage."
+            />
+        </div>
+
+        <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className={`btn-primary flex w-full items-center justify-center gap-2 ${
+            !canSubmit ? "cursor-not-allowed opacity-60 saturate-50" : ""
+            }`}
+        >
+            <Send className="h-4 w-4" />
+            {submitting ? "Sending..." : "Submit Suggestion"}
+        </button>
+
+        {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+        </div>
     </section>
-  );
+    );
 }

@@ -44,8 +44,8 @@ export function TrailSuggestionsAdminClient() {
     try {
       await approveTrailSuggestion(id, accessToken);
       await loadSuggestions();
-    } catch {
-      setError("Unable to approve trail suggestion.");
+    } catch (err) {
+    setError(err instanceof Error ? err.message : "Unable to approve trail suggestion.");
     } finally {
       setBusyId(null);
     }

@@ -124,7 +124,18 @@ async function fetchJson<T>(
   });
 
   if (!res.ok) {
-    throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+    let message = `Request failed: ${res.status} ${res.statusText}`;
+
+    try {
+      const data = await res.json();
+      if (data?.detail) {
+        message = typeof data.detail === "string" ? data.detail : message;
+      }
+    } catch {
+      // ignore parse errors
+    }
+
+    throw new Error(message);
   }
 
   return res.json();

@@ -22,25 +22,23 @@ function HelpFeatureCard({
           <Icon className="h-5 w-5" />
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="space-y-0.5">
-            <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-              {title}
-            </h2>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+            {title}
+          </h2>
 
-            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-              {eyebrow}
-            </p>
-          </div>
-
-          <div className="my-3 h-px bg-zinc-800" />
-
-          <p className="text-helper text-zinc-400">{description}</p>
-
-          <div className="mt-4 inline-flex rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-            {status}
-          </div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+            {eyebrow}
+          </p>
         </div>
+      </div>
+
+      <div className="my-3 h-px bg-zinc-800" />
+
+      <p className="text-helper text-zinc-400">{description}</p>
+
+      <div className="mt-4 inline-flex rounded-full border border-zinc-800 bg-zinc-950/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+        {status}
       </div>
     </section>
   );
@@ -48,7 +46,7 @@ function HelpFeatureCard({
 
 export default function HelpPage() {
   return (
-    <main className="space-y-3 pb-4">
+    <main className="space-y-3 pb-28">
       <section className="card p-6">
         <div className="space-y-1">
           <h1 className="font-brand text-page-title font-semibold uppercase text-zinc-100">
