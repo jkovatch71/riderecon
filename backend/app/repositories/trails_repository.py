@@ -277,6 +277,30 @@ class TrailsRepository:
             )
 
         if not drying_window_established:
+            if storm_rain_total_inches < 0.10:
+                if recovery_class == "slow":
+                    return (
+                        "Needs More Time",
+                        "yellow",
+                        0,
+                        "light_rain_slow_recovery",
+                    )
+
+                if recovery_class == "fast":
+                    return (
+                        "Likely Dry",
+                        color_for_condition("Likely Dry"),
+                        0,
+                        "light_rain_fast_recovery",
+                    )
+
+                return (
+                    "Damp",
+                    color_for_condition("Damp"),
+                    0,
+                    "light_rain_average_recovery",
+                )
+
             if storm_rain_total_inches >= 0.50:
                 return (
                     "Wet / Unrideable",
@@ -287,7 +311,7 @@ class TrailsRepository:
 
             return (
                 "Needs More Time",
-                color_for_condition("Needs More Time"),
+                "yellow",
                 0,
                 "no_drying_window",
             )
