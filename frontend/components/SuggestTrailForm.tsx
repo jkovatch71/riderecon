@@ -43,7 +43,7 @@ export function SuggestTrailForm() {
   const [trailName, setTrailName] = useState("");
   const [systemName, setSystemName] = useState("");
   const [city, setCity] = useState("");
-  const [stateValue, setStateValue] = useState("TX");
+  const [stateValue, setStateValue] = useState("");
   const [notes, setNotes] = useState("");
   const [location, setLocation] = useState<LocationPayload | null>(null);
   const [locating, setLocating] = useState(false);
@@ -179,7 +179,7 @@ export function SuggestTrailForm() {
 
         <div className="space-y-4">
         <div>
-            <label className="label">Trail or System Name</label>
+            <label className="label">Trail or Park Name</label>
             <input
             className="input mt-2"
             value={trailName}
@@ -211,12 +211,16 @@ export function SuggestTrailForm() {
 
             <div>
             <label className="label">State</label>
-            <input
-                className="input mt-2"
-                value={stateValue}
-                onChange={(e) => setStateValue(e.target.value)}
-                placeholder="TX"
-            />
+                <input
+                    className="input mt-2"
+                    value={stateValue}
+                    onChange={(e) => {
+                        const raw = e.target.value.toUpperCase().replace(/[^A-Z]/g, "");
+                        setStateValue(raw.slice(0, 2));
+                    }}
+                    placeholder="TX"
+                    maxLength={2}
+                    />
             </div>
         </div>
 

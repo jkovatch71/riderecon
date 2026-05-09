@@ -168,7 +168,7 @@ def approve_trail_suggestion(
         "alias": None,
         "system_name": suggestion.get("system_name"),
         "city": suggestion.get("city"),
-        "state": suggestion.get("state") or "TX",
+        "state": suggestion.get("state"),
         "latitude": suggestion.get("latitude"),
         "longitude": suggestion.get("longitude"),
         "status_color": "yellow",
