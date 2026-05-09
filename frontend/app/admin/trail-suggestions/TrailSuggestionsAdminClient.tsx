@@ -60,8 +60,12 @@ export function TrailSuggestionsAdminClient() {
     try {
       await rejectTrailSuggestion(id, accessToken);
       await loadSuggestions();
-    } catch {
-      setError("Unable to reject trail suggestion.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to reject trail suggestion."
+      );
     } finally {
       setBusyId(null);
     }

@@ -160,6 +160,22 @@ def approve_trail_suggestion(
             detail=f"Trail already exists with id: {trail_id}",
         )
 
+    latitude = suggestion.get("latitude")
+    longitude = suggestion.get("longitude")
+
+    if latitude is None or longitude is None:
+        client.table("trail_suggestions").update(
+            {
+                "status": "needs_location",
+                "updated_at": timestamp,
+            }
+        ).eq("id", suggestion_id).execute()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Trail suggestion needs GPS coordinates before approval.",
+        )
+
     timestamp = now_iso()
 
     trail_payload = {
