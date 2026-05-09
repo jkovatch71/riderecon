@@ -321,6 +321,30 @@ class TrailsRepository:
             storm_rain_total_inches,
         )
 
+        if storm_rain_total_inches < 0.10:
+            if recovery_class == "fast":
+                return (
+                    "Likely Dry",
+                    color_for_condition("Likely Dry"),
+                    0,
+                    "light_rain_fast_recovery",
+                )
+
+            if recovery_class == "slow":
+                return (
+                    "Needs More Time",
+                    "yellow",
+                    0,
+                    "light_rain_slow_recovery",
+                )
+
+            return (
+                "Damp",
+                color_for_condition("Damp"),
+                0,
+                "light_rain_average_recovery",
+            )
+
         if effective_drying_hours < required_recovery_hours:
             return (
                 "Needs More Time",
