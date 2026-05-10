@@ -554,8 +554,10 @@ class TrailsRepository:
 
         return sorted(
             results,
-            key=lambda trail: trail.get("summary", {}).get("last_updated_at") or "",
-            reverse=True,
+            key=lambda trail: (
+                trail.get("summary", {}).get("display_condition") == "Permanently Closed",
+                -(parse_dt(trail.get("summary", {}).get("last_updated_at")) or datetime.min.replace(tzinfo=timezone.utc)).timestamp(),
+            ),
         )
 
     def get_reports(self, trail_id: str) -> list[dict[str, Any]]:

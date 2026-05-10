@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   LatLngBounds,
+  divIcon,
   type CircleMarker as LeafletCircleMarker,
 } from "leaflet";
 import {
@@ -20,6 +21,7 @@ import {
   Popup,
   TileLayer,
   useMap,
+  Marker,
 } from "react-leaflet";
 import type { Trail } from "@/lib/types";
 import { getConditionColor } from "@/lib/utils";
@@ -292,6 +294,31 @@ function buildRainBuckets(trails: Trail[]): RainBucket[] {
     };
   });
 }
+
+function isPermanentlyClosedTrail(trail: Trail) {
+  return resolvedCondition(trail).toLowerCase().includes("permanently closed");
+}
+
+const tombstoneIcon = divIcon({
+  className: "",
+  html: `
+    <div style="
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 9999px;
+      background: rgba(24,24,27,.92);
+      border: 2px solid rgba(244,63,94,.85);
+      box-shadow: 0 0 0 6px rgba(244,63,94,.12);
+      font-size: 16px;
+      line-height: 1;
+    ">🪦</div>
+  `,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+  popupAnchor: [0, -12],
+});
 
 function getTrailHazardPoints(trails: Trail[]): HazardPoint[] {
   return trails.flatMap((trail) => {
@@ -876,6 +903,31 @@ export function TrailMapPlaceholder({
               trail.latitude as number,
               trail.longitude as number,
             ];
+
+            if (isPermanentlyClosedTrail(trail)) {
+              return (
+                <Marker key={trail.id} position={center} icon={tombstoneIcon}>
+                  <Popup>
+                    <div className="min-w-[175px] max-w-[220px] leading-tight">
+                      <p className="font-trail text-[13px] font-semibold uppercase text-zinc-900">
+                        🪦 {trail.name}
+                      </p>
+
+                      <p className="mt-1.5 text-[12px] font-medium text-rose-700">
+                        Permanently Closed
+                      </p>
+
+                      <Link
+                        href={`/trails/${trail.id}`}
+                        className="mt-1.5 inline-block text-[12px] font-medium text-emerald-700 underline"
+                      >
+                        View details →
+                      </Link>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            }
 
             return (
               <Fragment key={trail.id}>
