@@ -300,24 +300,23 @@ function isPermanentlyClosedTrail(trail: Trail) {
 }
 
 const tombstoneIcon = divIcon({
-  className: "",
+  className: "closed-trail-marker",
   html: `
     <div style="
-      width: 30px;
-      height: 30px;
+      width: 22px;
+      height: 22px;
       display: grid;
       place-items: center;
-      border-radius: 9999px;
-      background: rgba(24,24,27,.92);
-      border: 2px solid rgba(244,63,94,.85);
-      box-shadow: 0 0 0 6px rgba(244,63,94,.12);
-      font-size: 16px;
+      color: rgba(161, 161, 170, 0.85);
+      font-size: 20px;
       line-height: 1;
+      opacity: 0.75;
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
     ">🪦</div>
   `,
-  iconSize: [30, 30],
-  iconAnchor: [15, 15],
-  popupAnchor: [0, -12],
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+  popupAnchor: [0, -10],
 });
 
 function getTrailHazardPoints(trails: Trail[]): HazardPoint[] {
@@ -906,7 +905,12 @@ export function TrailMapPlaceholder({
 
             if (isPermanentlyClosedTrail(trail)) {
               return (
-                <Marker key={trail.id} position={center} icon={tombstoneIcon}>
+                <Marker
+                  key={trail.id}
+                  position={center}
+                  icon={tombstoneIcon}
+                  zIndexOffset={-1000}
+                >
                   <Popup>
                     <div className="min-w-[175px] max-w-[220px] leading-tight">
                       <p className="font-trail text-[13px] font-semibold uppercase text-zinc-900">
