@@ -62,6 +62,12 @@ def slugify(value: str) -> str:
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+@router.get("/me")
+def get_admin_status(admin=Depends(get_admin_user)):
+    return {
+        "is_admin": True,
+        "email": admin.get("email"),
+    }
 
 @router.post("/weather/clear")
 def clear_weather_cache(_admin=Depends(get_admin_user)):
@@ -123,6 +129,8 @@ def approve_trail_suggestion(
 
     trail_id = slugify(trail_name)
 
+    timestamp = now_iso()
+
     latitude = suggestion.get("latitude")
     longitude = suggestion.get("longitude")
 
@@ -175,8 +183,6 @@ def approve_trail_suggestion(
             status_code=400,
             detail="Trail suggestion needs GPS coordinates before approval.",
         )
-
-    timestamp = now_iso()
 
     trail_payload = {
         "id": trail_id,

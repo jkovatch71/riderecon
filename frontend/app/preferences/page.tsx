@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ShieldCheck } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 type TextSize = "compact" | "standard" | "large";
 type BriefingTone = "rider" | "neutral";
@@ -128,6 +131,7 @@ function SectionBlock({
 }
 
 export default function PreferencesPage() {
+  const { isAdmin } = useAuth();
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
 
   useEffect(() => {
@@ -268,6 +272,31 @@ export default function PreferencesPage() {
           </Control>
         </SectionBlock>
       </section>
+
+            {isAdmin ? (
+        <section className="card p-5 sm:p-6">
+          <div className="flex items-start gap-4">
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+                Admin Dashboard
+              </p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                Control Panel
+              </p>
+            </div>
+          </div>
+
+          <div className="my-4 h-px bg-zinc-800" />
+
+          <Link href="/admin" className="btn-primary inline-block">
+            Open Admin
+          </Link>
+        </section>
+      ) : null}
 
       <section className="card p-5 sm:p-6">
         <div className="space-y-1">

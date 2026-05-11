@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { usePathname } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 function initialsFor(username?: string | null) {
@@ -14,7 +15,7 @@ function initialsFor(username?: string | null) {
 
 export function AuthStatus() {
   const pathname = usePathname();
-  const { user, profile, authLoading, profileLoading } = useAuth();
+  const { user, profile, authLoading, profileLoading, isAdmin } = useAuth();
 
   const loginHref = `/auth/login?next=${encodeURIComponent(pathname || "/")}`;
 
@@ -61,14 +62,27 @@ export function AuthStatus() {
         {authLoading || (user && profileLoading) ? (
           <div className="h-10 w-10 animate-pulse rounded-xl border border-zinc-800 bg-zinc-950/80" />
         ) : user ? (
-          <Link
-            href="/profile"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 text-sm font-semibold text-zinc-100 transition active:scale-95"
-            aria-label="Profile"
-            title="Profile"
-          >
-            {initials}
-          </Link>
+          <div className="flex items-center gap-2">
+            {isAdmin ? (
+              <Link
+                href="/admin"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 transition active:scale-95"
+                aria-label="Admin dashboard"
+                title="Admin dashboard"
+              >
+                <ShieldCheck className="h-4 w-4" />
+              </Link>
+            ) : null}
+
+            <Link
+              href="/profile"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 text-sm font-semibold text-zinc-100 transition active:scale-95"
+              aria-label="Profile"
+              title="Profile"
+            >
+              {initials}
+            </Link>
+          </div>
         ) : (
           <Link href={loginHref} className="btn-primary">
             Sign in

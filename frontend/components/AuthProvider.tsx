@@ -19,8 +19,12 @@ type AuthContextValue = {
   authLoading: boolean;
   profile: MyProfile | null;
   profileLoading: boolean;
+  isAdmin: boolean;
+  adminLoading: boolean;
   refreshProfile: () => Promise<void>;
 };
+
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -30,6 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(false);
 
   const mountedRef = useRef(true);
   const profileRequestIdRef = useRef(0);
@@ -40,6 +46,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     lastProfileUserIdRef.current = null;
     setProfile(null);
     setProfileLoading(false);
+  }, []);
+
+  const loadAdminStatus = useCallback(async (nextSession: Session | null) => {
+    if (!mountedRef.current) return;
+
+    const accessToken = nextSession?.access_token;
+
+    if (!API || !accessToken) {
+      setIsAdmin(false);
+      setAdminLoading(false);
+      return;
+    }
+
+    setAdminLoading(true);
+
+    try {
+      const res = await fetch(`${API}/admin/me`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!mountedRef.current) return;
+
+      setIsAdmin(res.ok);
+    } catch {
+      if (!mountedRef.current) return;
+      setIsAdmin(false);
+    } finally {
+      if (!mountedRef.current) return;
+      setAdminLoading(false);
+    }
   }, []);
 
   const loadProfile = useCallback(async (nextUser: User | null, force = false) => {
@@ -97,8 +135,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Fire and forget profile loading so auth state is not blocked.
       void loadProfile(nextUser);
+      void loadAdminStatus(nextSession);
     },
-    [loadProfile]
+    [loadProfile, loadAdminStatus]
   );
 
   const refreshProfile = useCallback(async () => {
@@ -131,6 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setProfile(null);
         setProfileLoading(false);
+        setIsAdmin(false);
+        setAdminLoading(false);
         setAuthLoading(false);
       }
     }
@@ -157,9 +198,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authLoading,
       profile,
       profileLoading,
+      isAdmin,
+      adminLoading,
       refreshProfile,
     }),
-    [session, user, authLoading, profile, profileLoading, refreshProfile]
+    [
+      session,
+      user,
+      authLoading,
+      profile,
+      profileLoading,
+      isAdmin,
+      adminLoading,
+      refreshProfile,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

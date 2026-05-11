@@ -49,7 +49,7 @@ function AdminCard({
 }
 
 export default function AdminPage() {
-  const { user, session, authLoading } = useAuth();
+  const { user, session, authLoading, isAdmin, adminLoading } = useAuth();
   const [status, setStatus] = useState<string | null>(null);
 
   const accessToken = session?.access_token;
@@ -86,7 +86,7 @@ export default function AdminPage() {
   }
 
   // 🔒 Loading
-  if (authLoading) {
+  if (authLoading || adminLoading) {
     return (
       <main className="space-y-3 pb-4">
         <section className="card p-6">
@@ -119,6 +119,24 @@ export default function AdminPage() {
           >
             Sign in
           </Link>
+        </section>
+      </main>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <main className="space-y-3 pb-4">
+        <section className="card p-6">
+          <h1 className="font-brand text-page-title font-semibold uppercase text-zinc-100">
+            Admin
+          </h1>
+
+          <div className="my-4 h-px bg-zinc-800" />
+
+          <p className="text-helper text-zinc-400">
+            Admin access required.
+          </p>
         </section>
       </main>
     );
