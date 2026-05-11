@@ -20,40 +20,40 @@ export function MapPageClient({ trails }: { trails: Trail[] }) {
 
   return (
     <main className="space-y-3 pb-28">
-      <section className="card p-1">
-        <div className="relative grid grid-cols-3 gap-1">
-            {/* Sliding highlight */}
-            <div
-            className={`absolute top-1 bottom-1 w-[calc(33.333%-4px)] rounded-xl bg-emerald-500/20 transition-all duration-300 ease-out
-                ${mapFilter === "rideable" ? "left-1" : ""}
-                ${mapFilter === "assist" ? "left-[calc(33.333%+2px)]" : ""}
-                ${mapFilter === "hazards" ? "left-[calc(66.666%+3px)]" : ""}
-            `}
-            />
+      <section className="card p-1.5">
+        <div className="relative grid grid-cols-3 gap-2">
+          <div
+            className={`pointer-events-none absolute bottom-0 top-0 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-500/40 transition-all duration-300 ease-out ${
+              mapFilter === "rideable"
+                ? "left-0 w-[calc(33.333%-0.34rem)]"
+                : mapFilter === "assist"
+                  ? "left-[calc(33.333%+0.16rem)] w-[calc(33.333%-0.32rem)]"
+                  : "left-[calc(66.666%+0.32rem)] w-[calc(33.333%-0.34rem)]"
+            }`}
+          />
 
-            {filters.map((filter) => {
+          {filters.map((filter) => {
             const Icon = filter.icon;
             const active = mapFilter === filter.key;
 
             return (
-                <button
+              <button
                 key={filter.key}
                 type="button"
                 onClick={() => setMapFilter(filter.key)}
-                className={`relative z-10 flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-colors
-                    ${
-                    active
-                        ? "text-emerald-300"
-                        : "text-zinc-500 hover:text-zinc-300"
-                    }`}
-                >
+                className={`relative z-10 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+                  active
+                    ? "text-emerald-300"
+                    : "text-zinc-400 active:scale-[0.98]"
+                }`}
+              >
                 <Icon className="h-4 w-4" />
                 <span>{filter.label}</span>
-                </button>
+              </button>
             );
-            })}
-            </div>
-        </section>
+          })}
+        </div>
+      </section>
 
       <TrailMapPlaceholder trails={trails} mapFilter={mapFilter} />
     </main>
