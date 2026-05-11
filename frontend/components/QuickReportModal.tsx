@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { createReport } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
@@ -79,9 +80,42 @@ export function QuickReportModal({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-end">
-      <div className="w-full rounded-t-2xl bg-zinc-950 p-4 space-y-4 border-t border-zinc-800">
+    if (!accessToken) {
+        return (
+        <div className="fixed inset-0 z-[2000] flex items-end bg-black/60 backdrop-blur-sm">
+            <div className="w-full space-y-4 rounded-t-2xl border-t border-zinc-800 bg-zinc-950 p-4">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                Quick Report
+                </p>
+
+                <h2 className="mt-1 font-brand text-xl font-semibold uppercase text-zinc-100">
+                Sign in required
+                </h2>
+
+                <p className="mt-2 text-sm text-zinc-400">
+                Sign in to submit trail reports and help keep conditions current.
+                </p>
+            </div>
+
+            <Link
+                href="/auth/login?next=/trails?view=map"
+                className="btn-primary block w-full text-center"
+            >
+                Sign in to report
+            </Link>
+
+            <button onClick={onClose} className="w-full text-xs text-zinc-500">
+                Cancel
+            </button>
+            </div>
+        </div>
+        );
+    }
+
+    return (
+        <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-end">
+        <div className="w-full rounded-t-2xl bg-zinc-950 p-4 space-y-4 border-t border-zinc-800">
 
                 {/* Header */}
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">

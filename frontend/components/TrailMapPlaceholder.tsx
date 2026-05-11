@@ -631,7 +631,7 @@ export function TrailMapPlaceholder({
           center={[29.4241, -98.4936]}
           zoom={11}
           scrollWheelZoom={true}
-          className="h-[65vh] min-h-[420px] w-full rounded-2xl"
+          className="h-[52svh] min-h-[340px] max-h-[520px] w-full rounded-2xl"
         >
           <TileLayer
             attribution="&copy; OpenStreetMap contributors"

@@ -10,6 +10,7 @@ import dynamic from "next/dynamic";
 import { FavoritesManager } from "@/components/FavoritesManager";
 import { QuickReportModal } from "@/components/QuickReportModal";
 import type { MapFilter } from "@/components/TrailMapPlaceholder";
+import { useAuth } from "@/components/AuthProvider";
 
 function getDistanceMeters(
   lat1: number,
@@ -54,8 +55,9 @@ type Props = {
 
 export function TrailsPageClient({ trails }: Props) {
   const searchParams = useSearchParams();
+  const { session, authLoading } = useAuth();
 
-    const selectedTrailId = searchParams.get("selected");
+  const selectedTrailId = searchParams.get("selected");
 
   const [mapFilter, setMapFilter] = useState<MapFilter>("all");
   const [reportOpen, setReportOpen] = useState(false);
@@ -294,6 +296,7 @@ export function TrailsPageClient({ trails }: Props) {
           </div>
 
           <div className="relative">
+            {session ? (
             <button
               type="button"
               onClick={() => {
@@ -302,15 +305,17 @@ export function TrailsPageClient({ trails }: Props) {
                 }
                 setReportOpen(true);
               }}
-              disabled={!quickReportTrail || locatingTrail}
+              disabled={!quickReportTrail || locatingTrail || authLoading || !session}
               className="fixed bottom-24 right-5 z-[1500] flex h-14 w-14 items-center justify-center rounded-full border border-emerald-300/40 bg-emerald-400 text-zinc-950 shadow-[0_0_30px_rgba(52,211,153,0.28)] transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Quick report"
               title={
-                locatingTrail
-                  ? "Locating nearest trail..."
-                  : quickReportTrail
-                    ? `Quick report: ${quickReportTrail.name}`
-                    : "Quick report unavailable"
+                !session
+                  ? "Sign in to submit trail reports"
+                  : locatingTrail
+                    ? "Locating nearest trail..."
+                    : quickReportTrail
+                      ? `Quick report: ${quickReportTrail.name}`
+                      : "Quick report unavailable"
               }
             >
               {locatingTrail ? (
@@ -319,6 +324,31 @@ export function TrailsPageClient({ trails }: Props) {
                 <Plus className="h-7 w-7 stroke-[2.5]" />
               )}
             </button>
+            ) : null}
+
+            {!authLoading && !session ? (
+              <Link
+                href="/auth/login?next=/trails?view=map"
+                className="mt-3 flex items-center justify-between rounded-2xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 shadow-lg transition active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/50 bg-zinc-950/70 text-lg">
+                    🔒
+                  </span>
+
+                  <div className="leading-tight">
+                    <p className="text-sm font-semibold uppercase tracking-[0.08em] text-amber-300">
+                      Sign in to report
+                    </p>
+                    <p className="mt-0.5 text-[12px] text-zinc-400">
+                      Help keep trail conditions current.
+                    </p>
+                  </div>
+                </div>
+
+                <span className="text-2xl leading-none text-amber-300">›</span>
+              </Link>
+            ) : null}
 
             <TrailMapPlaceholder
               trails={trails}
