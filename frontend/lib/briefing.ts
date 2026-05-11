@@ -197,7 +197,13 @@ function withHazardSupport(
   if (!hazardText) return result;
 
   if (result.status === "not_rideable") {
-    return result;
+    return {
+      ...result,
+      supporting: result.supporting?.replace(
+        /pick your lines.*?/i,
+        "Let the trails recover before heading out."
+      ),
+    };
   }
 
   return {
@@ -257,7 +263,7 @@ function getConditionMix(trails: Trail[]) {
       c.includes("likely wet")
     ) {
       notReady++;
-    } else if (c.includes("dry") || c.includes("hero")) {
+    } else if (c === "dry" || c === "hero" || c.includes("likely dry")) {
       dry++;
     } else {
       unknown++;
@@ -439,31 +445,50 @@ export function buildBriefing(
     };
   }
 
+  if (conditionMix.dryRatio === 0) {
+    return {
+      headline: riderOrNeutral(
+        tone,
+        "Needs more time",
+        "Needs more time"
+      ),
+      detail: applyDetailLevel(
+        `${trailPhrase} are drying, but reports and recovery data still point to muddy or unrideable conditions`,
+        detailLevel
+      ),
+      supporting: riderOrNeutral(
+        tone,
+        "Let the trails recover before heading out.",
+        "The trails still need more drying time before they are rideable."
+      ),
+      status: "not_rideable",
+    };
+  }
+
   if (conditionMix.wetRatio + conditionMix.notReadyRatio >= wetThreshold) {
     if (!rainUnavailable && dryingStarted) {
-      if (recoveryMix.fastRatio >= 0.5 && effectiveDryingHours >= 8) {
-        return withHazardSupport(
-          {
-            headline: riderOrNeutral(
-              tone,
-              "Starting to turn around",
-              "Conditions are improving"
-            ),
-            detail: applyDetailLevel(
-              `${trailPhrase} are still mostly not ready, but the faster-drying ones may be heading the right way`,
-              detailLevel
-            ),
-            supporting: riderOrNeutral(
-              tone,
-              pickPhrase(RIDER_SUPPORTING.caution),
-              "Some improvement is underway, but more drying time is still needed."
-            ),
-            status: "caution",
-          },
-          relevant,
-          tone,
-          usingFavorites
-        );
+      if (
+        recoveryMix.fastRatio >= 0.5 &&
+        effectiveDryingHours >= 8 &&
+        conditionMix.dryRatio >= 0.3
+      ) {
+        return {
+          headline: riderOrNeutral(
+            tone,
+            "Still needs time",
+            "Still not ready"
+          ),
+          detail: applyDetailLevel(
+            `${trailPhrase} are still mostly not ready, even if a few spots are improving`,
+            detailLevel
+          ),
+          supporting: riderOrNeutral(
+            tone,
+            pickPhrase(RIDER_SUPPORTING.wait),
+            "Conditions are improving, but the trails still need more drying time."
+          ),
+          status: "not_rideable",
+        };
       }
 
       if (recoveryMix.slowRatio >= 0.5) {

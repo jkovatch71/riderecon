@@ -33,7 +33,7 @@ def normalize_condition(value: str | None) -> str | None:
 
     lowered = value.strip().lower()
 
-    if lowered in {"hero dirt", "hero"}:
+    if lowered in {"hero"}:
         return "Hero"
     if lowered == "dry":
         return "Dry"

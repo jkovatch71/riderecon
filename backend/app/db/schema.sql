@@ -49,7 +49,7 @@ insert into public.trails (
 )
 values
   ('mcallister-park', 'McAllister Park', 'Mac', 'Salado Creek Greenway', 29.5449, -98.4243, 'yellow', 'Muddy', now() - interval '42 minutes', 'Likely Wet (Auto-detected)', 5),
-  ('op-schnabel-park', 'O.P. Schnabel Park', null, 'Leon Creek Greenway', 29.5365, -98.6904, 'green', 'Hero Dirt', now() - interval '25 minutes', null, 3),
+  ('op-schnabel-park', 'O.P. Schnabel Park', null, 'Leon Creek Greenway', 29.5365, -98.6904, 'green', 'Hero', now() - interval '25 minutes', null, 3),
   ('government-canyon', 'Government Canyon State Natural Area', null, 'Outside Greenways', 29.6003, -98.7695, 'red', 'Closed', now() - interval '2 hours 10 minutes', 'Likely Wet (Auto-detected)', 2)
 on conflict (id) do update set
   name = excluded.name,
@@ -70,6 +70,6 @@ insert into public.trail_reports (
 values
   ('11111111-1111-4111-8111-111111111111', 'mcallister-park', 'traildad', 'Muddy', array['Bees'], 'Front side is greasy. Back side has standing water.', now() - interval '42 minutes', now() - interval '42 minutes', false, true),
   ('22222222-2222-4222-8222-222222222222', 'mcallister-park', 'rockhopper', 'Muddy', array['Obstructed'], 'Small branch pile near the creek crossing.', now() - interval '55 minutes', now() - interval '18 minutes', true, true),
-  ('33333333-3333-4333-8333-333333333333', 'op-schnabel-park', 'singletracksam', 'Hero Dirt', array[]::text[], 'Fast and tacky this morning.', now() - interval '25 minutes', now() - interval '25 minutes', false, true),
+  ('33333333-3333-4333-8333-333333333333', 'op-schnabel-park', 'singletracksam', 'Hero', array[]::text[], 'Fast and tacky this morning.', now() - interval '25 minutes', now() - interval '25 minutes', false, true),
   ('44444444-4444-4444-8444-444444444444', 'government-canyon', 'mesa_masher', 'Closed', array[]::text[], 'Posting says closed after overnight rain.', now() - interval '2 hours 10 minutes', now() - interval '2 hours 10 minutes', false, true)
 on conflict (id) do nothing;
