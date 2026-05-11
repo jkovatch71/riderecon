@@ -13,6 +13,7 @@ import {
   LatLngBounds,
   divIcon,
   type CircleMarker as LeafletCircleMarker,
+  type Marker as LeafletMarker,
 } from "leaflet";
 import {
   Circle,
@@ -61,6 +62,8 @@ type TrailSummaryWithHazards = {
   recent_hazards?: string[];
   hazard_points?: HazardPoint[];
 };
+
+type TrailMarkerRef = LeafletCircleMarker | LeafletMarker | null;
 
 const HAZARD_META: Record<string, { icon: string; label: string }> = {
   obstruction: { icon: "🌳", label: "Obstruction" },
@@ -302,21 +305,11 @@ function isPermanentlyClosedTrail(trail: Trail) {
 const tombstoneIcon = divIcon({
   className: "closed-trail-marker",
   html: `
-    <div style="
-      width: 22px;
-      height: 22px;
-      display: grid;
-      place-items: center;
-      color: rgba(161, 161, 170, 0.85);
-      font-size: 20px;
-      line-height: 1;
-      opacity: 0.75;
-      filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
-    ">🪦</div>
+    <span aria-hidden="true" class="closed-trail-marker__icon">🪦</span>
   `,
-  iconSize: [22, 22],
-  iconAnchor: [11, 11],
-  popupAnchor: [0, -10],
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+  popupAnchor: [0, -8],
 });
 
 function getTrailHazardPoints(trails: Trail[]): HazardPoint[] {
@@ -335,6 +328,29 @@ function getTrailHazardPoints(trails: Trail[]): HazardPoint[] {
         trail_id: point.trail_id || trail.id,
       }));
   });
+}
+
+function MapPanes() {
+  const map = useMap();
+
+  useEffect(() => {
+    const paneSettings = [
+      { name: "rainPane", zIndex: 350 },
+      { name: "closedTrailPane", zIndex: 390 },
+      { name: "trailHaloPane", zIndex: 430 },
+      { name: "activeTrailPane", zIndex: 460 },
+      { name: "hazardPane", zIndex: 500 },
+      { name: "assistPane", zIndex: 540 },
+      { name: "userLocationPane", zIndex: 580 },
+    ];
+
+    for (const { name, zIndex } of paneSettings) {
+      const pane = map.getPane(name) ?? map.createPane(name);
+      pane.style.zIndex = String(zIndex);
+    }
+  }, [map]);
+
+  return null;
 }
 
 function FitBounds({ trails }: { trails: Trail[] }) {
@@ -385,7 +401,7 @@ function FocusSelectedTrail({
 }: {
   trails: Trail[];
   selectedTrailId?: string | null;
-  markerRefs: React.MutableRefObject<Record<string, LeafletCircleMarker | null>>;
+  markerRefs: React.MutableRefObject<Record<string, TrailMarkerRef>>;
 }) {
   const map = useMap();
 
@@ -460,7 +476,7 @@ export function TrailMapPlaceholder({
     null
   );
 
-  const markerRefs = useRef<Record<string, LeafletCircleMarker | null>>({});
+  const markerRefs = useRef<Record<string, TrailMarkerRef>>({});
   const accessToken = session?.access_token;
 
   const loadFavorites = useCallback(async () => {
@@ -620,6 +636,8 @@ export function TrailMapPlaceholder({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
+          <MapPanes />
+
           <FitBounds trails={mapTrails} />
 
           <FocusSelectedTrail
@@ -633,6 +651,7 @@ export function TrailMapPlaceholder({
           {rainBuckets.map((bucket) => (
             <Circle
               key={bucket.key}
+              pane="rainPane"
               interactive={false}
               center={bucket.center}
               radius={bucket.radius}
@@ -664,6 +683,7 @@ export function TrailMapPlaceholder({
                   <Fragment key={request.id}>
                     {!request.responder_username ? (
                       <CircleMarker
+                        pane="assistPane"
                         interactive={false}
                         center={[request.latitude, request.longitude]}
                         radius={22}
@@ -677,6 +697,7 @@ export function TrailMapPlaceholder({
                     ) : null}
 
                     <CircleMarker
+                      pane="assistPane"
                       center={[request.latitude, request.longitude]}
                       radius={request.responder_username ? 14 : 16}
                       pathOptions={{
@@ -774,6 +795,7 @@ export function TrailMapPlaceholder({
                 return (
                   <CircleMarker
                     key={`${request.id}-responder`}
+                    pane="assistPane"
                     center={[
                       request.responder_latitude,
                       request.responder_longitude,
@@ -810,6 +832,7 @@ export function TrailMapPlaceholder({
                 return (
                   <CircleMarker
                     key={point.id ?? `${point.latitude}-${point.longitude}`}
+                    pane="hazardPane"
                     center={[point.latitude, point.longitude]}
                     radius={12}
                     pathOptions={{
@@ -868,6 +891,7 @@ export function TrailMapPlaceholder({
 
           {userLocation ? (
             <CircleMarker
+              pane="userLocationPane"
               center={userLocation}
               radius={8}
               pathOptions={{
@@ -907,6 +931,7 @@ export function TrailMapPlaceholder({
               return (
                 <Marker
                   key={trail.id}
+                  pane="closedTrailPane"
                   position={center}
                   icon={tombstoneIcon}
                   zIndexOffset={-1000}
@@ -937,6 +962,7 @@ export function TrailMapPlaceholder({
               <Fragment key={trail.id}>
                 {halo ? (
                   <CircleMarker
+                    pane="trailHaloPane"
                     interactive={false}
                     center={center}
                     radius={isSelected ? 27 : 22}
@@ -951,6 +977,7 @@ export function TrailMapPlaceholder({
 
                 {isFavorite ? (
                   <CircleMarker
+                    pane="trailHaloPane"
                     interactive={false}
                     center={center}
                     radius={18}
@@ -967,6 +994,7 @@ export function TrailMapPlaceholder({
                   ref={(ref) => {
                     markerRefs.current[trail.id] = ref;
                   }}
+                  pane="activeTrailPane"
                   center={center}
                   radius={isSelected ? 13 : 10}
                   pathOptions={{
@@ -1024,7 +1052,30 @@ export function TrailMapPlaceholder({
               </Fragment>
             );
           })}
-        </MapContainer>
+                </MapContainer>
+
+        <style jsx global>{`
+          .closed-trail-marker {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+          }
+
+          .closed-trail-marker__icon {
+            display: grid;
+            width: 20px;
+            height: 20px;
+            place-items: center;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            filter: none;
+            color: rgba(161, 161, 170, 0.72);
+            font-size: 18px;
+            line-height: 1;
+            opacity: 0.72;
+          }
+        `}</style>
       </div>
     </div>
   );

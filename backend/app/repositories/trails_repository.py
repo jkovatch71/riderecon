@@ -220,6 +220,27 @@ class TrailsRepository:
         trail_id = str(trail.get("id") or "").strip().lower()
         return trail_id in PERMANENTLY_CLOSED_TRAIL_IDS
 
+    def _is_summary_permanently_closed(self, trail: dict[str, Any]) -> bool:
+        summary = trail.get("summary") or {}
+        display_condition = normalize_condition(summary.get("display_condition"))
+
+        return display_condition == "Permanently Closed" or self._is_permanently_closed(trail)
+
+    def _trail_sort_key(self, trail: dict[str, Any]) -> tuple[bool, float, str]:
+        summary = trail.get("summary") or {}
+        last_updated_at = parse_dt(summary.get("last_updated_at"))
+        last_updated_timestamp = (
+            last_updated_at.timestamp()
+            if last_updated_at
+            else datetime.min.replace(tzinfo=timezone.utc).timestamp()
+        )
+
+        return (
+            self._is_summary_permanently_closed(trail),
+            -last_updated_timestamp,
+            str(trail.get("name") or "").strip().lower(),
+        )
+
     def _resolve_display_status(
         self,
         *,
@@ -552,13 +573,7 @@ class TrailsRepository:
             for trail in trails
         ]
 
-        return sorted(
-            results,
-            key=lambda trail: (
-                trail.get("summary", {}).get("display_condition") == "Permanently Closed",
-                -(parse_dt(trail.get("summary", {}).get("last_updated_at")) or datetime.min.replace(tzinfo=timezone.utc)).timestamp(),
-            ),
-        )
+        return sorted(results, key=self._trail_sort_key)
 
     def get_reports(self, trail_id: str) -> list[dict[str, Any]]:
         self._require_client()
