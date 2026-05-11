@@ -46,11 +46,11 @@ const RIDER_SUPPORTING = {
     "Ride smart and be ready to turn back.",
     "Scout it before you send it.",
   ],
-  wait: [
-    "Might be a good day to wrench instead.",
+    wait: [
+    "Let the trails recover before heading out.",
     "A little patience now keeps the tread from getting wrecked.",
-    "Let the dirt chill a bit longer.",
-    "Good time to lube the chain and wait it out.",
+    "Give the dirt more time to dry.",
+    "Today is a wait-it-out day.",
   ],
   unclear: [
     "A fresh report would tell the story.",
@@ -486,28 +486,23 @@ export function buildBriefing(
         };
       }
 
-      return withHazardSupport(
-        {
-          headline: riderOrNeutral(
-            tone,
-            "Needs more time",
-            "Needs more time"
-          ),
-          detail: applyDetailLevel(
-            `${trailPhrase} are drying out, but most are still not ready to ride`,
-            detailLevel
-          ),
-          supporting: riderOrNeutral(
-            tone,
-            pickPhrase(RIDER_SUPPORTING.caution),
-            "Conditions are improving, but not enough yet."
-          ),
-          status: "caution",
-        },
-        relevant,
-        tone,
-        usingFavorites
-      );
+      return {
+        headline: riderOrNeutral(
+          tone,
+          "Needs more time",
+          "Needs more time"
+        ),
+        detail: applyDetailLevel(
+          `${trailPhrase} are drying out, but most are still not ready to ride`,
+          detailLevel
+        ),
+        supporting: riderOrNeutral(
+          tone,
+          pickPhrase(RIDER_SUPPORTING.wait),
+          "Conditions are improving, but the trails still need more drying time."
+        ),
+        status: "not_rideable",
+      };
     }
 
     return {
