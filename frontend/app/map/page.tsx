@@ -1,8 +1,5 @@
-import { getTrails } from "@/lib/api";
-import { MapPageClient } from "./MapPageClient";
+import { redirect } from "next/navigation";
 
-export default async function MapPage() {
-  const trails = await getTrails();
-
-  return <MapPageClient trails={trails} />;
+export default function MapPage() {
+  redirect("/trails?view=map");
 }

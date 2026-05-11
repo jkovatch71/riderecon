@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { QuickReportModal } from "@/components/QuickReportModal";
 import { AlertTriangle, Bike, LifeBuoy } from "lucide-react";
 import { TrailMapPlaceholder, type MapFilter } from "@/components/TrailMapPlaceholder";
 import type { Trail } from "@/lib/types";
@@ -16,6 +17,13 @@ const filters: {
 ];
 
 export function MapPageClient({ trails }: { trails: Trail[] }) {
+  const [reportOpen, setReportOpen] = useState(false);
+
+  const nearestTrail = useMemo(() => {
+    if (!trails.length) return null;
+    return trails[0]; // temporary (we'll upgrade later)
+  }, [trails]);
+
   const [mapFilter, setMapFilter] = useState<MapFilter>("rideable");
 
   return (
@@ -54,8 +62,20 @@ export function MapPageClient({ trails }: { trails: Trail[] }) {
           })}
         </div>
       </section>
-
+      <button
+        onClick={() => setReportOpen(true)}
+        className="fixed bottom-24 right-5 z-[1500] h-14 w-14 rounded-full bg-emerald-500 text-black text-2xl shadow-lg active:scale-95"
+      >
+        +
+      </button>
       <TrailMapPlaceholder trails={trails} mapFilter={mapFilter} />
+      {reportOpen && nearestTrail ? (
+        <QuickReportModal
+          trail={nearestTrail}
+          onClose={() => setReportOpen(false)}
+          onSuccess={() => window.location.reload()}
+        />
+      ) : null}
     </main>
   );
 }

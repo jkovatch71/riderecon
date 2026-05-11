@@ -460,10 +460,12 @@ export function TrailMapPlaceholder({
   trails,
   selectedTrailId,
   mapFilter = "all",
+  onTrailSelect,
 }: {
   trails: Trail[];
   selectedTrailId?: string | null;
   mapFilter?: MapFilter;
+  onTrailSelect?: (trail: Trail) => void;
 }) {
   const { user, session, authLoading } = useAuth();
 
@@ -930,11 +932,17 @@ export function TrailMapPlaceholder({
             if (isPermanentlyClosedTrail(trail)) {
               return (
                 <Marker
+                  ref={(ref) => {
+                    markerRefs.current[trail.id] = ref;
+                  }}
                   key={trail.id}
                   pane="closedTrailPane"
                   position={center}
                   icon={tombstoneIcon}
                   zIndexOffset={-1000}
+                  eventHandlers={{
+                    click: () => onTrailSelect?.(trail),
+                  }}
                 >
                   <Popup>
                     <div className="min-w-[175px] max-w-[220px] leading-tight">
@@ -997,6 +1005,9 @@ export function TrailMapPlaceholder({
                   pane="activeTrailPane"
                   center={center}
                   radius={isSelected ? 13 : 10}
+                  eventHandlers={{
+                    click: () => onTrailSelect?.(trail),
+                  }}
                   pathOptions={{
                     color: isSelected ? "#ffffff" : "#18181b",
                     fillColor: fill,
