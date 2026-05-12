@@ -120,19 +120,27 @@ export function SuggestTrailForm() {
             <MapPinned className="h-5 w-5" />
           </div>
 
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 space-y-0.5">
             <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
               Suggest a Trail
             </h2>
-            <p className="mt-1 text-helper text-zinc-400">
-              Sign in to suggest a trail or trail system for Ride Recon coverage.
+            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+              Help expand coverage
             </p>
-
-            <Link href="/auth/login?next=/help" className="btn-primary mt-4 inline-block">
-              Sign in
-            </Link>
           </div>
         </div>
+
+        <div className="my-3 h-px bg-zinc-800" />
+
+        <p className="text-helper text-zinc-400">
+          <Link
+            href="/auth/login?next=/help"
+            className="font-semibold text-emerald-300 underline-offset-4 hover:underline"
+          >
+            Sign in
+          </Link>{" "}
+          to suggest a trail or trail system for Ride Recon coverage.
+        </p>
       </section>
     );
   }

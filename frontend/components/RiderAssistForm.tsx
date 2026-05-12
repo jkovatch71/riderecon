@@ -10,6 +10,7 @@ import {
   Droplets,
   Flame,
   HelpCircle,
+  LifeBuoy,
   LocateFixed,
   Phone,
   Settings,
@@ -304,25 +305,33 @@ export function RiderAssistForm() {
   if (!user) {
     return (
       <section className="card p-5">
-        <div className="space-y-1">
-          <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-            Rider Assist
-          </h2>
-          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-            Sign in required
-          </p>
+        <div className="flex items-start gap-4">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
+            <LifeBuoy className="h-5 w-5" />
+          </div>
+
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+              Rider Assist
+            </h2>
+            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+              Help | gear | tools | parts
+            </p>
+          </div>
         </div>
 
         <div className="my-3 h-px bg-zinc-800" />
 
         <p className="text-helper text-zinc-400">
-          Sign in to request help for a tire issue, mechanical problem, crash,
-          or other trail-side problem.
+          <Link
+            href="/auth/login?next=/help"
+            className="font-semibold text-emerald-300 underline-offset-4 hover:underline"
+          >
+            Sign in
+          </Link>{" "}
+          to request help for a tire issue, mechanical problem, crash, or other
+          trail-side issue.
         </p>
-
-        <Link href="/auth/login?next=/help" className="btn-primary mt-4 inline-block">
-          Sign in
-        </Link>
       </section>
     );
   }
@@ -364,13 +373,22 @@ export function RiderAssistForm() {
 
   return (
     <section className="card p-5">
-      <div className="space-y-1">
-        <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-          Rider Assist
-        </h2>
-        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-          Drop a help pin
-        </p>
+      <div>
+        <div className="flex items-start gap-4">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
+            <LifeBuoy className="h-5 w-5" />
+          </div>
+
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+              Rider Assist
+            </h2>
+
+            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+              Help | gear | tools | parts
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="my-3 h-px bg-zinc-800" />

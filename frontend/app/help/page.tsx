@@ -47,17 +47,6 @@ function HelpFeatureCard({
 export default function HelpPage() {
   return (
     <main className="space-y-3 pb-28">
-      <section className="card p-6">
-        <div className="space-y-1">
-          <h1 className="font-brand text-page-title font-semibold uppercase text-zinc-100">
-            Support
-          </h1>
-
-          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-            Help | gear | tools | parts
-          </p>
-        </div>
-      </section>
 
       <RiderAssistForm />
 
@@ -67,7 +56,7 @@ export default function HelpPage() {
         icon={PackageSearch}
         eyebrow="Coming Soon"
         title="Lost & Found"
-        description="Did you find/lose sunglasses, water bottle, bike part or other gear?"
+        description="Sign in to report lost or found sunglasses, water bottle, bike part or other gear."
         status="Planned Feature"
       />
     </main>
