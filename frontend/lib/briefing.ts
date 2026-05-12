@@ -29,45 +29,76 @@ const HAZARD_LABELS: Record<string, string> = {
 
 const RIDER_SUPPORTING = {
   prime: [
-    "You’re not going to see better conditions than this.",
-    "This is the kind of window to jump on.",
-    "Might be a good day to grab a lap.",
+    "Hero conditions. Get it while it lasts.",
+    "This is the window riders wait for.",
     "Load up and get after it.",
+    "Trail conditions are about as good as they get.",
   ],
   rideable: [
-    "Could be a good day to grab a lap.",
+    "Looks like a solid window to ride.",
     "Worth checking out if you’ve got time.",
-    "Looks like a decent window to ride.",
-    "Might be worth loading up.",
+    "Conditions look favorable for a ride.",
+    "Could be a good day to grab a lap.",
   ],
   caution: [
-    "Pick your lines and don’t force it.",
-    "Check the trail cards before you commit.",
-    "Ride smart and be ready to turn back.",
-    "Scout it before you send it.",
+    "Check individual trail cards before heading out.",
+    "Conditions may vary by trail, so verify before you commit.",
+    "Some trails may be better than others right now.",
+    "Scout the latest reports before you send it.",
   ],
-    wait: [
+  wait: [
     "Let the trails recover before heading out.",
     "A little patience now keeps the tread from getting wrecked.",
     "Give the dirt more time to dry.",
     "Today is a wait-it-out day.",
   ],
   unclear: [
-    "A fresh report would tell the story.",
+    "A fresh rider report would tell the story.",
     "Recon recommended before you commit.",
-    "Could go either way right now.",
+    "Conditions are not clear enough to call confidently yet.",
     "Check individual trail cards before heading out.",
   ],
   storm: [
-    "This is rut-making weather. Let the dirt chill.",
-    "Might be a good day to wrench instead.",
+    "This is rut-making weather. Let the dirt recover.",
     "Give the trails room to recover.",
     "No shame in calling it early today.",
+    "Save the dirt. Wait it out.",
   ],
 };
 
 function pickPhrase(phrases: string[]) {
   return phrases[0];
+}
+
+type SupportingIntent = keyof typeof RIDER_SUPPORTING;
+
+function getSafeSupportingIntent(
+  status: BriefingResult["status"],
+  intent: SupportingIntent
+): SupportingIntent {
+  if (
+    status === "not_rideable" &&
+    (intent === "prime" || intent === "rideable" || intent === "caution")
+  ) {
+    return "wait";
+  }
+
+  return intent;
+}
+
+function buildSupportingText(
+  tone: "rider" | "neutral",
+  status: BriefingResult["status"],
+  intent: SupportingIntent,
+  neutralText: string
+) {
+  const safeIntent = getSafeSupportingIntent(status, intent);
+
+  return riderOrNeutral(
+    tone,
+    pickPhrase(RIDER_SUPPORTING[safeIntent]),
+    neutralText
+  );
 }
 
 function getSummary(trail: Trail) {
@@ -375,9 +406,10 @@ export function buildBriefing(
             : `${trailPhrase} are soaked and not rideable right now`,
           detailLevel
         ),
-        supporting: riderOrNeutral(
+        supporting: buildSupportingText(
           tone,
-          pickPhrase(RIDER_SUPPORTING.storm),
+          "not_rideable",
+          "storm",
           "Conditions are too wet right now and need time to recover."
         ),
         status: "not_rideable",
@@ -396,9 +428,10 @@ export function buildBriefing(
           : `${trailPhrase} are too wet to ride right now`,
         detailLevel
       ),
-      supporting: riderOrNeutral(
+      supporting: buildSupportingText(
         tone,
-        pickPhrase(RIDER_SUPPORTING.wait),
+        "not_rideable",
+        "wait",
         "Best to wait until conditions improve."
       ),
       status: "not_rideable",
@@ -417,9 +450,10 @@ export function buildBriefing(
           `${trailPhrase} have not started recovering yet after the storm`,
           detailLevel
         ),
-        supporting: riderOrNeutral(
+        supporting: buildSupportingText(
           tone,
-          pickPhrase(RIDER_SUPPORTING.wait),
+          "not_rideable",
+          "wait",
           "These trails recover slowly and still need meaningful drying time."
         ),
         status: "not_rideable",
@@ -436,9 +470,10 @@ export function buildBriefing(
         `${trailPhrase} haven't had time to dry yet`,
         detailLevel
       ),
-      supporting: riderOrNeutral(
+      supporting: buildSupportingText(
         tone,
-        pickPhrase(RIDER_SUPPORTING.wait),
+        "not_rideable",
+        "wait",
         "Rain may have eased, but the trails have not started recovering yet."
       ),
       status: "not_rideable",
@@ -456,9 +491,10 @@ export function buildBriefing(
         `${trailPhrase} are drying, but reports and recovery data still point to muddy or unrideable conditions`,
         detailLevel
       ),
-      supporting: riderOrNeutral(
+      supporting: buildSupportingText(
         tone,
-        "Let the trails recover before heading out.",
+        "not_rideable",
+        "wait",
         "The trails still need more drying time before they are rideable."
       ),
       status: "not_rideable",
@@ -482,9 +518,10 @@ export function buildBriefing(
             `${trailPhrase} are still mostly not ready, even if a few spots are improving`,
             detailLevel
           ),
-          supporting: riderOrNeutral(
+          supporting: buildSupportingText(
             tone,
-            pickPhrase(RIDER_SUPPORTING.wait),
+            "not_rideable",
+            "wait",
             "Conditions are improving, but the trails still need more drying time."
           ),
           status: "not_rideable",
@@ -502,9 +539,10 @@ export function buildBriefing(
             `${trailPhrase} are still holding moisture and not ready yet`,
             detailLevel
           ),
-          supporting: riderOrNeutral(
+          supporting: buildSupportingText(
             tone,
-            pickPhrase(RIDER_SUPPORTING.wait),
+            "not_rideable",
+            "wait",
             "These trails recover more slowly and still need additional time."
           ),
           status: "not_rideable",
@@ -521,9 +559,10 @@ export function buildBriefing(
           `${trailPhrase} are drying out, but most are still not ready to ride`,
           detailLevel
         ),
-        supporting: riderOrNeutral(
+        supporting: buildSupportingText(
           tone,
-          pickPhrase(RIDER_SUPPORTING.wait),
+          "not_rideable",
+          "wait",
           "Conditions are improving, but the trails still need more drying time."
         ),
         status: "not_rideable",
@@ -540,9 +579,10 @@ export function buildBriefing(
         `${trailPhrase} are still too wet in most spots`,
         detailLevel
       ),
-      supporting: riderOrNeutral(
+      supporting: buildSupportingText(
         tone,
-        pickPhrase(RIDER_SUPPORTING.wait),
+        "not_rideable",
+        "wait",
         "Waiting longer will help protect the trails."
       ),
       status: "not_rideable",
@@ -564,9 +604,10 @@ export function buildBriefing(
               : `${trailPhrase} are mostly looking good to roll`,
             detailLevel
           ),
-          supporting: riderOrNeutral(
+          supporting: buildSupportingText(
             tone,
-            pickPhrase(RIDER_SUPPORTING.rideable),
+            "rideable",
+            "rideable",
             "Conditions look favorable for a ride."
           ),
           status: "rideable",
@@ -590,9 +631,10 @@ export function buildBriefing(
             : `${trailPhrase} are mostly dry and rideable`,
           detailLevel
         ),
-        supporting: riderOrNeutral(
+        supporting: buildSupportingText(
           tone,
-          pickPhrase(RIDER_SUPPORTING.rideable),
+          "rideable",
+          "rideable",
           "Conditions look favorable for a ride."
         ),
         status: "rideable",
@@ -619,9 +661,10 @@ export function buildBriefing(
             `${trailPhrase} are split right now—faster-drying trails may come around sooner than the rest`,
             detailLevel
           ),
-          supporting: riderOrNeutral(
+          supporting: buildSupportingText(
             tone,
-            pickPhrase(RIDER_SUPPORTING.caution),
+            "caution",
+            "caution",
             "Some trails are recovering faster than others."
           ),
           status: "caution",
@@ -644,9 +687,10 @@ export function buildBriefing(
             `${trailPhrase} are mixed, but the slower-drying ones are still probably holding moisture`,
             detailLevel
           ),
-          supporting: riderOrNeutral(
+          supporting: buildSupportingText(
             tone,
-            pickPhrase(RIDER_SUPPORTING.caution),
+            "caution",
+            "caution",
             "The slower-recovering trails likely still need more time."
           ),
           status: "caution",
@@ -668,9 +712,10 @@ export function buildBriefing(
           `${trailPhrase} are split right now—some sections are getting there, others still need time`,
           detailLevel
         ),
-        supporting: riderOrNeutral(
+        supporting: buildSupportingText(
           tone,
-          pickPhrase(RIDER_SUPPORTING.caution),
+          "caution",
+          "caution",
           "Review individual trail status before heading out."
         ),
         status: "caution",
@@ -692,9 +737,10 @@ export function buildBriefing(
         `${trailPhrase} don't look clearly rideable yet based on the latest mix of weather and reports`,
         detailLevel
       ),
-      supporting: riderOrNeutral(
+      supporting: buildSupportingText(
         tone,
-        pickPhrase(RIDER_SUPPORTING.unclear),
+        "caution",
+        "unclear",
         rainUnavailable
           ? "Weather data is limited right now, so it is safer to be cautious."
           : "More time or a fresh trail report should make the picture clearer."

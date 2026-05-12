@@ -134,37 +134,37 @@ async def respond_to_assist_request(
             content={"error": str(e), "trace": traceback.format_exc()},
         )
     
-    @router.post("/{request_id}/resolve")
-    async def resolve_assist_request(
-        request_id: str,
-        user=Depends(get_current_user),
-    ):
-        try:
-            user_id = user.get("id")
+@router.post("/{request_id}/resolve")
+async def resolve_assist_request(
+    request_id: str,
+    user=Depends(get_current_user),
+):
+    try:
+        user_id = user.get("id")
 
-            if not user_id:
-                raise HTTPException(status_code=401, detail="Invalid user")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user")
 
-            result = repo.resolve_request(
-                request_id,
-                {
-                    "user_id": user_id,
-                },
-            )
+        result = repo.resolve_request(
+            request_id,
+            {
+                "user_id": user_id,
+            },
+        )
 
-            return {
-                "message": "Assist request resolved.",
-                "request": result,
-            }
+        return {
+            "message": "Assist request resolved.",
+            "request": result,
+        }
 
-        except ValueError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-        except HTTPException:
-            raise
+    except HTTPException:
+        raise
 
-        except Exception as e:
-            return JSONResponse(
-                status_code=500,
-                content={"error": str(e), "trace": traceback.format_exc()},
-            )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e), "trace": traceback.format_exc()},
+        )
