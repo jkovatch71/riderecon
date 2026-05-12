@@ -79,7 +79,7 @@ function getRideBucket(trail: Trail): RideBucket | null {
 }
 
 function groupLabel(bucket: RideBucket) {
-  if (bucket === "good") return "Good to ride";
+  if (bucket === "good") return "Good to go";
   if (bucket === "caution") return "Use caution";
   return "Needs more time";
 }

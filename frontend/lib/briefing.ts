@@ -601,7 +601,7 @@ export function buildBriefing(
           detail: applyDetailLevel(
             weatherDetail
               ? `${trailPhrase} are mostly looking good. ${weatherDetail}`
-              : `${trailPhrase} are mostly looking good to roll`,
+              : `${trailPhrase} are mostly looking good to go`,
             detailLevel
           ),
           supporting: buildSupportingText(
@@ -622,8 +622,8 @@ export function buildBriefing(
       {
         headline: riderOrNeutral(
           tone,
-          "Good to roll",
-          "Good to ride"
+          "Send it",
+          "Good to go"
         ),
         detail: applyDetailLevel(
           weatherDetail
