@@ -20,6 +20,9 @@ export default function LoginPageClient() {
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
 
+  const canSubmit =
+    identifier.trim().length > 0 && password.trim().length >= 6 && !submitting;
+
   function switchMode(nextMode: "signin" | "signup") {
     setMode(nextMode);
     setIdentifier("");
@@ -125,7 +128,7 @@ export default function LoginPageClient() {
         process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${baseUrl}/auth/login`,
+        redirectTo: `${baseUrl}/auth/reset-password`,
       });
 
       if (error) throw error;
@@ -246,9 +249,9 @@ export default function LoginPageClient() {
             <button
               type="submit"
               className={`btn-primary w-full transition ${
-                submitting ? "cursor-wait opacity-70 saturate-75" : ""
+                !canSubmit ? "cursor-not-allowed opacity-60 saturate-50" : ""
               }`}
-              disabled={submitting}
+              disabled={!canSubmit}
             >
               {submitting
                 ? "Working..."

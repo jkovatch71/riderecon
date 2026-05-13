@@ -79,8 +79,17 @@ export default function CompleteProfilePageClient() {
       router.replace(nextPath);
       router.refresh();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unable to save profile.";
-      setMessage(msg);
+      const msg =
+        err instanceof Error ? err.message : "Unable to save profile.";
+
+      if (
+        msg.toLowerCase().includes("profiles_username_lower_idx") ||
+        msg.toLowerCase().includes("duplicate key")
+      ) {
+        setMessage("That username is already taken. Try another one.");
+      } else {
+        setMessage(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -88,7 +97,7 @@ export default function CompleteProfilePageClient() {
 
   if (authLoading || profileLoading) {
     return (
-      <main className="mx-auto max-w-md py-10">
+      <main className="mx-auto max-w-md space-y-3 pb-28">
         <div className="card p-5">
           <p className="text-sm text-zinc-400">Checking profile...</p>
         </div>
@@ -100,7 +109,7 @@ export default function CompleteProfilePageClient() {
   if (profile?.username) return null;
 
   return (
-    <main className="mx-auto max-w-md py-10">
+    <main className="mx-auto max-w-md space-y-3 pb-28">
       <div className="card p-5">
         <h1 className="text-2xl font-bold">Complete your profile</h1>
         <p className="mt-2 text-sm text-zinc-400">
@@ -114,7 +123,7 @@ export default function CompleteProfilePageClient() {
               className="input placeholder:text-zinc-600"
               value={username}
               onChange={(e) => setUsername(normalizeUsername(e.target.value))}
-              placeholder="example: mac_dirt_rider"
+              placeholder="user_name"
               required
               minLength={3}
               maxLength={20}
