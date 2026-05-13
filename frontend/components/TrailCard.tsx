@@ -27,6 +27,43 @@ function resolvedColor(trail: Trail): "green" | "yellow" | "red" {
   );
 }
 
+function getTrustLabel(trail: Trail) {
+  const reason = trail.summary?.debug?.resolution_reason;
+
+  if (reason === "fresh_rider_report") return "Rider Report";
+
+  if (
+    reason === "active_rain" ||
+    reason === "no_drying_window_heavy_rain" ||
+    reason === "no_drying_window" ||
+    reason === "recent_rain_unavailable"
+  ) {
+    return "Weather Watch";
+  }
+
+  if (
+    reason === "insufficient_drying_time" ||
+    reason === "recovered" ||
+    reason?.includes("recovery")
+  ) {
+    return "Recovery Estimate";
+  }
+
+  if (reason === "permanently_closed") return "Closed";
+
+  if ((trail.summary?.reported_by_count ?? 0) > 0) return "Rider Report";
+
+  return "No Recent Intel";
+}
+
+function getUpdatedLabel(trail: Trail) {
+  const timestamp = trail.summary?.last_updated_at || trail.last_reported_at;
+
+  if (!timestamp) return "No recent rider reports";
+
+  return `Updated ${timeAgo(timestamp)}`;
+}
+
 function normalizeHazard(tag: string) {
   const key = tag.trim().toLowerCase();
   return HAZARD_META[key] ?? { icon: "⚠️", label: tag };
@@ -104,15 +141,12 @@ export function TrailCard({
 
         <div className="mt-2 flex items-end justify-between gap-4">
           <div className="text-body min-w-0 flex-1 space-y-1.5 text-zinc-300">
-            <p>Recent Reports: {trail.summary?.reported_by_count ?? 0}</p>
+            <p className="font-medium text-zinc-300">
+              {getTrustLabel(trail)} · {getUpdatedLabel(trail)}
+            </p>
 
-            <p>
-              Last Updated:{" "}
-              {trail.summary?.last_updated_at
-                ? timeAgo(trail.summary.last_updated_at)
-                : trail.last_reported_at
-                  ? timeAgo(trail.last_reported_at)
-                  : "No recent reports"}
+            <p className="text-zinc-500">
+              Recent rider reports: {trail.summary?.reported_by_count ?? 0}
             </p>
 
             <div className="min-h-[24px]">

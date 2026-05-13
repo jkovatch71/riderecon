@@ -14,11 +14,26 @@ export type HazardTag = "Obstructed" | "Bees" | "Wildlife";
 export type TrailSummary = {
   current_condition: string | null;
   reported_by_count: number;
+  visible_report_count?: number;
   recent_hazards: string[];
   last_updated_at: string | null;
   freshness_hours: number;
   display_condition?: string | null;
   display_status_color?: "green" | "yellow" | "red" | null;
+  debug?: {
+    resolution_reason?: string | null;
+    is_permanently_closed?: boolean;
+    visible_report_count?: number;
+    visible_report_hours?: number;
+    most_recent_fresh_condition?: string | null;
+    recovery_class?: string | null;
+    current_rain_active?: boolean;
+    storm_rain_total_inches?: number | null;
+    drying_window_established?: boolean | null;
+    effective_drying_hours?: number | null;
+    recent_rain_unavailable?: boolean;
+    fresh_report_count?: number;
+  };
 };
 
 export type Trail = {

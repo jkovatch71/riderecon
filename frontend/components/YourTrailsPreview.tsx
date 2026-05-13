@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { getFavorites } from "@/lib/api";
 import type { Trail } from "@/lib/types";
+import { timeAgo } from "@/lib/utils";
 
 type RideBucket = "bad" | "caution" | "good";
 
@@ -20,6 +21,43 @@ function resolvedCondition(trail: Trail) {
 
 function resolvedColor(trail: Trail): "green" | "yellow" | "red" {
   return trail.summary?.display_status_color || "yellow";
+}
+
+function getTrustLabel(trail: Trail) {
+  const reason = trail.summary?.debug?.resolution_reason;
+
+  if (reason === "fresh_rider_report") return "Rider Report";
+
+  if (
+    reason === "active_rain" ||
+    reason === "no_drying_window_heavy_rain" ||
+    reason === "no_drying_window" ||
+    reason === "recent_rain_unavailable"
+  ) {
+    return "Weather Watch";
+  }
+
+  if (
+    reason === "insufficient_drying_time" ||
+    reason === "recovered" ||
+    reason?.includes("recovery")
+  ) {
+    return "Recovery Estimate";
+  }
+
+  if (reason === "permanently_closed") return "Closed";
+
+  if ((trail.summary?.reported_by_count ?? 0) > 0) return "Rider Report";
+
+  return "No Recent Intel";
+}
+
+function getFreshnessLabel(trail: Trail) {
+  const timestamp = trail.summary?.last_updated_at || trail.last_reported_at;
+
+  if (!timestamp) return "No recent reports";
+
+  return timeAgo(timestamp);
 }
 
 function normalizeCondition(trail: Trail) {
@@ -188,7 +226,7 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
         </div>
 
         <p className="mt-4 text-body text-zinc-300">
-          Add favorites and check back once trail conditions start coming in.
+          Add favorites and check back once fresh trail intel starts coming in.
         </p>
       </section>
     );
@@ -259,6 +297,10 @@ export function YourTrailsPreview({ trails }: { trails: Trail[] }) {
                                 {trail.system_name}
                               </p>
                             ) : null}
+
+                            <p className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-500">
+                              {getTrustLabel(trail)} · {getFreshnessLabel(trail)}
+                            </p>
                           </div>
 
                           <div className="shrink-0 text-right">

@@ -9,6 +9,7 @@ import { getConditionColor, timeAgo } from "@/lib/utils";
 
 type TrailSummaryDebug = {
   resolution_reason?: string | null;
+  recovery_class?: string | null;
 };
 
 type TrailWithDebugSummary = Trail & {
@@ -30,6 +31,87 @@ function resolvedColor(trail: Trail): "green" | "yellow" | "red" {
     trail.summary?.display_status_color ||
     getConditionColor(resolvedCondition(trail))
   );
+}
+
+function getTrustLabel(trail: Trail) {
+  const reason = getResolutionReason(trail);
+
+  if (reason === "fresh_rider_report") return "Rider Report";
+
+  if (
+    reason === "active_rain" ||
+    reason === "no_drying_window_heavy_rain" ||
+    reason === "no_drying_window" ||
+    reason === "recent_rain_unavailable"
+  ) {
+    return "Weather Watch";
+  }
+
+  if (
+    reason === "insufficient_drying_time" ||
+    reason === "recovered" ||
+    reason?.includes("recovery")
+  ) {
+    return "Recovery Estimate";
+  }
+
+  if (reason === "permanently_closed") return "Closed";
+
+  if ((trail.summary?.reported_by_count ?? 0) > 0) return "Rider Report";
+
+  return "No Recent Intel";
+}
+
+function getTrustDetail(trail: Trail) {
+  const reason = getResolutionReason(trail);
+  const recoveryClass = (trail as TrailWithDebugSummary).summary?.debug?.recovery_class;
+
+  if (reason === "fresh_rider_report") {
+    return "This status is based on recent rider-submitted trail intel.";
+  }
+
+  if (reason === "active_rain") {
+    return "Rain is active in the area, so this status is weather-driven.";
+  }
+
+  if (
+    reason === "no_drying_window_heavy_rain" ||
+    reason === "no_drying_window"
+  ) {
+    return "Recent rain was detected, and the trail has not had enough drying time yet.";
+  }
+
+  if (reason === "recent_rain_unavailable") {
+    return "Recent rain data is limited, so conditions should be treated cautiously.";
+  }
+
+  if (
+    reason === "insufficient_drying_time" ||
+    reason === "recovered" ||
+    reason?.includes("recovery")
+  ) {
+    return recoveryClass
+      ? `This status uses recent rain data and a ${recoveryClass} trail recovery estimate.`
+      : "This status uses recent rain data and trail recovery estimates.";
+  }
+
+  if (reason === "permanently_closed") {
+    return "This trail is marked closed and should not be treated as rideable.";
+  }
+
+  if ((trail.summary?.reported_by_count ?? 0) > 0) {
+    return "This status includes recent rider-submitted trail intel.";
+  }
+
+  return "No fresh rider report is available, so conditions may have changed.";
+}
+
+function getFreshnessLabel(trail: Trail) {
+  const timestamp = trail.summary?.last_updated_at || trail.last_reported_at;
+
+  if (!timestamp) return "No recent rider reports";
+
+  return `Updated ${timeAgo(timestamp)}`;
 }
 
 function confirmationLine(trail: Trail) {
@@ -74,6 +156,9 @@ export function TrailDetailClient({
 
   const displayCondition = resolvedCondition(trail);
   const displayColor = resolvedColor(trail);
+  const trustLabel = getTrustLabel(trail);
+  const freshnessLabel = getFreshnessLabel(trail);
+  const trustDetail = getTrustDetail(trail);
   const freshnessHours = trail.summary?.freshness_hours ?? 3;
 
   const freshReports = useMemo(
@@ -83,35 +168,6 @@ export function TrailDetailClient({
 
   const hazards = trail.summary?.recent_hazards ?? [];
   const hazardText = formatHazards(hazards);
-
-  const updatedText = useMemo(() => {
-    const reason = getResolutionReason(trail);
-
-    if (
-      reason &&
-      [
-        "active_rain",
-        "no_drying_window_heavy_rain",
-        "no_drying_window",
-        "insufficient_drying_time",
-        "recovered",
-        "recent_rain_unavailable",
-        "permanently_closed",
-      ].includes(reason)
-    ) {
-      return "Status updated from weather and recovery signals";
-    }
-
-    if (trail.summary?.last_updated_at) {
-      return `Last rider update ${timeAgo(trail.summary.last_updated_at)}`;
-    }
-
-    if (trail.last_reported_at) {
-      return `Last rider update ${timeAgo(trail.last_reported_at)}`;
-    }
-
-    return "No recent rider updates";
-  }, [trail]);
 
   function expandReports() {
     setReportsExpanded(true);
@@ -147,7 +203,12 @@ export function TrailDetailClient({
             <p className="text-lg font-semibold text-zinc-100">
               {confirmationLine(trail)}
             </p>
-            <p className="mt-1 text-sm text-zinc-400">{updatedText}</p>
+
+            <p className="mt-1 text-sm font-medium text-zinc-300">
+              {trustLabel} · {freshnessLabel}
+            </p>
+
+            <p className="mt-1 text-sm text-zinc-500">{trustDetail}</p>
           </div>
 
           <div className="space-y-1 text-sm text-zinc-300">
