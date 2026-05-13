@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Layers, LifeBuoy, List, Map, Plus, Star } from "lucide-react";
+import { AlertTriangle, Layers, LifeBuoy, List, Lock, Map, Plus, Star } from "lucide-react";
 import type { Trail } from "@/lib/types";
 import { TrailList } from "@/components/TrailList";
 import dynamic from "next/dynamic";
@@ -41,7 +41,7 @@ const TrailMapPlaceholder = dynamic(
     ssr: false,
     loading: () => (
       <div className="card p-4">
-        <div className="h-[65vh] min-h-[420px] w-full rounded-2xl bg-zinc-900/40" />
+        <div className="h-[65vh] min-h-[420px] w-full bg-zinc-900/40" />
       </div>
     ),
   }
@@ -295,7 +295,7 @@ export function TrailsPageClient({ trails }: Props) {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="relative">
             <TrailMapPlaceholder
               trails={trails}
               selectedTrailId={selectedTrailId}
@@ -313,7 +313,7 @@ export function TrailsPageClient({ trails }: Props) {
                   setReportOpen(true);
                 }}
                 disabled={!quickReportTrail || locatingTrail || authLoading}
-                className={`flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300/30 bg-emerald-500 px-4 py-3 text-sm font-bold uppercase tracking-[0.08em] text-zinc-950 shadow-lg transition active:scale-[0.99] ${
+                className={`absolute bottom-4 right-4 z-[1000] flex h-[76px] w-[76px] flex-col items-center justify-center rounded-2xl border border-emerald-500/35 bg-zinc-950/95 text-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.22)] backdrop-blur transition active:scale-[0.97] ${
                   !quickReportTrail || locatingTrail || authLoading
                     ? "cursor-not-allowed opacity-60 saturate-50"
                     : ""
@@ -328,12 +328,16 @@ export function TrailsPageClient({ trails }: Props) {
                 }
               >
                 {locatingTrail ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-950/30 border-t-zinc-950" />
+                  <span className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-300/30 border-t-emerald-300" />
                 ) : (
-                  <Plus className="h-4 w-4 stroke-[2.5]" />
+                  <span className="relative">
+                    <AlertTriangle className="h-8 w-8" strokeWidth={1.8} />
+                    <Plus className="absolute -right-2 -top-2 h-4 w-4 rounded-full bg-emerald-400 text-zinc-950" />
+                  </span>
                 )}
-                <span>
-                  {locatingTrail ? "Locating Trail..." : "Report Trail Condition"}
+
+                <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em]">
+                  Report
                 </span>
               </button>
             ) : null}
@@ -341,24 +345,18 @@ export function TrailsPageClient({ trails }: Props) {
             {!authLoading && !session ? (
               <Link
                 href="/auth/login?next=/trails?view=map"
-                className="flex items-center justify-between rounded-2xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 shadow-lg transition active:scale-[0.99]"
+                className="absolute bottom-4 right-4 z-[1000] flex h-[76px] w-[76px] flex-col items-center justify-center rounded-2xl border border-emerald-500/35 bg-zinc-950/95 text-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.22)] backdrop-blur transition active:scale-[0.97]"
+                aria-label="Sign in to report"
+                title="Sign in to submit trail reports"
               >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/50 bg-zinc-950/70 text-lg">
-                    🔒
-                  </span>
+                <span className="relative">
+                  <AlertTriangle className="h-8 w-8" strokeWidth={1.8} />
+                  <Lock className="absolute -right-2 -top-2 h-4 w-4 rounded-full bg-emerald-400 p-0.5 text-zinc-950" />
+                </span>
 
-                  <div className="leading-tight">
-                    <p className="text-sm font-semibold uppercase tracking-[0.08em] text-amber-300">
-                      Sign in to report
-                    </p>
-                    <p className="mt-0.5 text-[12px] text-zinc-400">
-                      Help keep trail conditions current.
-                    </p>
-                  </div>
-                </div>
-
-                <span className="text-2xl leading-none text-amber-300">›</span>
+                <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em]">
+                  Locked
+                </span>
               </Link>
             ) : null}
           </div>
