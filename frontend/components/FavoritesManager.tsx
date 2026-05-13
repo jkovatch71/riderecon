@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Navigation, Star } from "lucide-react";
 import type { Trail } from "@/lib/types";
@@ -90,7 +91,13 @@ export function FavoritesManager({ trails }: { trails: Trail[] }) {
     return (
       <section className="card p-4">
         <p className="text-sm text-zinc-400">
-          Sign in to view your favorite trails.
+          <Link
+            href="/auth/login?next=/trails?view=favorites"
+            className="font-semibold text-emerald-300 underline-offset-4 hover:underline"
+          >
+            Sign in
+          </Link>{" "}
+          to view and manage your favorite trails.
         </p>
       </section>
     );

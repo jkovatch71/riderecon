@@ -99,7 +99,9 @@ export default function LoginPageClient() {
       router.refresh();
     } catch (err) {
       const msg =
-        err instanceof Error ? err.message : "Invalid username/email or password.";
+        err instanceof Error
+          ? err.message
+          : "Invalid username/email or password.";
       setMessage(msg);
     } finally {
       setSubmitting(false);
@@ -140,86 +142,85 @@ export default function LoginPageClient() {
     }
   }
 
-  return (
-    <main className="mx-auto max-w-md space-y-6 py-10">
-      <div className="card p-6">
-        <h1 className="text-2xl font-bold">
-          {mode === "signin" ? "Sign in" : "Create account"}
-        </h1>
+  const identifierPlaceholder =
+    mode === "signin" ? "Username or email" : "Email address";
 
-        <p className="mt-2 text-sm text-zinc-400">
-          Guests can browse. Signed-in riders can submit reports and interact
-          later as we expand features.
+  return (
+    <main className="mx-auto -mt-0 max-w-md space-y-3 pb-28">
+      <div className="card p-6">
+        <div className="space-y-1">
+          <h1 className="font-brand text-page-title font-semibold uppercase text-zinc-100">
+            {mode === "signin" ? "Sign in" : "Create account"}
+          </h1>
+
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+            Reports | Favorites | Rider Tools
+          </p>
+        </div>
+
+        <div className="my-4 h-px bg-zinc-800" />
+
+        <p className="text-helper text-zinc-400">
+          Guests can browse trail conditions. Signed-in riders can submit
+          reports, favorite trails, and use rider tools.
         </p>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label className="label">
-              {mode === "signin" ? "Username or Email" : "Email"}
-            </label>
+        <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
+          <input
+            aria-label={mode === "signin" ? "Username or email" : "Email"}
+            className="input"
+            type={mode === "signin" ? "text" : "email"}
+            placeholder={identifierPlaceholder}
+            value={identifier}
+            onChange={(e) => {
+              setIdentifier(e.target.value);
+              if (signupSuccess) setSignupSuccess(false);
+            }}
+            required
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            disabled={signupSuccess}
+          />
 
+          <div className="relative">
             <input
-              className="input"
-              type={mode === "signin" ? "text" : "email"}
-              placeholder={
-                mode === "signin"
-                  ? "username or you@example.com"
-                  : "you@example.com"
-              }
-              value={identifier}
+              aria-label="Password"
+              className="input pr-14"
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
               onChange={(e) => {
-                setIdentifier(e.target.value);
+                setPassword(e.target.value);
                 if (signupSuccess) setSignupSuccess(false);
               }}
               required
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
+              minLength={6}
               disabled={signupSuccess}
             />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 transition hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={signupSuccess}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
           </div>
 
-          <div>
-            <label className="label">Password</label>
-
-            <div className="relative mt-2">
-              <input
-                className="input pr-14"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (signupSuccess) setSignupSuccess(false);
-                }}
-                required
-                minLength={6}
-                disabled={signupSuccess}
-              />
-
+          {mode === "signin" ? (
+            <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 transition hover:text-zinc-200"
-                disabled={signupSuccess}
+                onClick={handleForgotPassword}
+                disabled={sendingReset}
+                className="text-xs text-zinc-500 transition hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {showPassword ? "Hide" : "Show"}
+                {sendingReset ? "Sending reset..." : "Forgot password?"}
               </button>
             </div>
-
-            {mode === "signin" ? (
-              <div className="mt-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  disabled={sendingReset}
-                  className="text-xs text-zinc-500 transition hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {sendingReset ? "Sending reset..." : "Forgot password?"}
-                </button>
-              </div>
-            ) : null}
-          </div>
+          ) : null}
 
           {signupSuccess ? (
             <div className="space-y-4">
@@ -271,17 +272,20 @@ export default function LoginPageClient() {
             {mode === "signin" ? (
               <span>
                 Need an account?{" "}
-                <span className="text-emerald-300">Sign up</span>
+                <span className="font-medium text-emerald-300">Sign up</span>
               </span>
             ) : (
               <span>
                 Already have an account?{" "}
-                <span className="text-emerald-300">Sign in</span>
+                <span className="font-medium text-emerald-300">Sign in</span>
               </span>
             )}
           </button>
 
-          <Link href={nextPath} className="text-zinc-400 transition hover:text-zinc-200">
+          <Link
+            href={nextPath}
+            className="text-zinc-400 transition hover:text-zinc-200"
+          >
             Back
           </Link>
         </div>

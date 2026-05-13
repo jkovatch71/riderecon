@@ -894,6 +894,7 @@ export function TrailMapPlaceholder({
           {userLocation ? (
             <CircleMarker
               pane="userLocationPane"
+              interactive={false}
               center={userLocation}
               radius={8}
               pathOptions={{
@@ -902,15 +903,7 @@ export function TrailMapPlaceholder({
                 fillOpacity: 0.95,
                 weight: 3,
               }}
-            >
-              <Popup>
-                <div className="min-w-[120px] leading-tight">
-                  <p className="text-[13px] font-semibold text-zinc-900">
-                    You are here
-                  </p>
-                </div>
-              </Popup>
-            </CircleMarker>
+            />
           ) : null}
 
           {mapTrails.map((trail) => {

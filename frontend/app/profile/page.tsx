@@ -204,9 +204,7 @@ export default function ProfilePage() {
       ) : null}
 
       <section className="card p-4">
-        <DividerTitle title="Manage Your Profile" />
-
-        <div className="mt-4 flex items-start gap-4">
+        <div className="flex items-start gap-4">
           <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500 text-xl font-bold text-zinc-950">
             {avatarInitials}
           </div>

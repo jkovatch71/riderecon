@@ -295,44 +295,56 @@ export function TrailsPageClient({ trails }: Props) {
             </div>
           </div>
 
-          <div className="relative">
+          <div className="space-y-3">
+            <TrailMapPlaceholder
+              trails={trails}
+              selectedTrailId={selectedTrailId}
+              mapFilter={mapFilter}
+              onTrailSelect={(trail) => setSelectedReportTrail(trail)}
+            />
+
             {session ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (quickReportTrail) {
-                  setSelectedReportTrail(quickReportTrail);
-                }
-                setReportOpen(true);
-              }}
-              disabled={!quickReportTrail || locatingTrail || authLoading || !session}
-              className="fixed bottom-24 right-5 z-[1500] flex h-14 w-14 items-center justify-center rounded-full border border-emerald-300/40 bg-emerald-400 text-zinc-950 shadow-[0_0_30px_rgba(52,211,153,0.28)] transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Quick report"
-              title={
-                !session
-                  ? "Sign in to submit trail reports"
-                  : locatingTrail
+              <button
+                type="button"
+                onClick={() => {
+                  if (quickReportTrail) {
+                    setSelectedReportTrail(quickReportTrail);
+                  }
+                  setReportOpen(true);
+                }}
+                disabled={!quickReportTrail || locatingTrail || authLoading}
+                className={`flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300/30 bg-emerald-500 px-4 py-3 text-sm font-bold uppercase tracking-[0.08em] text-zinc-950 shadow-lg transition active:scale-[0.99] ${
+                  !quickReportTrail || locatingTrail || authLoading
+                    ? "cursor-not-allowed opacity-60 saturate-50"
+                    : ""
+                }`}
+                aria-label="Quick report"
+                title={
+                  locatingTrail
                     ? "Locating nearest trail..."
                     : quickReportTrail
                       ? `Quick report: ${quickReportTrail.name}`
                       : "Quick report unavailable"
-              }
-            >
-              {locatingTrail ? (
-                <span className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-950/30 border-t-zinc-950" />
-              ) : (
-                <Plus className="h-7 w-7 stroke-[2.5]" />
-              )}
-            </button>
+                }
+              >
+                {locatingTrail ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-950/30 border-t-zinc-950" />
+                ) : (
+                  <Plus className="h-4 w-4 stroke-[2.5]" />
+                )}
+                <span>
+                  {locatingTrail ? "Locating Trail..." : "Report Trail Condition"}
+                </span>
+              </button>
             ) : null}
 
             {!authLoading && !session ? (
               <Link
                 href="/auth/login?next=/trails?view=map"
-                className="mt-3 flex items-center justify-between rounded-2xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 shadow-lg transition active:scale-[0.99]"
+                className="flex items-center justify-between rounded-2xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 shadow-lg transition active:scale-[0.99]"
               >
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-400/50 bg-zinc-950/70 text-lg">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/50 bg-zinc-950/70 text-lg">
                     🔒
                   </span>
 
@@ -349,13 +361,6 @@ export function TrailsPageClient({ trails }: Props) {
                 <span className="text-2xl leading-none text-amber-300">›</span>
               </Link>
             ) : null}
-
-            <TrailMapPlaceholder
-              trails={trails}
-              selectedTrailId={selectedTrailId}
-              mapFilter={mapFilter}
-              onTrailSelect={(trail) => setSelectedReportTrail(trail)}
-            />
           </div>
 
           {reportOpen && quickReportTrail ? (

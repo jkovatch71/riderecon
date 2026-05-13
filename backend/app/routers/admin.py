@@ -1,9 +1,10 @@
 import os
 import re
 from datetime import datetime, timezone
+from typing import Any
 
 import httpx
-from fastapi import APIRouter, Header, HTTPException, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.core.config import settings
 from app.db.supabase_client import get_supabase_admin_client
@@ -62,12 +63,22 @@ def slugify(value: str) -> str:
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+
+def clean_text(value: Any) -> str | None:
+    if value is None:
+        return None
+
+    cleaned = str(value).strip()
+    return cleaned or None
+
+
 @router.get("/me")
 def get_admin_status(admin=Depends(get_admin_user)):
     return {
         "is_admin": True,
         "email": admin.get("email"),
     }
+
 
 @router.post("/weather/clear")
 def clear_weather_cache(_admin=Depends(get_admin_user)):
@@ -104,6 +115,7 @@ def approve_trail_suggestion(
     _admin=Depends(get_admin_user),
 ):
     client = get_admin_client()
+    timestamp = now_iso()
 
     suggestion_res = (
         client.table("trail_suggestions")
@@ -119,33 +131,38 @@ def approve_trail_suggestion(
         raise HTTPException(status_code=404, detail="Trail suggestion not found")
 
     suggestion = suggestions[0]
+    current_status = clean_text(suggestion.get("status")) or "pending"
 
-    if suggestion.get("status") == "approved":
+    if current_status == "approved":
         raise HTTPException(status_code=409, detail="Trail suggestion already approved")
 
-    trail_name = suggestion.get("trail_name")
+    trail_name = clean_text(suggestion.get("trail_name"))
+
     if not trail_name:
         raise HTTPException(status_code=400, detail="Trail suggestion is missing name")
-
-    trail_id = slugify(trail_name)
-
-    timestamp = now_iso()
 
     latitude = suggestion.get("latitude")
     longitude = suggestion.get("longitude")
 
     if latitude is None or longitude is None:
-        client.table("trail_suggestions").update(
-            {
-                "status": "needs_location",
-                "updated_at": timestamp,
-            }
-        ).eq("id", suggestion_id).execute()
+        update_res = (
+            client.table("trail_suggestions")
+            .update(
+                {
+                    "status": "needs_location",
+                    "updated_at": timestamp,
+                }
+            )
+            .eq("id", suggestion_id)
+            .execute()
+        )
 
         raise HTTPException(
             status_code=400,
             detail="Trail suggestion needs GPS coordinates before approval.",
         )
+
+    trail_id = slugify(trail_name)
 
     existing_res = (
         client.table("trails")
@@ -168,31 +185,15 @@ def approve_trail_suggestion(
             detail=f"Trail already exists with id: {trail_id}",
         )
 
-    latitude = suggestion.get("latitude")
-    longitude = suggestion.get("longitude")
-
-    if latitude is None or longitude is None:
-        client.table("trail_suggestions").update(
-            {
-                "status": "needs_location",
-                "updated_at": timestamp,
-            }
-        ).eq("id", suggestion_id).execute()
-
-        raise HTTPException(
-            status_code=400,
-            detail="Trail suggestion needs GPS coordinates before approval.",
-        )
-
     trail_payload = {
         "id": trail_id,
-        "name": trail_name.strip(),
+        "name": trail_name,
         "alias": None,
-        "system_name": suggestion.get("system_name"),
-        "city": suggestion.get("city"),
-        "state": suggestion.get("state"),
-        "latitude": suggestion.get("latitude"),
-        "longitude": suggestion.get("longitude"),
+        "system_name": clean_text(suggestion.get("system_name")) or trail_name,
+        "city": clean_text(suggestion.get("city")) or "San Antonio",
+        "state": clean_text(suggestion.get("state")) or "TX",
+        "latitude": latitude,
+        "longitude": longitude,
         "status_color": "yellow",
         "current_condition": "Unknown",
         "last_reported_at": None,
@@ -220,16 +221,24 @@ def approve_trail_suggestion(
         on_conflict="trail_id",
     ).execute()
 
-    client.table("trail_suggestions").update(
-        {
-            "status": "approved",
-            "updated_at": timestamp,
-        }
-    ).eq("id", suggestion_id).execute()
+    update_res = (
+        client.table("trail_suggestions")
+        .update(
+            {
+                "status": "approved",
+                "updated_at": timestamp,
+            }
+        )
+        .eq("id", suggestion_id)
+        .execute()
+    )
+
+    updated_suggestions = update_res.data or []
 
     return {
         "message": "Trail suggestion approved.",
         "trail": trail_rows[0] if trail_rows else trail_payload,
+        "suggestion": updated_suggestions[0] if updated_suggestions else None,
     }
 
 
@@ -239,7 +248,6 @@ def reject_trail_suggestion(
     _admin=Depends(get_admin_user),
 ):
     client = get_admin_client()
-
     timestamp = now_iso()
 
     res = (

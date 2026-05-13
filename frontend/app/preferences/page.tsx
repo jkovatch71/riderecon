@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ShieldCheck } from "lucide-react";
-import { useAuth } from "@/components/AuthProvider";
+import { Gauge, MessageSquareText, SlidersHorizontal } from "lucide-react";
 
 type TextSize = "compact" | "standard" | "large";
 type BriefingTone = "rider" | "neutral";
@@ -33,10 +31,6 @@ function readStoredSetting<T extends string>(
 
   const value = window.localStorage.getItem(key);
   return value && allowed.includes(value as T) ? (value as T) : fallback;
-}
-
-function SectionDivider() {
-  return <div className="border-t border-zinc-800/80" />;
 }
 
 function SegmentGroup({
@@ -74,22 +68,39 @@ function SegmentGroup({
   );
 }
 
-function SectionHeader({
+function PreferenceCard({
+  icon: Icon,
   title,
   subtitle,
+  children,
 }: {
+  icon: React.ElementType;
   title: string;
   subtitle: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-0.5">
-      <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-        {title}
-      </p>
-      <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-        {subtitle}
-      </p>
-    </div>
+    <section className="card p-5">
+      <div className="flex items-start gap-4">
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
+          <Icon className="h-5 w-5" />
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+            {title}
+          </h2>
+
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+            {subtitle}
+          </p>
+        </div>
+      </div>
+
+      <div className="my-3 h-px bg-zinc-800" />
+
+      <div className="space-y-3">{children}</div>
+    </section>
   );
 }
 
@@ -113,25 +124,7 @@ function Control({
   );
 }
 
-function SectionBlock({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-3">
-      <SectionHeader title={title} subtitle={subtitle} />
-      <div className="space-y-3">{children}</div>
-    </div>
-  );
-}
-
 export default function PreferencesPage() {
-  const { isAdmin } = useAuth();
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
 
   useEffect(() => {
@@ -196,118 +189,73 @@ export default function PreferencesPage() {
   }, [settings.trailSensitivity]);
 
   return (
-    <main className="space-y-3 pb-4">
-      <section className="card p-5 sm:p-6">
-        <div className="space-y-1">
-          <h1 className="font-brand text-page-title font-semibold uppercase text-zinc-100">
-            Command Central
-          </h1>
-          <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-            System Controls
-          </p>
-        </div>
-      </section>
+    <main className="space-y-3 pb-28">
+      <PreferenceCard icon={Gauge} title="Display" subtitle="Text Size">
+        <Control label="Text Size">
+          <SegmentGroup
+            value={settings.textSize}
+            onChange={(value) => saveSetting("textSize", value as TextSize)}
+            options={[
+              { value: "compact", label: "Compact" },
+              { value: "standard", label: "Standard" },
+              { value: "large", label: "Large" },
+            ]}
+          />
+        </Control>
+      </PreferenceCard>
 
-      <section className="card space-y-5 p-5 sm:p-6">
-        <SectionBlock title="Display" subtitle="Reading Size">
-          <Control label="Text Size">
-            <SegmentGroup
-              value={settings.textSize}
-              onChange={(value) => saveSetting("textSize", value as TextSize)}
-              options={[
-                { value: "compact", label: "Compact" },
-                { value: "standard", label: "Standard" },
-                { value: "large", label: "Large" },
-              ]}
-            />
-          </Control>
-        </SectionBlock>
+      <PreferenceCard
+        icon={MessageSquareText}
+        title="Briefing Style"
+        subtitle="Voice, Tone & Detail"
+      >
+        <Control label="Tone">
+          <SegmentGroup
+            value={settings.briefingTone}
+            onChange={(value) =>
+              saveSetting("briefingTone", value as BriefingTone)
+            }
+            options={[
+              { value: "rider", label: "Rider" },
+              { value: "neutral", label: "Neutral" },
+            ]}
+          />
+        </Control>
 
-        <SectionDivider />
+        <Control label="Detail Level">
+          <SegmentGroup
+            value={settings.briefingDetail}
+            onChange={(value) =>
+              saveSetting("briefingDetail", value as BriefingDetail)
+            }
+            options={[
+              { value: "quick", label: "Quick" },
+              { value: "standard", label: "Standard" },
+              { value: "detailed", label: "Detailed" },
+            ]}
+          />
+        </Control>
+      </PreferenceCard>
 
-        <SectionBlock title="Briefing Style" subtitle="Voice & Detail">
-          <Control label="Tone">
-            <SegmentGroup
-              value={settings.briefingTone}
-              onChange={(value) =>
-                saveSetting("briefingTone", value as BriefingTone)
-              }
-              options={[
-                { value: "rider", label: "Rider" },
-                { value: "neutral", label: "Neutral" },
-              ]}
-            />
-          </Control>
-
-          <Control label="Detail Level">
-            <SegmentGroup
-              value={settings.briefingDetail}
-              onChange={(value) =>
-                saveSetting("briefingDetail", value as BriefingDetail)
-              }
-              options={[
-                { value: "quick", label: "Quick" },
-                { value: "standard", label: "Standard" },
-                { value: "detailed", label: "Detailed" },
-              ]}
-            />
-          </Control>
-        </SectionBlock>
-
-        <SectionDivider />
-
-        <SectionBlock title="Trail Sensitivity" subtitle="Decision Bias">
-          <Control label="Bias" helper={sensitivityDescription}>
-            <SegmentGroup
-              value={settings.trailSensitivity}
-              onChange={(value) =>
-                saveSetting("trailSensitivity", value as TrailSensitivity)
-              }
-              options={[
-                { value: "conservative", label: "Conservative" },
-                { value: "balanced", label: "Balanced" },
-                { value: "aggressive", label: "Aggressive" },
-              ]}
-            />
-          </Control>
-        </SectionBlock>
-      </section>
-
-            {isAdmin ? (
-        <section className="card p-5 sm:p-6">
-          <div className="flex items-start gap-4">
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-                Admin Dashboard
-              </p>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                Control Panel
-              </p>
-            </div>
-          </div>
-
-          <div className="my-4 h-px bg-zinc-800" />
-
-          <Link href="/admin" className="btn-primary inline-block">
-            Open Admin
-          </Link>
-        </section>
-      ) : null}
-
-      <section className="card p-5 sm:p-6">
-        <div className="space-y-1">
-          <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-            Ride Alerts
-          </p>
-          <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-            Next Up
-          </p>
-        </div>
-      </section>
+      <PreferenceCard
+        icon={SlidersHorizontal}
+        title="Trail Sensitivity"
+        subtitle="Decision Bias"
+      >
+        <Control label="Bias" helper={sensitivityDescription}>
+          <SegmentGroup
+            value={settings.trailSensitivity}
+            onChange={(value) =>
+              saveSetting("trailSensitivity", value as TrailSensitivity)
+            }
+            options={[
+              { value: "conservative", label: "Conservative" },
+              { value: "balanced", label: "Balanced" },
+              { value: "aggressive", label: "Aggressive" },
+            ]}
+          />
+        </Control>
+      </PreferenceCard>
     </main>
   );
 }

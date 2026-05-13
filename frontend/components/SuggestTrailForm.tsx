@@ -185,61 +185,57 @@ export function SuggestTrailForm() {
 
         <div className="my-3 h-px bg-zinc-800" />
 
-        <div className="space-y-4">
-        <div>
-            <label className="label">Trail or Park Name</label>
+        <div className="space-y-3">
+          <div className="space-y-2">
             <input
-            className="input mt-2"
-            value={trailName}
-            onChange={(e) => setTrailName(e.target.value)}
-            placeholder="Example: Flat Rock Ranch"
+              aria-label="Trail or park name"
+              className="input"
+              value={trailName}
+              onChange={(e) => setTrailName(e.target.value)}
+              placeholder="Trail or park name"
             />
-        </div>
 
-        <div>
-            <label className="label">System Name</label>
             <input
-            className="input mt-2"
-            value={systemName}
-            onChange={(e) => setSystemName(e.target.value)}
-            placeholder="Optional"
+              aria-label="System name"
+              className="input"
+              value={systemName}
+              onChange={(e) => setSystemName(e.target.value)}
+              placeholder="System name / optional"
             />
-        </div>
 
-        <div className="grid grid-cols-[1fr_76px] gap-2">
-            <div>
-            <label className="label">City</label>
-            <input
-                className="input mt-2"
+            <div className="grid grid-cols-[1fr_76px] gap-2">
+              <input
+                aria-label="City"
+                className="input"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="Comfort"
-            />
-            </div>
+                placeholder="City"
+              />
 
-            <div>
-            <label className="label">State</label>
-                <input
-                    className="input mt-2"
-                    value={stateValue}
-                    onChange={(e) => {
-                        const raw = e.target.value.toUpperCase().replace(/[^A-Z]/g, "");
-                        setStateValue(raw.slice(0, 2));
-                    }}
-                    placeholder="TX"
-                    maxLength={2}
-                    />
+              <input
+                aria-label="State"
+                className="input"
+                value={stateValue}
+                onChange={(e) => {
+                  const raw = e.target.value.toUpperCase().replace(/[^A-Z]/g, "");
+                  setStateValue(raw.slice(0, 2));
+                }}
+                placeholder="ST"
+                maxLength={2}
+              />
             </div>
-        </div>
+          </div>
 
         <button
-            type="button"
-            onClick={handleUseLocation}
-            disabled={locating}
-            className="btn-secondary flex w-full items-center justify-center gap-2"
+          type="button"
+          onClick={handleUseLocation}
+          disabled={locating}
+          className={`btn-primary flex w-full items-center justify-center gap-2 ${
+            locating ? "cursor-not-allowed opacity-60 saturate-50" : ""
+          }`}
         >
-            <LocateFixed className="h-4 w-4" />
-            {locating ? "Capturing Location..." : "Use My Current Location"}
+          <LocateFixed className="h-4 w-4" />
+          {locating ? "Capturing Location..." : "Use My Current Location"}
         </button>
 
         {location ? (
@@ -253,16 +249,14 @@ export function SuggestTrailForm() {
             </p>
         )}
 
-        <div>
-            <label className="label">Notes</label>
-            <textarea
-            className="input mt-2 min-h-24"
-            maxLength={500}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Example: Private ranch, MTB trails, race venue, good candidate for future coverage."
-            />
-        </div>
+        <textarea
+          aria-label="Notes"
+          className="input min-h-24"
+          maxLength={500}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Notes/example:  private ranch, MTB trails, race venue, good candidate for future coverage."
+        />
 
         <button
             type="button"

@@ -15,19 +15,48 @@ const hazardTags = [
   { value: "Other", icon: "⚠️" },
 ];
 
+type ReportSource = "selected" | "nearest" | "fallback" | "none";
+
+type QuickReportModalProps = {
+  trail: Trail;
+  distanceMeters?: number | null;
+  reportSource?: ReportSource;
+  onClose: () => void;
+  onSuccess: () => void;
+};
+
+function formatDistance(distanceMeters?: number | null) {
+  if (typeof distanceMeters !== "number") return null;
+
+  const miles = distanceMeters / 1609.344;
+  const precision = miles < 1 ? 1 : 0;
+
+  return `${miles.toFixed(precision)} mi away`;
+}
+
+function getSourceLabel(reportSource?: ReportSource) {
+  if (reportSource === "nearest") return "Nearest trail";
+  if (reportSource === "selected") return "Selected trail";
+  return "Reporting for";
+}
+
+function ModalShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-[2000] flex items-end bg-black/60 pb-[calc(72px+env(safe-area-inset-bottom))] backdrop-blur-sm">
+      <div className="mx-4 mb-3 w-full rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-2xl">
+        <div className="space-y-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export function QuickReportModal({
   trail,
   distanceMeters,
   reportSource,
   onClose,
   onSuccess,
-}: {
-  trail: Trail;
-  distanceMeters?: number | null;
-  reportSource?: "selected" | "nearest" | "fallback" | "none";
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
+}: QuickReportModalProps) {
   const { session } = useAuth();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -37,21 +66,12 @@ export function QuickReportModal({
   const [submitting, setSubmitting] = useState(false);
 
   const accessToken = session?.access_token;
-    const distanceLabel =
-    typeof distanceMeters === "number"
-      ? `${(distanceMeters / 1609.344).toFixed(distanceMeters < 1609.344 ? 1 : 0)} mi away`
-      : null;
-
-  const sourceLabel =
-    reportSource === "nearest"
-      ? "Nearest trail"
-      : reportSource === "selected"
-        ? "Selected trail"
-        : "Reporting for";
+  const distanceLabel = formatDistance(distanceMeters);
+  const sourceLabel = getSourceLabel(reportSource);
 
   function toggleHazard(tag: string) {
     setHazards((prev) =>
-      prev.includes(tag) ? prev.filter((h) => h !== tag) : [...prev, tag]
+      prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]
     );
   }
 
@@ -80,133 +100,135 @@ export function QuickReportModal({
     }
   }
 
-    if (!accessToken) {
-        return (
-        <div className="fixed inset-0 z-[2000] flex items-end bg-black/60 backdrop-blur-sm">
-            <div className="w-full space-y-4 rounded-t-2xl border-t border-zinc-800 bg-zinc-950 p-4">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-                Quick Report
-                </p>
-
-                <h2 className="mt-1 font-brand text-xl font-semibold uppercase text-zinc-100">
-                Sign in required
-                </h2>
-
-                <p className="mt-2 text-sm text-zinc-400">
-                Sign in to submit trail reports and help keep conditions current.
-                </p>
-            </div>
-
-            <Link
-                href="/auth/login?next=/trails?view=map"
-                className="btn-primary block w-full text-center"
-            >
-                Sign in to report
-            </Link>
-
-            <button onClick={onClose} className="w-full text-xs text-zinc-500">
-                Cancel
-            </button>
-            </div>
-        </div>
-        );
-    }
-
+  if (!accessToken) {
     return (
-        <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-end">
-        <div className="w-full rounded-t-2xl bg-zinc-950 p-4 space-y-4 border-t border-zinc-800">
-
-                {/* Header */}
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+      <ModalShell>
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
             Quick Report
           </p>
 
           <h2 className="mt-1 font-brand text-xl font-semibold uppercase text-zinc-100">
-            {trail.name}
+            Sign in required
           </h2>
 
-          <p className="mt-1 text-xs uppercase tracking-wide text-zinc-500">
-            {sourceLabel}
-            {distanceLabel ? ` · ${distanceLabel}` : ""}
+          <p className="mt-2 text-sm text-zinc-400">
+            Sign in to submit trail reports and help keep conditions current.
           </p>
         </div>
 
-        {/* STEP 1 */}
-        {step === 1 && (
-          <div className="grid grid-cols-2 gap-2">
-            {primaryConditions.map((c) => {
-              const active = primaryCondition === c;
+        <Link
+          href="/auth/login?next=/trails?view=map"
+          className="btn-primary block w-full text-center"
+        >
+          Sign in to report
+        </Link>
+
+        <button type="button" onClick={onClose} className="w-full text-xs text-zinc-500">
+          Cancel
+        </button>
+      </ModalShell>
+    );
+  }
+
+  return (
+    <ModalShell>
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
+          Quick Report
+        </p>
+
+        <h2 className="mt-1 font-brand text-xl font-semibold uppercase text-zinc-100">
+          {trail.name}
+        </h2>
+
+        <p className="mt-1 text-xs uppercase tracking-wide text-zinc-500">
+          {sourceLabel}
+          {distanceLabel ? ` · ${distanceLabel}` : ""}
+        </p>
+      </div>
+
+      {step === 1 ? (
+        <div className="grid grid-cols-2 gap-2">
+          {primaryConditions.map((condition) => {
+            const active = primaryCondition === condition;
+
+            return (
+              <button
+                key={condition}
+                type="button"
+                onClick={() => {
+                  setPrimaryCondition(condition);
+                  setStep(2);
+                }}
+                className={`rounded-xl px-3 py-3 text-sm font-medium transition active:scale-[0.98] ${
+                  active
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "bg-zinc-900 text-zinc-300"
+                }`}
+              >
+                {condition}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {hazardTags.map((tag) => {
+              const active = hazards.includes(tag.value);
 
               return (
                 <button
-                  key={c}
-                  onClick={() => {
-                    setPrimaryCondition(c);
-                    setStep(2);
-                  }}
-                  className={`rounded-xl px-3 py-3 text-sm font-medium transition ${
+                  key={tag.value}
+                  type="button"
+                  onClick={() => toggleHazard(tag.value)}
+                  className={`rounded-xl px-3 py-2 text-sm transition active:scale-[0.98] ${
                     active
-                      ? "bg-emerald-500/20 text-emerald-300"
-                      : "bg-zinc-900 text-zinc-300"
+                      ? "bg-amber-500/20 text-amber-300"
+                      : "bg-zinc-900 text-zinc-400"
                   }`}
                 >
-                  {c}
+                  {tag.icon} {tag.value}
                 </button>
               );
             })}
           </div>
-        )}
 
-        {/* STEP 2 */}
-        {step === 2 && (
-          <>
-            <div className="flex flex-wrap gap-2">
-              {hazardTags.map((tag) => {
-                const active = hazards.includes(tag.value);
+          <textarea
+            placeholder="Optional note..."
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            className="input min-h-[80px]"
+            maxLength={255}
+          />
 
-                return (
-                  <button
-                    key={tag.value}
-                    onClick={() => toggleHazard(tag.value)}
-                    className={`rounded-xl px-3 py-2 text-sm ${
-                      active
-                        ? "bg-amber-500/20 text-amber-300"
-                        : "bg-zinc-900 text-zinc-400"
-                    }`}
-                  >
-                    {tag.icon} {tag.value}
-                  </button>
-                );
-              })}
-            </div>
-
-            <textarea
-              placeholder="Optional note..."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="input min-h-[80px]"
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="btn-secondary w-full"
+            >
+              Back
+            </button>
 
             <button
+              type="button"
               onClick={submit}
               disabled={submitting}
-              className="btn-primary w-full"
+              className={`btn-primary w-full ${
+                submitting ? "cursor-not-allowed opacity-60 saturate-50" : ""
+              }`}
             >
-              {submitting ? "Submitting..." : "Submit Report"}
+              {submitting ? "Submitting..." : "Submit"}
             </button>
-          </>
-        )}
+          </div>
+        </>
+      )}
 
-        {/* Close */}
-        <button
-          onClick={onClose}
-          className="w-full text-xs text-zinc-500"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+      <button type="button" onClick={onClose} className="w-full text-xs text-zinc-500">
+        Cancel
+      </button>
+    </ModalShell>
   );
 }
