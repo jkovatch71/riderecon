@@ -399,7 +399,7 @@ export function RiderAssistForm() {
             What happened? Pick the closest option.
           </p>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             {categories.map((category) => {
               const Icon = category.icon;
 
@@ -408,10 +408,10 @@ export function RiderAssistForm() {
                   key={category.type}
                   type="button"
                   onClick={() => chooseCategory(category.type)}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 text-center text-zinc-300 transition hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-300 active:scale-[0.98]"
+                  className="rounded-2xl border border-zinc-800 bg-zinc-950/40 px-3 py-3 text-center text-zinc-300 transition hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-300 active:scale-[0.98]"
                 >
-                  <Icon className="mx-auto h-7 w-7" />
-                  <span className="mt-2 block text-xs font-semibold uppercase tracking-wide">
+                  <Icon className="mx-auto h-6 w-6" />
+                  <span className="mt-1.5 block text-xs font-semibold uppercase tracking-wide">
                     {category.label}
                   </span>
                 </button>
@@ -452,7 +452,7 @@ export function RiderAssistForm() {
           </p>
 
           <div
-            className={`mt-4 grid gap-2 ${
+            className={`mt-3 grid gap-2 ${
                 assistType === "crash" ? "grid-cols-3" : "grid-cols-2"
             }`}
             >
@@ -469,14 +469,14 @@ export function RiderAssistForm() {
                     setMessage(null);
                   }}
                   aria-pressed={active}
-                  className={`rounded-2xl border p-3 text-center transition active:scale-[0.98] ${
+                  className={`rounded-2xl border px-2 py-2.5 text-center transition active:scale-[0.98] ${
                     active
                       ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300"
                       : "border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
                   }`}
                 >
-                  <Icon className="mx-auto h-6 w-6" />
-                  <span className="mt-2 block text-xs font-semibold uppercase tracking-wide">
+                  <Icon className="mx-auto h-5 w-5" />
+                  <span className="mt-1.5 block text-[11px] font-semibold uppercase tracking-wide">
                     {option.label}
                   </span>
                 </button>
@@ -485,12 +485,12 @@ export function RiderAssistForm() {
           </div>
 
           {selectedDetail ? (
-            <p className="text-helper mt-3 text-zinc-500">
+            <p className="text-helper mt-2 text-zinc-500">
               {selectedDetail.helper}
             </p>
           ) : null}
 
-          <div className="mt-4">
+          <div className="mt-3">
             <label className="label">Note</label>
             <textarea
               className="input mt-2 min-h-24"

@@ -87,7 +87,7 @@ export default function RootLayout({
             <AppBootProvider>
               <AppBootSplash />
 
-              <div className="mx-auto min-h-screen max-w-5xl px-4 pb-24">
+              <div className="mx-auto min-h-screen max-w-5xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">
                 <div className="sticky top-0 z-40 bg-zinc-950/95 pt-2 backdrop-blur">
                   <AuthStatus />
                 </div>

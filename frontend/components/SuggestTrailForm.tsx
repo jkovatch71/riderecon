@@ -122,10 +122,10 @@ export function SuggestTrailForm() {
 
           <div className="min-w-0 flex-1 space-y-0.5">
             <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-              Suggest a Trail
+              Add a Trail
             </h2>
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-              Help expand coverage
+              Reviewed before publishing
             </p>
           </div>
         </div>
@@ -139,7 +139,7 @@ export function SuggestTrailForm() {
           >
             Sign in
           </Link>{" "}
-          to suggest a trail or trail system for Ride Recon coverage.
+          to submit a trail or trail system for admin review.
         </p>
       </section>
     );
@@ -150,7 +150,7 @@ export function SuggestTrailForm() {
       <section className="card p-5">
         <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
           <p className="font-brand text-section-title font-semibold uppercase text-emerald-300">
-            Trail Suggestion Sent
+            Trail Request Sent
           </p>
 
           <p className="text-helper mt-2 text-zinc-300">
@@ -159,7 +159,7 @@ export function SuggestTrailForm() {
         </div>
 
         <button type="button" onClick={resetForm} className="btn-secondary mt-4 w-full">
-          Suggest Another
+          Add Another
         </button>
       </section>
     );
@@ -174,11 +174,11 @@ export function SuggestTrailForm() {
 
         <div className="min-w-0 flex-1 space-y-0.5">
             <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-            Suggest a Trail
+            Add a Trail
             </h2>
 
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-            Help expand coverage
+            Reviewed before publishing
             </p>
         </div>
         </div>
@@ -255,7 +255,7 @@ export function SuggestTrailForm() {
           maxLength={500}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Notes/example:  private ranch, MTB trails, race venue, good candidate for future coverage."
+          placeholder="Notes/example: private ranch, MTB trails, race venue, access details, or why it belongs in Ride Recon."
         />
 
         <button
@@ -267,7 +267,7 @@ export function SuggestTrailForm() {
             }`}
         >
             <Send className="h-4 w-4" />
-            {submitting ? "Sending..." : "Submit Suggestion"}
+            {submitting ? "Sending..." : "Submit Trail"}
         </button>
 
         {error ? <p className="text-sm text-rose-300">{error}</p> : null}
