@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const profileRequestIdRef = useRef(0);
   const profilePromiseRef = useRef<Promise<void> | null>(null);
   const lastProfileUserIdRef = useRef<string | null>(null);
+  const lastAdminUserIdRef = useRef<string | null>(null);
 
   const clearProfileState = useCallback(() => {
     lastProfileUserIdRef.current = null;
@@ -52,13 +53,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!mountedRef.current) return;
 
     const accessToken = nextSession?.access_token;
+    const nextUserId = nextSession?.user?.id ?? null;
 
-    if (!API || !accessToken) {
+    if (!API || !accessToken || !nextUserId) {
+      lastAdminUserIdRef.current = null;
       setIsAdmin(false);
       setAdminLoading(false);
       return;
     }
 
+    if (lastAdminUserIdRef.current === nextUserId) {
+      return;
+    }
+
+    lastAdminUserIdRef.current = nextUserId;
     setAdminLoading(true);
 
     try {
@@ -70,7 +78,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!mountedRef.current) return;
 
-      setIsAdmin(res.ok);
+      if (res.status === 403) {
+        setIsAdmin(false);
+        return;
+      }
+
+      if (!res.ok) {
+        setIsAdmin(false);
+        return;
+      }
+
+      setIsAdmin(true);
     } catch {
       if (!mountedRef.current) return;
       setIsAdmin(false);
@@ -103,7 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const promise = (async () => {
       try {
         const nextProfile = await getProfileByUserId(nextUser.id);
-        console.log("Loaded profile:", nextProfile);
 
         if (!mountedRef.current || profileRequestIdRef.current !== requestId) return;
 
@@ -170,6 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setProfile(null);
         setProfileLoading(false);
+        lastAdminUserIdRef.current = null;
         setIsAdmin(false);
         setAdminLoading(false);
         setAuthLoading(false);
