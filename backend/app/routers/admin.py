@@ -152,10 +152,10 @@ def approve_trail_suggestion(
     override_latitude = payload.latitude if payload else None
     override_longitude = payload.longitude if payload else None
 
-    if latitude is None and override_latitude is not None:
+    if override_latitude is not None:
         latitude = override_latitude
 
-    if longitude is None and override_longitude is not None:
+    if override_longitude is not None:
         longitude = override_longitude
 
     if latitude is None or longitude is None:
@@ -264,7 +264,7 @@ def approve_trail_suggestion(
         "updated_at": timestamp,
     }
 
-    if suggestion.get("latitude") is None or suggestion.get("longitude") is None:
+    if override_latitude is not None or override_longitude is not None:
         suggestion_update_payload.update(
             {
                 "latitude": latitude,
