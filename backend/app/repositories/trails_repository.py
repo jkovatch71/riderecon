@@ -304,6 +304,13 @@ class TrailsRepository:
                 0,
                 "recent_rain_unavailable",
             )
+        if storm_rain_total_inches <= 0:
+            return (
+                "Likely Dry",
+                color_for_condition("Likely Dry"),
+                0,
+                "no_recent_rain",
+            )
 
         dry_out_cap_hours = get_dry_out_cap_hours(recovery_class)
 
