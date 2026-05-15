@@ -85,6 +85,10 @@ function getTrustDetail(trail: Trail) {
     return "Recent rain data is limited, so conditions should be treated cautiously.";
   }
 
+  if (reason === "dry_out_cap_reached") {
+    return "Recent rain is outside the expected recovery window, so this trail is likely dry unless riders report otherwise.";
+  }
+
   if (
     reason === "insufficient_drying_time" ||
     reason === "recovered" ||

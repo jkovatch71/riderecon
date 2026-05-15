@@ -198,6 +198,14 @@ def get_required_recovery_hours(recovery_class: str | None, storm_rain_total: fl
     effective_recovery_class = recovery_class or "average"
     return matrix.get(effective_recovery_class, matrix["average"])[storm_band]
 
+def get_dry_out_cap_hours(recovery_class: str | None) -> int:
+    caps = {
+        "fast": 48,
+        "average": 72,
+        "slow": 96,
+    }
+
+    return caps.get(recovery_class or "average", caps["average"])
 
 class TrailsRepository:
     def __init__(self) -> None:
@@ -295,6 +303,16 @@ class TrailsRepository:
                 color_for_condition("Unknown"),
                 0,
                 "recent_rain_unavailable",
+            )
+
+        dry_out_cap_hours = get_dry_out_cap_hours(recovery_class)
+
+        if effective_drying_hours >= dry_out_cap_hours:
+            return (
+                "Likely Dry",
+                color_for_condition("Likely Dry"),
+                0,
+                "dry_out_cap_reached",
             )
 
         if not drying_window_established:
@@ -528,6 +546,11 @@ class TrailsRepository:
                         float(recent_rain.get("effective_drying_hours", 0) or 0)
                         if recent_rain
                         else None
+                    ),
+                    "dry_out_cap_hours": (
+                        get_dry_out_cap_hours(recovery_profile.get("recovery_class"))
+                        if recovery_profile
+                        else get_dry_out_cap_hours(None)
                     ),
                     "recent_rain_unavailable": (
                         bool(recent_rain.get("unavailable"))
