@@ -9,6 +9,11 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
+type CoordinateDraft = {
+  latitude: string;
+  longitude: string;
+};
+
 function formatStatus(status: string) {
   const normalized = status.toLowerCase();
 
@@ -37,12 +42,55 @@ function statusClassName(status: string) {
   return "border-zinc-800 bg-zinc-950/60 text-zinc-500";
 }
 
-function canApproveSuggestion(suggestion: TrailSuggestion) {
+function hasSuggestionGps(suggestion: TrailSuggestion) {
   return (
-    suggestion.status === "pending" &&
     typeof suggestion.latitude === "number" &&
-    typeof suggestion.longitude === "number"
+    Number.isFinite(suggestion.latitude) &&
+    typeof suggestion.longitude === "number" &&
+    Number.isFinite(suggestion.longitude)
   );
+}
+
+function parseCoordinate(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) return null;
+
+  const parsed = Number(trimmed);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function coordinatesAreValid(latitude: number | null, longitude: number | null) {
+  if (latitude === null || longitude === null) return false;
+
+  return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
+}
+
+function getDraftCoordinates(draft?: CoordinateDraft) {
+  const latitude = parseCoordinate(draft?.latitude ?? "");
+  const longitude = parseCoordinate(draft?.longitude ?? "");
+
+  return {
+    latitude,
+    longitude,
+    valid: coordinatesAreValid(latitude, longitude),
+  };
+}
+
+function canApproveSuggestion(
+  suggestion: TrailSuggestion,
+  draft?: CoordinateDraft
+) {
+  if (suggestion.status !== "pending" && suggestion.status !== "needs_location") {
+    return false;
+  }
+
+  if (hasSuggestionGps(suggestion)) {
+    return true;
+  }
+
+  return getDraftCoordinates(draft).valid;
 }
 
 function canRejectSuggestion(suggestion: TrailSuggestion) {
@@ -53,6 +101,9 @@ export function TrailSuggestionsAdminClient() {
   const { user, session, authLoading } = useAuth();
 
   const [suggestions, setSuggestions] = useState<TrailSuggestion[]>([]);
+  const [coordinateDrafts, setCoordinateDrafts] = useState<
+    Record<string, CoordinateDraft>
+  >({});
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +111,11 @@ export function TrailSuggestionsAdminClient() {
   const accessToken = session?.access_token;
 
   const pendingCount = useMemo(
-    () => suggestions.filter((suggestion) => suggestion.status === "pending").length,
+    () =>
+      suggestions.filter(
+        (suggestion) =>
+          suggestion.status === "pending" || suggestion.status === "needs_location"
+      ).length,
     [suggestions]
   );
 
@@ -73,6 +128,29 @@ export function TrailSuggestionsAdminClient() {
     try {
       const data = await getAdminTrailSuggestions(accessToken);
       setSuggestions(data);
+
+      setCoordinateDrafts((currentDrafts) => {
+        const nextDrafts: Record<string, CoordinateDraft> = {};
+
+        data.forEach((suggestion) => {
+          const existingDraft = currentDrafts[suggestion.id];
+
+          nextDrafts[suggestion.id] = {
+            latitude:
+              existingDraft?.latitude ??
+              (typeof suggestion.latitude === "number"
+                ? String(suggestion.latitude)
+                : ""),
+            longitude:
+              existingDraft?.longitude ??
+              (typeof suggestion.longitude === "number"
+                ? String(suggestion.longitude)
+                : ""),
+          };
+        });
+
+        return nextDrafts;
+      });
     } catch {
       setError("Unable to load trail suggestions. Admin access may be required.");
     } finally {
@@ -80,14 +158,48 @@ export function TrailSuggestionsAdminClient() {
     }
   }
 
-  async function approve(id: string) {
+  function updateCoordinateDraft(
+    suggestionId: string,
+    field: keyof CoordinateDraft,
+    value: string
+  ) {
+    setCoordinateDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [suggestionId]: {
+        latitude: currentDrafts[suggestionId]?.latitude ?? "",
+        longitude: currentDrafts[suggestionId]?.longitude ?? "",
+        [field]: value,
+      },
+    }));
+  }
+
+  async function approve(suggestion: TrailSuggestion) {
     if (!accessToken) return;
 
-    setBusyId(id);
+    const draft = coordinateDrafts[suggestion.id];
+    const hasGps = hasSuggestionGps(suggestion);
+    const draftCoordinates = getDraftCoordinates(draft);
+
+    if (!hasGps && !draftCoordinates.valid) {
+      setError("Enter valid latitude and longitude before approving.");
+      return;
+    }
+
+    setBusyId(suggestion.id);
     setError(null);
 
     try {
-      await approveTrailSuggestion(id, accessToken);
+      await approveTrailSuggestion(
+        suggestion.id,
+        accessToken,
+        hasGps
+          ? undefined
+          : {
+              latitude: draftCoordinates.latitude,
+              longitude: draftCoordinates.longitude,
+            }
+      );
+
       await loadSuggestions();
     } catch (err) {
       setError(
@@ -130,7 +242,7 @@ export function TrailSuggestionsAdminClient() {
 
   if (authLoading || loading) {
     return (
-      <main className="space-y-3 pb-4">
+      <main className="space-y-3 pb-28">
         <section className="card p-6">
           <p className="text-helper text-zinc-400">Loading trail suggestions...</p>
         </section>
@@ -140,7 +252,7 @@ export function TrailSuggestionsAdminClient() {
 
   if (!user) {
     return (
-      <main className="space-y-3 pb-4">
+      <main className="space-y-3 pb-28">
         <section className="card p-6">
           <h1 className="font-brand text-page-title font-semibold uppercase text-zinc-100">
             Admin
@@ -154,7 +266,7 @@ export function TrailSuggestionsAdminClient() {
   }
 
   return (
-    <main className="space-y-3 pb-4">
+    <main className="space-y-3 pb-28">
       <section className="card p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -177,12 +289,13 @@ export function TrailSuggestionsAdminClient() {
 
       {suggestions.length ? (
         suggestions.map((suggestion) => {
-          const hasGps =
-            typeof suggestion.latitude === "number" &&
-            typeof suggestion.longitude === "number";
-
-          const approveEnabled = canApproveSuggestion(suggestion);
+          const hasGps = hasSuggestionGps(suggestion);
+          const draft = coordinateDrafts[suggestion.id];
+          const draftCoordinates = getDraftCoordinates(draft);
+          const approveEnabled = canApproveSuggestion(suggestion, draft);
           const rejectEnabled = canRejectSuggestion(suggestion);
+          const canEditCoordinates =
+            suggestion.status === "pending" || suggestion.status === "needs_location";
 
           return (
             <section key={suggestion.id} className="card p-5">
@@ -210,12 +323,12 @@ export function TrailSuggestionsAdminClient() {
 
               <div className="space-y-2 text-helper text-zinc-400">
                 {suggestion.system_name ? (
-                  <p>System: {suggestion.system_name}</p>
+                  <p>Trail System: {suggestion.system_name}</p>
                 ) : null}
 
                 <p>
-                  Location: {suggestion.city || "Unknown"},{" "}
-                  {suggestion.state || "TX"}
+                  Location: {suggestion.city || "Unknown"}
+                  {suggestion.state ? `, ${suggestion.state}` : ""}
                 </p>
 
                 {hasGps ? (
@@ -225,25 +338,87 @@ export function TrailSuggestionsAdminClient() {
                   </p>
                 ) : (
                   <p className="text-amber-300">
-                    GPS: Missing — approval requires coordinates.
+                    GPS: Missing — enter coordinates before approval.
                   </p>
                 )}
 
                 {suggestion.notes ? <p>Notes: {suggestion.notes}</p> : null}
               </div>
 
-              {suggestion.status === "pending" || suggestion.status === "needs_location" ? (
+              {!hasGps && canEditCoordinates ? (
+                <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-300">
+                    Admin Coordinates
+                  </p>
+
+                  <p className="text-helper mt-1 text-zinc-500">
+                    Add latitude and longitude before approving this trail.
+                  </p>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <input
+                      aria-label="Latitude"
+                      className="input"
+                      inputMode="decimal"
+                      value={draft?.latitude ?? ""}
+                      onChange={(event) =>
+                        updateCoordinateDraft(
+                          suggestion.id,
+                          "latitude",
+                          event.target.value
+                        )
+                      }
+                      placeholder="Latitude"
+                    />
+
+                    <input
+                      aria-label="Longitude"
+                      className="input"
+                      inputMode="decimal"
+                      value={draft?.longitude ?? ""}
+                      onChange={(event) =>
+                        updateCoordinateDraft(
+                          suggestion.id,
+                          "longitude",
+                          event.target.value
+                        )
+                      }
+                      placeholder="Longitude"
+                    />
+                  </div>
+
+                  {draft?.latitude || draft?.longitude ? (
+                    draftCoordinates.valid ? (
+                      <p className="text-helper mt-2 text-emerald-300">
+                        Coordinates look valid.
+                      </p>
+                    ) : (
+                      <p className="text-helper mt-2 text-amber-300">
+                        Enter latitude between -90 and 90 and longitude between
+                        -180 and 180.
+                      </p>
+                    )
+                  ) : null}
+                </div>
+              ) : null}
+
+              {suggestion.status === "pending" ||
+              suggestion.status === "needs_location" ? (
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     disabled={!approveEnabled || busyId === suggestion.id}
-                    onClick={() => void approve(suggestion.id)}
+                    onClick={() => void approve(suggestion)}
                     className={`btn-primary ${
                       !approveEnabled || busyId === suggestion.id
                         ? "cursor-not-allowed opacity-60 saturate-50"
                         : ""
                     }`}
-                    title={!hasGps ? "GPS coordinates required before approval" : undefined}
+                    title={
+                      !approveEnabled
+                        ? "Valid GPS coordinates required before approval"
+                        : undefined
+                    }
                   >
                     {busyId === suggestion.id ? "Working..." : "Approve"}
                   </button>

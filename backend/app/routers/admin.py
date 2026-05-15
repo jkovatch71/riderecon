@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.core.config import settings
@@ -71,6 +72,9 @@ def clean_text(value: Any) -> str | None:
     cleaned = str(value).strip()
     return cleaned or None
 
+class ApproveTrailSuggestionPayload(BaseModel):
+    latitude: float | None = None
+    longitude: float | None = None
 
 @router.get("/me")
 def get_admin_status(admin=Depends(get_admin_user)):
@@ -112,6 +116,7 @@ def list_trail_suggestions(_admin=Depends(get_admin_user)):
 @router.post("/trail-suggestions/{suggestion_id}/approve")
 def approve_trail_suggestion(
     suggestion_id: str,
+    payload: ApproveTrailSuggestionPayload | None = None,
     _admin=Depends(get_admin_user),
 ):
     client = get_admin_client()
@@ -144,22 +149,55 @@ def approve_trail_suggestion(
     latitude = suggestion.get("latitude")
     longitude = suggestion.get("longitude")
 
+    override_latitude = payload.latitude if payload else None
+    override_longitude = payload.longitude if payload else None
+
+    if latitude is None and override_latitude is not None:
+        latitude = override_latitude
+
+    if longitude is None and override_longitude is not None:
+        longitude = override_longitude
+
     if latitude is None or longitude is None:
-        update_res = (
-            client.table("trail_suggestions")
-            .update(
-                {
-                    "status": "needs_location",
-                    "updated_at": timestamp,
-                }
-            )
-            .eq("id", suggestion_id)
-            .execute()
-        )
+        client.table("trail_suggestions").update(
+            {
+                "status": "needs_location",
+                "updated_at": timestamp,
+            }
+        ).eq("id", suggestion_id).execute()
 
         raise HTTPException(
             status_code=400,
             detail="Trail suggestion needs GPS coordinates before approval.",
+        )
+
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+    except (TypeError, ValueError):
+        client.table("trail_suggestions").update(
+            {
+                "status": "needs_location",
+                "updated_at": timestamp,
+            }
+        ).eq("id", suggestion_id).execute()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Trail suggestion has invalid GPS coordinates.",
+        )
+
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        client.table("trail_suggestions").update(
+            {
+                "status": "needs_location",
+                "updated_at": timestamp,
+            }
+        ).eq("id", suggestion_id).execute()
+
+        raise HTTPException(
+            status_code=400,
+            detail="Trail suggestion GPS coordinates are out of range.",
         )
 
     trail_id = slugify(trail_name)
@@ -189,9 +227,9 @@ def approve_trail_suggestion(
         "id": trail_id,
         "name": trail_name,
         "alias": None,
-        "system_name": clean_text(suggestion.get("system_name")) or trail_name,
-        "city": clean_text(suggestion.get("city")) or "San Antonio",
-        "state": clean_text(suggestion.get("state")) or "TX",
+        "system_name": clean_text(suggestion.get("system_name")),
+        "city": clean_text(suggestion.get("city")),
+        "state": clean_text(suggestion.get("state")),
         "latitude": latitude,
         "longitude": longitude,
         "status_color": "yellow",
@@ -221,14 +259,22 @@ def approve_trail_suggestion(
         on_conflict="trail_id",
     ).execute()
 
-    update_res = (
-        client.table("trail_suggestions")
-        .update(
+    suggestion_update_payload = {
+        "status": "approved",
+        "updated_at": timestamp,
+    }
+
+    if suggestion.get("latitude") is None or suggestion.get("longitude") is None:
+        suggestion_update_payload.update(
             {
-                "status": "approved",
-                "updated_at": timestamp,
+                "latitude": latitude,
+                "longitude": longitude,
             }
         )
+
+    update_res = (
+        client.table("trail_suggestions")
+        .update(suggestion_update_payload)
         .eq("id", suggestion_id)
         .execute()
     )

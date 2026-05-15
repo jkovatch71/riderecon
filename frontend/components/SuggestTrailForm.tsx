@@ -46,15 +46,18 @@ export function SuggestTrailForm() {
   const [stateValue, setStateValue] = useState("");
   const [notes, setNotes] = useState("");
   const [location, setLocation] = useState<LocationPayload | null>(null);
-  const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const accessToken = session?.access_token;
   const canSubmit = trailName.trim().length >= 2 && !!accessToken && !submitting;
 
-  async function handleUseLocation() {
+  async function handleSubmit() {
+    if (!canSubmit || !accessToken) return;
+
+    setSubmitting(true);
     setLocating(true);
     setError(null);
 
@@ -62,32 +65,24 @@ export function SuggestTrailForm() {
       const nextLocation = await getCurrentLocation();
 
       if (!nextLocation) {
-        setError("Unable to capture location. You can still submit without GPS.");
+        setError(
+          "We need your current location to place this trail on the map. Allow location access and try again."
+        );
         return;
       }
 
       setLocation(nextLocation);
-    } finally {
       setLocating(false);
-    }
-  }
 
-  async function handleSubmit() {
-    if (!canSubmit || !accessToken) return;
-
-    setSubmitting(true);
-    setError(null);
-
-    try {
       await createTrailSuggestion(
         {
           trail_name: trailName,
           system_name: systemName,
           city,
           state: stateValue,
-          latitude: location?.latitude ?? null,
-          longitude: location?.longitude ?? null,
-          location_accuracy_meters: location?.accuracy ?? null,
+          latitude: nextLocation.latitude,
+          longitude: nextLocation.longitude,
+          location_accuracy_meters: nextLocation.accuracy,
           notes,
         },
         accessToken
@@ -95,9 +90,10 @@ export function SuggestTrailForm() {
 
       setSubmitted(true);
     } catch {
-      setError("Unable to submit trail suggestion right now.");
+      setError("Unable to submit trail add request right now.");
     } finally {
       setSubmitting(false);
+      setLocating(false);
     }
   }
 
@@ -105,7 +101,7 @@ export function SuggestTrailForm() {
     setTrailName("");
     setSystemName("");
     setCity("");
-    setStateValue("TX");
+    setStateValue("");
     setNotes("");
     setLocation(null);
     setError(null);
@@ -124,8 +120,9 @@ export function SuggestTrailForm() {
             <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
               Add a Trail
             </h2>
+
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-              Reviewed before publishing
+              Help expand coverage
             </p>
           </div>
         </div>
@@ -139,7 +136,7 @@ export function SuggestTrailForm() {
           >
             Sign in
           </Link>{" "}
-          to submit a trail or trail system for admin review.
+          to submit a trail or trail system for Ride Recon admin review.
         </p>
       </section>
     );
@@ -150,16 +147,21 @@ export function SuggestTrailForm() {
       <section className="card p-5">
         <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
           <p className="font-brand text-section-title font-semibold uppercase text-emerald-300">
-            Trail Request Sent
+            Trail Add Request Sent
           </p>
 
           <p className="text-helper mt-2 text-zinc-300">
-            Thanks for the intel. We’ll review it before adding it to Ride Recon.
+            Thanks for the intel. An admin will review the location before it
+            appears in Ride Recon.
           </p>
         </div>
 
-        <button type="button" onClick={resetForm} className="btn-secondary mt-4 w-full">
-          Add Another
+        <button
+          type="button"
+          onClick={resetForm}
+          className="btn-secondary mt-4 w-full"
+        >
+          Add Another Trail
         </button>
       </section>
     );
@@ -167,86 +169,80 @@ export function SuggestTrailForm() {
 
   return (
     <section className="card p-5">
-        <div className="flex items-start gap-4">
+      <div className="flex items-start gap-4">
         <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
-            <MapPinned className="h-5 w-5" />
+          <MapPinned className="h-5 w-5" />
         </div>
 
         <div className="min-w-0 flex-1 space-y-0.5">
-            <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+          <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
             Add a Trail
-            </h2>
+          </h2>
 
-            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-            Reviewed before publishing
-            </p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+            Admin reviewed before publishing
+          </p>
         </div>
-        </div>
+      </div>
 
-        <div className="my-3 h-px bg-zinc-800" />
+      <div className="my-3 h-px bg-zinc-800" />
 
-        <div className="space-y-3">
-          <div className="space-y-2">
+      <div className="space-y-3">
+        <p className="text-helper text-zinc-400">
+          Submit the trail from your current location so admins can place it
+          accurately on the map.
+        </p>
+
+        <div className="space-y-2">
+          <input
+            aria-label="Trail or park name"
+            className="input"
+            value={trailName}
+            onChange={(e) => setTrailName(e.target.value)}
+            placeholder="Trail or park name"
+          />
+
+          <input
+            aria-label="Trail system"
+            className="input"
+            value={systemName}
+            onChange={(e) => setSystemName(e.target.value)}
+            placeholder="Trail System / optional"
+          />
+
+          <div className="grid grid-cols-[1fr_76px] gap-2">
             <input
-              aria-label="Trail or park name"
+              aria-label="City"
               className="input"
-              value={trailName}
-              onChange={(e) => setTrailName(e.target.value)}
-              placeholder="Trail or park name"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="City / optional"
             />
 
             <input
-              aria-label="System name"
+              aria-label="State"
               className="input"
-              value={systemName}
-              onChange={(e) => setSystemName(e.target.value)}
-              placeholder="System name / optional"
+              value={stateValue}
+              onChange={(e) => {
+                const raw = e.target.value.toUpperCase().replace(/[^A-Z]/g, "");
+                setStateValue(raw.slice(0, 2));
+              }}
+              placeholder="ST"
+              maxLength={2}
             />
-
-            <div className="grid grid-cols-[1fr_76px] gap-2">
-              <input
-                aria-label="City"
-                className="input"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="City"
-              />
-
-              <input
-                aria-label="State"
-                className="input"
-                value={stateValue}
-                onChange={(e) => {
-                  const raw = e.target.value.toUpperCase().replace(/[^A-Z]/g, "");
-                  setStateValue(raw.slice(0, 2));
-                }}
-                placeholder="ST"
-                maxLength={2}
-              />
-            </div>
           </div>
-
-        <button
-          type="button"
-          onClick={handleUseLocation}
-          disabled={locating}
-          className={`btn-primary flex w-full items-center justify-center gap-2 ${
-            locating ? "cursor-not-allowed opacity-60 saturate-50" : ""
-          }`}
-        >
-          <LocateFixed className="h-4 w-4" />
-          {locating ? "Capturing Location..." : "Use My Current Location"}
-        </button>
+        </div>
 
         {location ? (
-            <p className="text-helper text-emerald-300">
+          <p className="text-helper flex items-center gap-2 text-emerald-300">
+            <LocateFixed className="h-4 w-4" />
             GPS captured: {location.latitude.toFixed(5)},{" "}
             {location.longitude.toFixed(5)}
-            </p>
+          </p>
         ) : (
-            <p className="text-helper text-zinc-500">
-            GPS is optional, but it helps place the trail faster.
-            </p>
+          <p className="text-helper text-zinc-500">
+            GPS will be captured when you submit.
+          </p>
         )}
 
         <textarea
@@ -255,23 +251,27 @@ export function SuggestTrailForm() {
           maxLength={500}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Notes/example: private ranch, MTB trails, race venue, access details, or why it belongs in Ride Recon."
+          placeholder="Notes/example: trailhead, parking area, private ranch, MTB trails, race venue, or landmark details."
         />
 
         <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className={`btn-primary flex w-full items-center justify-center gap-2 ${
+          type="button"
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className={`btn-primary flex w-full items-center justify-center gap-2 ${
             !canSubmit ? "cursor-not-allowed opacity-60 saturate-50" : ""
-            }`}
+          }`}
         >
-            <Send className="h-4 w-4" />
-            {submitting ? "Sending..." : "Submit Trail"}
+          <Send className="h-4 w-4" />
+          {locating
+            ? "Getting Location..."
+            : submitting
+              ? "Submitting..."
+              : "Submit Trail Location"}
         </button>
 
         {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-        </div>
+      </div>
     </section>
-    );
+  );
 }

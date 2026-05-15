@@ -346,15 +346,22 @@ export async function getAdminTrailSuggestions(
   });
 }
 
+export type ApproveTrailSuggestionPayload = {
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
 export async function approveTrailSuggestion(
   suggestionId: string,
-  accessToken: string
+  accessToken: string,
+  payload?: ApproveTrailSuggestionPayload
 ) {
   return fetchJson(`/admin/trail-suggestions/${suggestionId}/approve`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+    body: JSON.stringify(payload ?? {}),
   });
 }
 
