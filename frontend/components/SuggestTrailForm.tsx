@@ -189,8 +189,7 @@ export function SuggestTrailForm() {
 
       <div className="space-y-3">
         <p className="text-helper text-zinc-400">
-          Submit the trail from your current location so admins can place it
-          accurately on the map.
+          We’ll attach your current GPS location for admin review. If you’re not at the trail, add landmark details in the notes.
         </p>
 
         <div className="space-y-2">

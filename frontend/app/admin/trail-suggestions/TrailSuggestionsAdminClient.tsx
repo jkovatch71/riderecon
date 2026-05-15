@@ -189,16 +189,10 @@ export function TrailSuggestionsAdminClient() {
     setError(null);
 
     try {
-      await approveTrailSuggestion(
-        suggestion.id,
-        accessToken,
-        hasGps
-          ? undefined
-          : {
-              latitude: draftCoordinates.latitude,
-              longitude: draftCoordinates.longitude,
-            }
-      );
+      await approveTrailSuggestion(suggestion.id, accessToken, {
+        latitude: draftCoordinates.latitude,
+        longitude: draftCoordinates.longitude,
+      });
 
       await loadSuggestions();
     } catch (err) {
@@ -279,7 +273,7 @@ export function TrailSuggestionsAdminClient() {
             </p>
           </div>
 
-          <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-300">
+          <span className="shrink-0 whitespace-nowrap rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-300">
             {pendingCount} pending
           </span>
         </div>
@@ -345,7 +339,7 @@ export function TrailSuggestionsAdminClient() {
                 {suggestion.notes ? <p>Notes: {suggestion.notes}</p> : null}
               </div>
 
-              {!hasGps && canEditCoordinates ? (
+              {canEditCoordinates ? (
                 <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-300">
                     Admin Coordinates
