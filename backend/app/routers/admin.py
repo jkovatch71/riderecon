@@ -227,7 +227,7 @@ def approve_trail_suggestion(
         "id": trail_id,
         "name": trail_name,
         "alias": None,
-        "system_name": clean_text(suggestion.get("system_name")),
+        "system_name": clean_text(suggestion.get("system_name")) or trail_name,
         "city": clean_text(suggestion.get("city")),
         "state": clean_text(suggestion.get("state")),
         "latitude": latitude,
