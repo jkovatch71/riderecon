@@ -150,6 +150,16 @@ function isFreshReport(report: TrailReport, freshnessHours: number) {
   return reportTime >= cutoff;
 }
 
+function isVisibleReport(report: TrailReport, visibleHours = 168) {
+  const timestamp = report.updated_at || report.created_at;
+  if (!timestamp) return false;
+
+  const reportTime = new Date(timestamp).getTime();
+  const cutoff = Date.now() - visibleHours * 60 * 60 * 1000;
+
+  return reportTime >= cutoff;
+}
+
 export function TrailDetailClient({
   trail,
   reports,
@@ -174,7 +184,10 @@ export function TrailDetailClient({
     [reports, freshnessHours]
   );
 
-  const visibleReports = reports;
+  const visibleReports = useMemo(
+    () => reports.filter((report) => isVisibleReport(report)),
+    [reports]
+  );
 
   const hazards = trail.summary?.recent_hazards ?? [];
   const hazardText = formatHazards(hazards);
