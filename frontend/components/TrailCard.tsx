@@ -64,6 +64,17 @@ function getUpdatedLabel(trail: Trail) {
   return `Updated ${timeAgo(timestamp)}`;
 }
 
+function getReportActivityLabel(trail: Trail) {
+  const freshCount = trail.summary?.reported_by_count ?? 0;
+  const recentCount = trail.summary?.visible_report_count ?? freshCount;
+
+  if (recentCount === freshCount) {
+    return `${freshCount}`;
+  }
+
+  return `${freshCount} fresh · ${recentCount} recent`;
+}
+
 function normalizeHazard(tag: string) {
   const key = tag.trim().toLowerCase();
   return HAZARD_META[key] ?? { icon: "⚠️", label: tag };
@@ -146,7 +157,7 @@ export function TrailCard({
             </p>
 
             <p className="text-zinc-500">
-              Recent rider reports: {trail.summary?.reported_by_count ?? 0}
+              Recent rider reports: {getReportActivityLabel(trail)}
             </p>
 
             <div className="min-h-[24px]">
