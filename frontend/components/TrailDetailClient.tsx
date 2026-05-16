@@ -174,6 +174,8 @@ export function TrailDetailClient({
     [reports, freshnessHours]
   );
 
+  const visibleReports = reports;
+
   const hazards = trail.summary?.recent_hazards ?? [];
   const hazardText = formatHazards(hazards);
 
@@ -220,14 +222,16 @@ export function TrailDetailClient({
           </div>
 
           <div className="space-y-1 text-sm text-zinc-300">
-            {freshReports.length > 0 ? (
+            {visibleReports.length > 0 ? (
               <button
                 type="button"
                 onClick={expandReports}
                 className="text-left text-emerald-300 underline-offset-4 transition hover:text-emerald-200 hover:underline"
               >
                 Reports:{" "}
-                <span className="font-semibold">{freshReports.length}</span>
+                <span className="font-semibold">{freshReports.length} fresh</span>
+                <span className="text-zinc-500"> · </span>
+                <span className="font-semibold">{visibleReports.length} recent</span>
               </button>
             ) : (
               <p>
@@ -246,7 +250,7 @@ export function TrailDetailClient({
 
       <section ref={recentReportsRef}>
         <RecentReports
-          reports={freshReports}
+          reports={visibleReports}
           expanded={reportsExpanded}
           onExpandedChange={setReportsExpanded}
         />
