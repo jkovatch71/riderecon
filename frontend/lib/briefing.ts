@@ -66,8 +66,16 @@ const RIDER_SUPPORTING = {
   ],
 };
 
-function pickPhrase(phrases: string[]) {
-  return phrases[0];
+function pickPhrase(phrases: string[], seed = "") {
+  if (!phrases.length) return "";
+
+  let hash = 0;
+
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+
+  return phrases[hash % phrases.length];
 }
 
 type SupportingIntent = keyof typeof RIDER_SUPPORTING;
@@ -93,10 +101,11 @@ function buildSupportingText(
   neutralText: string
 ) {
   const safeIntent = getSafeSupportingIntent(status, intent);
+  const phraseSeed = `${safeIntent}-${new Date().toDateString()}`;
 
   return riderOrNeutral(
     tone,
-    pickPhrase(RIDER_SUPPORTING[safeIntent]),
+    pickPhrase(RIDER_SUPPORTING[safeIntent], phraseSeed),
     neutralText
   );
 }
