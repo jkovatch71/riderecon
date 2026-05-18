@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: "Ride Recon",
   webDir: "public",
   server: {
-    url: "https://qa.riderecon.app",
+    url: "https://riderecon.app",
     cleartext: false,
   },
 };
