@@ -12,6 +12,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/geolocation": "^8.2.0",
+    "@capacitor/ios": "^8.3.4",
     "@supabase/supabase-js": "^2.49.1",
     "clsx": "^2.1.1",
     "leaflet": "^1.9.4",

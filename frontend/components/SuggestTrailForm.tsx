@@ -5,6 +5,7 @@ import { useState } from "react";
 import { LocateFixed, MapPinned, Send } from "lucide-react";
 import { createTrailSuggestion } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { Geolocation } from "@capacitor/geolocation";
 
 type LocationPayload = {
   latitude: number;
@@ -12,29 +13,31 @@ type LocationPayload = {
   accuracy: number | null;
 };
 
-function getCurrentLocation(): Promise<LocationPayload | null> {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      resolve(null);
-      return;
+async function getCurrentLocation(): Promise<LocationPayload | null> {
+  try {
+    const permission = await Geolocation.requestPermissions();
+
+    if (
+      permission.location !== "granted" &&
+      permission.coarseLocation !== "granted"
+    ) {
+      return null;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy ?? null,
-        });
-      },
-      () => resolve(null),
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 15000,
-      }
-    );
-  });
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 15000,
+    });
+
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function SuggestTrailForm() {
