@@ -289,7 +289,9 @@ class TrailsRepository:
                 "fresh_rider_report",
             )
 
-        if is_raining_now:
+        active_rain_total_threshold = 0.15
+
+        if is_raining_now and storm_rain_total_inches >= active_rain_total_threshold:
             return (
                 "Wet / Unrideable",
                 color_for_condition("Wet / Unrideable"),
