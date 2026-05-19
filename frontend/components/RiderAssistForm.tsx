@@ -501,6 +501,10 @@ export function RiderAssistForm() {
             />
           </div>
 
+          <p className="text-helper mt-3 text-zinc-500">
+            Ride Recon uses your current location so nearby riders can understand where help is needed.
+          </p>
+
           <button
             type="button"
             onClick={submitAssistRequest}

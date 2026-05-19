@@ -243,7 +243,7 @@ export function SuggestTrailForm() {
           </p>
         ) : (
           <p className="text-helper text-zinc-500">
-            GPS will be captured when you submit.
+            Ride Recon uses your current location to place this trail suggestion on the map.
           </p>
         )}
 

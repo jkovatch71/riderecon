@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Gauge, MessageSquareText, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
+import {
+  Gauge,
+  LifeBuoy,
+  MessageSquareText,
+  ShieldAlert,
+  SlidersHorizontal,
+} from "lucide-react";
 
 type TextSize = "compact" | "standard" | "large";
 type BriefingTone = "rider" | "neutral";
@@ -255,6 +262,31 @@ export default function PreferencesPage() {
             ]}
           />
         </Control>
+      </PreferenceCard>
+        <PreferenceCard
+        icon={LifeBuoy}
+        title="Legal & Support"
+        subtitle="Privacy, Help & Safety"
+      >
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/privacy" className="btn-secondary text-center">
+            Privacy
+          </Link>
+
+          <Link href="/support" className="btn-secondary text-center">
+            Support
+          </Link>
+        </div>
+
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+          <div className="flex gap-2">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+            <p className="text-helper text-zinc-400">
+              Ride Recon is not an emergency service. If you need urgent help,
+              call 911 or local emergency services directly.
+            </p>
+          </div>
+        </div>
       </PreferenceCard>
     </main>
   );

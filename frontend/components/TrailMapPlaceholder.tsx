@@ -37,6 +37,10 @@ import {
 
 export type MapFilter = "rideable" | "assist" | "hazards" | "all";
 
+const DEFAULT_MAP_CENTER: [number, number] = [29.4241, -98.4936];
+const DEFAULT_MAP_ZOOM = 11;
+const INITIAL_FIT_TRAIL_LIMIT = 12;
+
 type RainBucket = {
   key: string;
   center: [number, number];
@@ -312,6 +316,54 @@ const tombstoneIcon = divIcon({
   popupAnchor: [0, -8],
 });
 
+function getTrailCoords(trail: Trail): [number, number] | null {
+  if (typeof trail.latitude !== "number" || typeof trail.longitude !== "number") {
+    return null;
+  }
+
+  return [trail.latitude, trail.longitude];
+}
+
+function getDistanceBetweenCoords(
+  a: [number, number],
+  b: [number, number]
+) {
+  const latDelta = a[0] - b[0];
+  const lngDelta = a[1] - b[1];
+
+  return Math.sqrt(latDelta * latDelta + lngDelta * lngDelta);
+}
+
+function getClosestTrailCluster(trails: Trail[], limit = INITIAL_FIT_TRAIL_LIMIT) {
+  const validTrails = trails.filter((trail) => getTrailCoords(trail));
+
+  if (validTrails.length <= limit) return validTrails;
+
+  const centerLat =
+    validTrails.reduce((sum, trail) => sum + (trail.latitude as number), 0) /
+    validTrails.length;
+
+  const centerLng =
+    validTrails.reduce((sum, trail) => sum + (trail.longitude as number), 0) /
+    validTrails.length;
+
+  const center: [number, number] = [centerLat, centerLng];
+
+  return [...validTrails]
+    .sort((a, b) => {
+      const aCoords = getTrailCoords(a);
+      const bCoords = getTrailCoords(b);
+
+      if (!aCoords || !bCoords) return 0;
+
+      return (
+        getDistanceBetweenCoords(aCoords, center) -
+        getDistanceBetweenCoords(bCoords, center)
+      );
+    })
+    .slice(0, limit);
+}
+
 function getTrailHazardPoints(trails: Trail[]): HazardPoint[] {
   return trails.flatMap((trail) => {
     const points = getSummary(trail)?.hazard_points ?? [];
@@ -366,7 +418,10 @@ function FitBounds({ trails }: { trails: Trail[] }) {
         typeof trail.longitude === "number"
     );
 
-    if (!validTrails.length) return;
+    if (!validTrails.length) {
+      map.setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
+      return;
+    }
 
     hasFitRef.current = true;
 
@@ -388,7 +443,7 @@ function FitBounds({ trails }: { trails: Trail[] }) {
       )
     );
 
-    map.fitBounds(bounds, { padding: [30, 30] });
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
   }, [map, trails]);
 
   return null;
@@ -591,6 +646,26 @@ export function TrailMapPlaceholder({
     });
   }, [mapFilter, validTrails]);
 
+      const initialFitTrails = useMemo(() => {
+    if (selectedTrailId) {
+      const selectedTrail = mapTrails.find(
+        (trail) => trail.id === selectedTrailId
+      );
+
+      if (selectedTrail) return [selectedTrail];
+    }
+
+    const favoriteTrails = mapTrails.filter((trail) =>
+      favoriteSet.has(trail.id)
+    );
+
+    if (favoriteTrails.length) {
+      return favoriteTrails.slice(0, INITIAL_FIT_TRAIL_LIMIT);
+    }
+
+    return getClosestTrailCluster(mapTrails);
+  }, [favoriteSet, mapTrails, selectedTrailId]);
+
   const rainBuckets = useMemo(() => buildRainBuckets(mapTrails), [mapTrails]);
 
   const activeAssistRequests = useMemo(
@@ -623,13 +698,15 @@ export function TrailMapPlaceholder({
           type="button"
           onClick={() => setLocateTrigger((prev) => prev + 1)}
           className="btn-secondary absolute right-3 top-3 z-[1000]"
+          aria-label="Locate me. Ride Recon uses your current location to center the map near you."
+          title="Ride Recon uses your current location to center the map near you."
         >
           Locate me
         </button>
 
         <MapContainer
-          center={[29.4241, -98.4936]}
-          zoom={11}
+          center={DEFAULT_MAP_CENTER}
+          zoom={DEFAULT_MAP_ZOOM}
           scrollWheelZoom={true}
           className="h-[62svh] min-h-[420px] max-h-[680px] w-full"
         >
@@ -640,7 +717,7 @@ export function TrailMapPlaceholder({
 
           <MapPanes />
 
-          <FitBounds trails={mapTrails} />
+          <FitBounds trails={initialFitTrails} />
 
           <FocusSelectedTrail
             trails={mapTrails}
