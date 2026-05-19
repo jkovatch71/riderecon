@@ -249,7 +249,10 @@ export function RiderAssistForm() {
     [assistType]
   );
 
-  const detailOptions = assistType ? detailsByType[assistType] : [];
+  const detailOptions = useMemo(
+    () => (assistType ? detailsByType[assistType] : []),
+    [assistType]
+  );
 
   const selectedDetail = useMemo(
     () => detailOptions.find((option) => option.detail === assistDetail),
