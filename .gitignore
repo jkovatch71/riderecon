@@ -19,4 +19,7 @@ __pycache__/
 .DS_Store
 
 # Logs
-*.log
+*.logrelease-builds/
+
+# Local release artifacts
+/release-builds/
