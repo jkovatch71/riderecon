@@ -45,6 +45,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0b1f14",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -88,7 +89,7 @@ export default function RootLayout({
               <AppBootSplash />
 
               <div className="mx-auto min-h-screen max-w-5xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">
-                <div className="sticky top-0 z-40 bg-zinc-950/95 pt-2 backdrop-blur">
+                <div className="sticky top-0 z-40 bg-zinc-950/95 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur">
                   <AuthStatus />
                 </div>
 

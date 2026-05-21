@@ -31,7 +31,7 @@ export function AuthStatus() {
   }, [profile?.username, user?.email]);
 
   return (
-    <div className="relative mb-3 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
+    <div className="relative mb-3 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-[0.06]"
@@ -49,7 +49,7 @@ export function AuthStatus() {
         className="absolute bottom-3 left-0 top-3 w-[3px] rounded-full bg-emerald-400/80"
       />
 
-      <div className="relative flex items-center justify-between pl-3">
+      <div className="relative flex min-h-[52px] items-center justify-between pl-3">
         <div className="leading-tight">
           <p className="font-brand text-lg font-semibold uppercase text-emerald-300">
             RIDE RECON

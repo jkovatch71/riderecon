@@ -13,6 +13,7 @@ import type { Trail } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
 import { TypingText } from "@/components/TypingText";
 import { useAppBoot } from "@/components/AppBootProvider";
+import { Cloud, CloudRain, CloudSun, Sun, Zap } from "lucide-react";
 
 type BriefingScript = {
   greeting: string;
@@ -32,27 +33,35 @@ function getGreeting() {
   return "GOOD EVENING";
 }
 
-function getWeatherIcon(summary?: string | null) {
-  if (!summary) return "🌤️";
+function WeatherIcon({ summary }: { summary?: string | null }) {
+  const s = summary?.toLowerCase() ?? "";
 
-  const s = summary.toLowerCase();
-
-  if (s.includes("thunder") || s.includes("storm")) return "⛈️";
-  if (s.includes("rain") || s.includes("drizzle")) return "🌧️";
-  if (s.includes("cloud")) return "☁️";
-  if (s.includes("clear") || s.includes("sun")) return "☀️";
-
-  return "🌤️";
-}
-
-function getWeatherDisplay(weather?: CurrentWeather | null) {
-  const icon = getWeatherIcon(weather?.summary);
-
-  if (weather?.temperature !== null && weather?.temperature !== undefined) {
-    return `${icon} ${Math.round(weather.temperature)}°`;
+  if (s.includes("thunder") || s.includes("storm")) {
+    return <Zap className="h-4 w-4 text-amber-300" />;
   }
 
-  return icon;
+  if (s.includes("rain") || s.includes("drizzle")) {
+    return <CloudRain className="h-4 w-4 text-sky-300" />;
+  }
+
+  if (s.includes("cloud")) {
+    return <Cloud className="h-4 w-4 text-zinc-300" />;
+  }
+
+  if (s.includes("clear") || s.includes("sun")) {
+    return <Sun className="h-4 w-4 text-amber-300" />;
+  }
+
+  return <CloudSun className="h-4 w-4 text-zinc-300" />;
+}
+
+function TypingCursor() {
+  return (
+    <span
+      aria-hidden="true"
+      className="ml-0.5 inline-block h-[1em] w-[0.12em] translate-y-[0.12em] animate-pulse rounded-full bg-emerald-300"
+    />
+  );
 }
 
 function getSetting<T extends string>(
@@ -367,11 +376,7 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
                 enableSound={true}
               />
 
-              {supportingDone ? (
-                <span className="ml-0.5 inline-block animate-pulse text-emerald-300">
-                  ▌
-                </span>
-              ) : null}
+              {supportingDone ? <TypingCursor /> : null}
             </p>
           ) : null}
 
@@ -391,7 +396,12 @@ export function HomeBriefing({ trails }: { trails: Trail[] }) {
               metaReady ? "translate-y-0 opacity-100" : "translate-y-.5 opacity-0"
             }`}
           >
-            {getWeatherDisplay(weather)}
+            <span className="inline-flex items-center gap-1.5">
+              <WeatherIcon summary={weather?.summary} />
+              {weather?.temperature !== null && weather?.temperature !== undefined ? (
+                <span>{Math.round(weather.temperature)}°</span>
+              ) : null}
+            </span>
           </p>
         </div>
       </div>

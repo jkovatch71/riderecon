@@ -45,7 +45,7 @@ function FooterNavContent() {
   const trailView = searchParams.get("view");
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-zinc-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-around px-2 py-2">
         {navItems.map((item) => {
           const isActive =
@@ -90,7 +90,7 @@ export function FooterNav() {
   return (
     <Suspense
       fallback={
-        <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-zinc-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
           <div className="mx-auto flex max-w-5xl items-center justify-around px-2 py-2">
             {navItems.map((item) => {
               const Icon = item.icon;

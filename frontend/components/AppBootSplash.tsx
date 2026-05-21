@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAppBoot } from "@/components/AppBootProvider";
+import Image from "next/image";
 
 const MIN_SPLASH_MS = 850;
+const MAX_SPLASH_MS = 4000;
 const FADE_DURATION_MS = 450;
 
 export function AppBootSplash() {
@@ -12,6 +14,7 @@ export function AppBootSplash() {
   const { appReady } = useAppBoot();
 
   const [minimumElapsed, setMinimumElapsed] = useState(false);
+  const [maxElapsed, setMaxElapsed] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const [visible, setVisible] = useState(true);
 
@@ -25,9 +28,17 @@ export function AppBootSplash() {
     return () => window.clearTimeout(timer);
   }, []);
 
+useEffect(() => {
+  const timer = window.setTimeout(() => {
+    setMaxElapsed(true);
+  }, MAX_SPLASH_MS);
+
+  return () => window.clearTimeout(timer);
+}, []);
+
   useEffect(() => {
     const readyToDismiss = shouldWaitForReadySignal
-      ? minimumElapsed && appReady
+      ? minimumElapsed && (appReady || maxElapsed)
       : minimumElapsed;
 
     if (!readyToDismiss || fadeOut) return;
@@ -39,7 +50,7 @@ export function AppBootSplash() {
     }, FADE_DURATION_MS);
 
     return () => window.clearTimeout(removeTimer);
-  }, [appReady, fadeOut, minimumElapsed, shouldWaitForReadySignal]);
+  }, [appReady, fadeOut, maxElapsed, minimumElapsed, shouldWaitForReadySignal]);
 
   if (!visible) return null;
 
@@ -50,10 +61,13 @@ export function AppBootSplash() {
       }`}
       aria-hidden="true"
     >
-      <img
+      <Image
         src="/splash/splash-1440x3120.png"
         alt=""
-        className="h-full w-full object-cover"
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
       />
     </div>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { MapPin } from "lucide-react";
 
 type RiderProfile = {
   id: string;
@@ -206,6 +207,7 @@ export default function RiderProfilePage() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={() =>
                       router.push(`/trails?view=map&selected=${trail.id}`)
                     }
@@ -213,7 +215,7 @@ export default function RiderProfilePage() {
                     aria-label={`View ${trail.name} on map`}
                     title="View on map"
                   >
-                    📍
+                    <MapPin className="h-4 w-4" />
                   </button>
                 </div>
               ))}

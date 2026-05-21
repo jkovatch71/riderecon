@@ -5,6 +5,8 @@
 :root {
   --font-rajdhani: "Rajdhani", sans-serif;
   --font-teko: "Teko", sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   color-scheme: dark;
 
@@ -20,11 +22,12 @@
 html,
 body {
   min-height: 100%;
+  background: #050608;
 }
 
 body {
   font-family: var(--font-rajdhani), sans-serif;
-  @apply bg-zinc-950 text-zinc-100;
+  @apply text-zinc-100;
 }
 
 /* Shared shape system for consistency across UI elements */
