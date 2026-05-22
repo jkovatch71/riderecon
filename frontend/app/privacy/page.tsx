@@ -92,6 +92,11 @@ export default function PrivacyPage() {
             </p>
 
             <p>
+              You do not need to be signed in to submit a deletion request, but we may ask
+              you to verify account ownership before deleting account data.
+            </p>
+
+            <p>
               Deletion requests may include your account profile, email address, favorite
               trails, rider profile information, garage information, and other app data
               associated with your account.
