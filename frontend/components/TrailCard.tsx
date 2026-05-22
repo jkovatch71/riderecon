@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Navigation } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Trail } from "@/lib/types";
 import { StatusPill } from "@/components/StatusPill";
 import { getConditionColor, timeAgo } from "@/lib/utils";
@@ -175,7 +175,7 @@ export function TrailCard({
                   className="text-zinc-500 transition duration-150 hover:scale-110 hover:text-zinc-300 active:scale-95"
                   onClick={handleMapClick}
                 >
-                  <Navigation className="h-5 w-5" />
+                  <MapPin className="h-5 w-5" />
                 </button>
               ) : null}
 
