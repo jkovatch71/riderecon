@@ -72,10 +72,30 @@ export default function SupportPage() {
       </SupportCard>
 
       <SupportCard icon={Mail} title="Contact" eyebrow="Ride Recon">
-        <p>
-        For account, privacy, or app support questions, use this Support page.
-        A dedicated Ride Recon support email will be added before public app store release.
-        </p>
+        <div className="space-y-3">
+          <p>
+            For general support, app questions, trail coverage questions, or issue
+            reports, email{" "}
+            <a
+              href="mailto:support@riderecon.app"
+              className="text-emerald-300 underline-offset-4 hover:underline"
+            >
+              support@riderecon.app
+            </a>
+            .
+          </p>
+
+          <p>
+            For privacy questions or account and data deletion requests, email{" "}
+            <a
+              href="mailto:privacy@riderecon.app"
+              className="text-emerald-300 underline-offset-4 hover:underline"
+            >
+              privacy@riderecon.app
+            </a>
+            .
+          </p>
+        </div>
       </SupportCard>
 
       <section className="card p-5">

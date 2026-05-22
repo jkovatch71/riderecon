@@ -1,4 +1,5 @@
 import { PageBackLink } from "@/components/PageBackLink";
+import { AccountDeletionRequest } from "@/components/AccountDeletionRequest";
 
 export default function PrivacyPage() {
   return (
@@ -71,11 +72,64 @@ export default function PrivacyPage() {
 
           <section className="space-y-2">
             <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+              Account & Data Deletion
+            </h2>
+
+            <p>
+              Ride Recon users may request deletion of their account and associated app
+              data at any time.
+            </p>
+
+            <p>
+              To request deletion, use the button below or email{" "}
+              <a
+                href="mailto:privacy@riderecon.app?subject=Ride%20Recon%20Account%20Deletion%20Request"
+                className="text-emerald-300 underline-offset-4 hover:underline"
+              >
+                privacy@riderecon.app
+              </a>{" "}
+              from the email address associated with your Ride Recon account.
+            </p>
+
+            <p>
+              Deletion requests may include your account profile, email address, favorite
+              trails, rider profile information, garage information, and other app data
+              associated with your account.
+            </p>
+
+            <p>
+              Some information may be retained only when necessary for security, fraud
+              prevention, legal compliance, or legitimate operational purposes.
+            </p>
+
+            <p>
+              We may contact you to verify account ownership before completing the
+              request.
+            </p>
+
+            <AccountDeletionRequest />
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
               Contact
             </h2>
             <p>
-              For privacy or support questions, contact Ride Recon support
-              through the Support page.
+              For privacy questions, email{" "}
+              <a
+                href="mailto:privacy@riderecon.app"
+                className="text-emerald-300 underline-offset-4 hover:underline"
+              >
+                privacy@riderecon.app
+              </a>
+              . For general support, email{" "}
+              <a
+                href="mailto:support@riderecon.app"
+                className="text-emerald-300 underline-offset-4 hover:underline"
+              >
+                support@riderecon.app
+              </a>
+              .
             </p>
           </section>
 
