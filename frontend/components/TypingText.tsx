@@ -113,11 +113,14 @@ export function TypingText({
   }, [started, text, speed, enableSound]);
 
   return (
-    <span>
+    <span className="inline">
       {displayed}
-      {showCursor && (
-        <span className="ml-0.5 inline-block text-emerald-300 animate-pulse">▌</span>
-        )}
+      {showCursor ? (
+        <span
+          aria-hidden="true"
+          className="ml-0.5 inline-block h-[1em] w-[0.12em] translate-y-[0.12em] animate-pulse rounded-full bg-emerald-300 align-baseline"
+        />
+      ) : null}
     </span>
   );
 }
