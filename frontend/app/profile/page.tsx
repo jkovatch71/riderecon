@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { UserRound } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 import { updateProfileForUser } from "@/lib/profiles";
@@ -14,7 +15,12 @@ function initialsFor(username?: string | null) {
 }
 
 function normalizeUsername(value: string) {
-  return value.trim().toLowerCase();
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, 20);
 }
 
 function DividerTitle({ title }: { title: string }) {
@@ -85,18 +91,18 @@ export default function ProfilePage() {
     const normalizedUsername = normalizeUsername(username);
 
     if (!normalizedUsername) {
-      setErrorMessage("Username is required.");
+      setErrorMessage("Rider Handle is required.");
       return;
     }
 
     if (normalizedUsername.length < 3) {
-      setErrorMessage("Username must be at least 3 characters.");
+      setErrorMessage("Rider Handle must be at least 3 characters.");
       return;
     }
 
     if (!/^[a-z0-9][a-z0-9_]{2,19}$/.test(normalizedUsername)) {
       setErrorMessage(
-        "Username must be 3-20 characters and use only lowercase letters, numbers, or underscores."
+        "Rider handle must be 3-20 characters. Use letters, numbers, or underscores."
       );
       return;
     }
@@ -176,7 +182,7 @@ export default function ProfilePage() {
 
   if (authLoading || profileLoading) {
     return (
-      <main className="space-y-4">
+      <main className="space-y-3">
         <section className="card p-5">
           <p className="text-sm text-zinc-400">Loading profile...</p>
         </section>
@@ -186,7 +192,7 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <main className="space-y-4">
+      <main className="space-y-3">
         <section className="card p-5">
           <h1 className="text-2xl font-bold">Profile</h1>
           <p className="mt-2 text-sm text-zinc-400">You are not signed in.</p>
@@ -196,14 +202,32 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="space-y-4">
+    <main className="space-y-3 pb-28">
+      <section className="card p-5">
+        <div className="flex items-start gap-4">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
+            <UserRound className="h-5 w-5" />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <h1 className="font-brand text-page-title font-semibold uppercase leading-none text-zinc-100">
+              Profile
+            </h1>
+            <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+              Rider identity | Garage | Account
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 h-px bg-zinc-800" />
+      </section>
       {successMessage ? (
         <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-zinc-950 px-4 py-3 text-sm text-emerald-300 shadow-lg">
           {successMessage}
         </div>
       ) : null}
 
-      <section className="card p-4">
+      <section className="card p-5">
         <div className="flex items-start gap-4">
           <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500 text-xl font-bold text-zinc-950">
             {avatarInitials}
@@ -217,7 +241,7 @@ export default function ProfilePage() {
             {profileName && profileName !== "rider" ? (
               <div className="mt-3">
                 <Link
-                  href={`/riders/${profileName}`}
+                  href={`/riders/${encodeURIComponent(profileName)}`}
                   className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 transition active:scale-95 hover:bg-emerald-500/20"
                 >
                   View Public Profile
@@ -234,13 +258,13 @@ export default function ProfilePage() {
 
           <div>
             <label className="text-xs uppercase tracking-wide text-zinc-500">
-              Username
+              Rider Handle
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(normalizeUsername(e.target.value))}
-              placeholder="Your username"
+              placeholder="Your Rider Handle"
               className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-emerald-500"
               autoCapitalize="none"
               autoCorrect="off"
@@ -248,7 +272,7 @@ export default function ProfilePage() {
               maxLength={20}
             />
             <p className="mt-1.5 text-xs text-zinc-500">
-              Shown on reports and public profiles.
+              Shown on reports and public profiles. Spaces are converted to underscores.
             </p>
           </div>
 

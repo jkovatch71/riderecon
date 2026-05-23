@@ -129,13 +129,24 @@ export async function updateProfileForUser(
 
   const { data, error } = await supabase
     .from("profiles")
-    .update(updates)
-    .eq("id", userId)
+    .upsert(
+      {
+        id: userId,
+        ...updates,
+      },
+      {
+        onConflict: "id",
+      }
+    )
     .select("id, username, garage_bay_1, garage_bay_2, garage_bay_3")
-    .single();
+    .maybeSingle();
 
   if (error) {
     throwProfileError(error);
+  }
+
+  if (!data) {
+    throw new Error("Unable to save profile right now.");
   }
 
   return data;

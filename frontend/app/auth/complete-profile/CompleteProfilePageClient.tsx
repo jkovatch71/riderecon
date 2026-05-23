@@ -4,9 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { createProfileForUser } from "@/lib/profiles";
+import { UserRound } from "lucide-react";
 
 function normalizeUsername(value: string) {
-  return value.trim().toLowerCase();
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, 20);
 }
 
 export default function CompleteProfilePageClient() {
@@ -48,18 +54,18 @@ export default function CompleteProfilePageClient() {
     const normalizedUsername = normalizeUsername(username);
 
     if (!normalizedUsername) {
-      setMessage("Username is required.");
+      setMessage("Rider handle is required.");
       return;
     }
 
     if (normalizedUsername.length < 3) {
-      setMessage("Username must be at least 3 characters.");
+      setMessage("Rider handle must be at least 3 characters.");
       return;
     }
 
     if (!/^[a-z0-9][a-z0-9_]{2,19}$/.test(normalizedUsername)) {
       setMessage(
-        "Username must be 3-20 characters and use only lowercase letters, numbers, or underscores."
+        "Rider handle must be 3-20 characters and use only lowercase letters, numbers, or underscores."
       );
       return;
     }
@@ -86,7 +92,7 @@ export default function CompleteProfilePageClient() {
         msg.toLowerCase().includes("profiles_username_lower_idx") ||
         msg.toLowerCase().includes("duplicate key")
       ) {
-        setMessage("That username is already taken. Try another one.");
+        setMessage("That rider handle is already taken. Try another one.");
       } else {
         setMessage(msg);
       }
@@ -111,14 +117,31 @@ export default function CompleteProfilePageClient() {
   return (
     <main className="mx-auto max-w-md space-y-3 pb-28">
       <div className="card p-5">
-        <h1 className="text-2xl font-bold">Complete your profile</h1>
-        <p className="mt-2 text-sm text-zinc-400">
-          Choose your username and set up your garage. Your username will appear on trail reports.
-        </p>
+        <div className="flex items-start gap-4">
+  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
+    <UserRound className="h-5 w-5" />
+  </div>
 
-        <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+  <div className="min-w-0 flex-1">
+    <h1 className="font-brand text-page-title font-semibold uppercase leading-none text-zinc-100">
+      Complete Profile
+    </h1>
+      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+        Rider identity | Garage | Account
+      </p>
+    </div>
+  </div>
+
+  <div className="mt-4 h-px bg-zinc-800" />
+
+  <p className="mt-4 text-helper text-zinc-400">
+    Enter your rider handle and set up your garage. Your rider handle appears on
+    trail reports and public profiles.
+  </p>
+
+        <form className="mt-5 space-y-3.5" onSubmit={handleSubmit}>
           <div>
-            <label className="label">Username</label>
+            <label className="label">Rider Handle</label>
             <input
               className="input placeholder:text-zinc-600"
               value={username}
@@ -132,7 +155,7 @@ export default function CompleteProfilePageClient() {
               spellCheck={false}
             />
             <p className="mt-1.5 text-xs text-zinc-500">
-              Lowercase letters, numbers, and underscores only.
+              Letters, numbers, and underscores only. Spaces are converted to underscores.
             </p>
           </div>
 
