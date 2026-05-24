@@ -203,24 +203,6 @@ export default function ProfilePage() {
 
   return (
     <main className="space-y-3 pb-28">
-      <section className="card p-5">
-        <div className="flex items-start gap-4">
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
-            <UserRound className="h-5 w-5" />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <h1 className="font-brand text-page-title font-semibold uppercase leading-none text-zinc-100">
-              Profile
-            </h1>
-            <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-              Rider identity | Garage | Account
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 h-px bg-zinc-800" />
-      </section>
       {successMessage ? (
         <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-zinc-950 px-4 py-3 text-sm text-emerald-300 shadow-lg">
           {successMessage}
@@ -228,32 +210,33 @@ export default function ProfilePage() {
       ) : null}
 
       <section className="card p-5">
-        <div className="flex items-start gap-4">
-          <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500 text-xl font-bold text-zinc-950">
-            {avatarInitials}
+        <div className="mb-4">
+          <div className="flex items-start gap-4">
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
+              <UserRound className="h-5 w-5" />
+            </div>
+
+            <div className="min-w-0">
+              <h1 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+                Profile
+              </h1>
+              <p className="mt-1 whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+                Identity | Garage | Account
+              </p>
+            </div>
           </div>
 
-          <div className="min-w-0 flex-1">
-            <p className="font-brand text-xl font-semibold uppercase leading-tight text-zinc-100">
-              {profileName}
-            </p>
-
-            {profileName && profileName !== "rider" ? (
-              <div className="mt-3">
-                <Link
-                  href={`/riders/${encodeURIComponent(profileName)}`}
-                  className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 transition active:scale-95 hover:bg-emerald-500/20"
-                >
-                  View Public Profile
-                </Link>
-              </div>
-            ) : null}
-          </div>
+          {profileName && profileName !== "rider" ? (
+            <Link
+              href={`/riders/${encodeURIComponent(profileName)}`}
+              className="mt-3 inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 transition active:scale-95 hover:bg-emerald-500/20"
+            >
+              View Public Profile
+            </Link>
+          ) : null}
         </div>
-      </section>
 
-      <section className="card p-5">
-        <form onSubmit={handleSaveProfile} className="space-y-3.5">
+        <form onSubmit={handleSaveProfile} className="space-y-3">
           <DividerTitle title="Account Details" />
 
           <div>
@@ -265,14 +248,14 @@ export default function ProfilePage() {
               value={username}
               onChange={(e) => setUsername(normalizeUsername(e.target.value))}
               placeholder="Your Rider Handle"
-              className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-emerald-500"
+              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-emerald-500"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
               maxLength={20}
             />
             <p className="mt-1.5 text-xs text-zinc-500">
-              Shown on reports and public profiles. Spaces are converted to underscores.
+              Shown on reports and public profiles.
             </p>
           </div>
 
@@ -282,14 +265,14 @@ export default function ProfilePage() {
               {user.email || "Not available"}
             </p>
             <p className="mt-1.5 text-xs text-zinc-500">
-              Private. This is never shown on your public profile.
+              Private. Never shown publicly.
             </p>
           </div>
 
           <div className="pt-0.5">
             <DividerTitle title="Garage" />
 
-            <div className="mt-2.5 space-y-2.5">
+            <div className="mt-2 space-y-2">
               <div>
                 <label className="text-xs uppercase tracking-wide text-zinc-500">
                   Bay 1
@@ -299,7 +282,7 @@ export default function ProfilePage() {
                   value={garageBay1}
                   onChange={(e) => setGarageBay1(e.target.value)}
                   placeholder="Your main ride here (optional)"
-                  className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-emerald-500"
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -312,7 +295,7 @@ export default function ProfilePage() {
                   value={garageBay2}
                   onChange={(e) => setGarageBay2(e.target.value)}
                   placeholder="You know you want another bike."
-                  className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-emerald-500"
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -325,7 +308,7 @@ export default function ProfilePage() {
                   value={garageBay3}
                   onChange={(e) => setGarageBay3(e.target.value)}
                   placeholder="Is it New Bike Day, yet?!"
-                  className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-emerald-500"
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-emerald-500"
                 />
               </div>
             </div>

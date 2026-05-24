@@ -134,9 +134,8 @@ export default function CompleteProfilePageClient() {
 
   <div className="mt-4 h-px bg-zinc-800" />
 
-  <p className="mt-4 text-helper text-zinc-400">
-    Enter your rider handle and set up your garage. Your rider handle appears on
-    trail reports and public profiles.
+  <p className="mt-2 text-helper text-zinc-400">
+    Set your rider handle and garage details.
   </p>
 
         <form className="mt-5 space-y-3.5" onSubmit={handleSubmit}>
@@ -146,7 +145,7 @@ export default function CompleteProfilePageClient() {
               className="input placeholder:text-zinc-600"
               value={username}
               onChange={(e) => setUsername(normalizeUsername(e.target.value))}
-              placeholder="user_name"
+              placeholder="user_name (required)"
               required
               minLength={3}
               maxLength={20}
@@ -155,7 +154,7 @@ export default function CompleteProfilePageClient() {
               spellCheck={false}
             />
             <p className="mt-1.5 text-xs text-zinc-500">
-              Letters, numbers, and underscores only. Spaces are converted to underscores.
+              Letters, numbers, and underscores only.
             </p>
           </div>
 
@@ -165,7 +164,7 @@ export default function CompleteProfilePageClient() {
               {user.email}
             </p>
             <p className="mt-1.5 text-xs text-zinc-500">
-              Your email stays private and is never shown on your public profile.
+              Private. Never shown publicly.
             </p>
           </div>
 

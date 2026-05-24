@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { MapPin } from "lucide-react";
+import { Bike, MapPin, UserRound } from "lucide-react";
 
 type RiderProfile = {
   id: string;
@@ -116,8 +116,8 @@ export default function RiderProfilePage() {
 
   if (loading) {
     return (
-      <main className="space-y-6">
-        <div className="card p-6">
+      <main className="space-y-3 pb-28">
+        <div className="card p-5">
           <p className="text-sm text-zinc-400">Loading rider profile...</p>
         </div>
       </main>
@@ -126,8 +126,8 @@ export default function RiderProfilePage() {
 
   if (!profile) {
     return (
-      <main className="space-y-6">
-        <div className="card p-6">
+      <main className="space-y-3 pb-28">
+        <div className="card p-5">
           <p className="text-sm text-zinc-400">Rider not found.</p>
         </div>
       </main>
@@ -135,41 +135,69 @@ export default function RiderProfilePage() {
   }
 
   return (
-    <main className="space-y-6">
-      <div className="card relative overflow-hidden p-6">
-        <div className="absolute bottom-3 left-0 top-3 w-[3px] rounded-full bg-emerald-400/80" />
+    <main className="space-y-3 pb-28">
+      <section className="card p-5">
+        <div className="flex items-start gap-4">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-emerald-300">
+            <UserRound className="h-5 w-5" />
+          </div>
 
+          <div className="min-w-0">
+            <h1 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
+              Rider Profile
+            </h1>
+            <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+              Garage | Favorites
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="card p-5">
         <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-          Rider
+          Handle
         </p>
 
         <div className="mt-2 border-t border-zinc-800 pt-3">
-          <p className="text-lg font-semibold text-zinc-100">
+          <p className="font-brand text-section-title font-semibold uppercase text-zinc-100">
             {profile.username}
           </p>
         </div>
 
-        <div className="mt-6">
-          <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-            Garage
-          </p>
+        <div className="mt-5">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-800" />
+            <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+              Garage
+            </p>
+            <div className="h-px flex-1 bg-zinc-800" />
+          </div>
 
-          <div className="mt-2 space-y-2 border-t border-zinc-800 pt-3">
+          <div className="mt-3 space-y-2">
             {profile.garage_bay_1 && (
-              <p className="text-sm text-zinc-300">
-                <span className="text-zinc-500">Bay 1</span> · {profile.garage_bay_1}
+              <p className="flex items-center gap-2 text-sm text-zinc-300">
+                <Bike className="h-4 w-4 text-zinc-500" />
+                <span className="text-zinc-500">Bay 1</span>
+                <span>·</span>
+                <span>{profile.garage_bay_1}</span>
               </p>
             )}
 
             {profile.garage_bay_2 && (
-              <p className="text-sm text-zinc-300">
-                <span className="text-zinc-500">Bay 2</span> · {profile.garage_bay_2}
+              <p className="flex items-center gap-2 text-sm text-zinc-300">
+                <Bike className="h-4 w-4 text-zinc-500" />
+                <span className="text-zinc-500">Bay 2</span>
+                <span>·</span>
+                <span>{profile.garage_bay_2}</span>
               </p>
             )}
 
             {profile.garage_bay_3 && (
-              <p className="text-sm text-zinc-300">
-                <span className="text-zinc-500">Bay 3</span> · {profile.garage_bay_3}
+              <p className="flex items-center gap-2 text-sm text-zinc-300">
+                <Bike className="h-4 w-4 text-zinc-500" />
+                <span className="text-zinc-500">Bay 3</span>
+                <span>·</span>
+                <span>{profile.garage_bay_3}</span>
               </p>
             )}
 
@@ -180,14 +208,18 @@ export default function RiderProfilePage() {
               )}
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="card p-6">
-        <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-          Favorites
-        </p>
+      <section className="card p-5">
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-zinc-800" />
+          <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+            Favorites
+          </p>
+          <div className="h-px flex-1 bg-zinc-800" />
+        </div>
 
-        <div className="mt-2 border-t border-zinc-800 pt-3">
+        <div className="mt-3">
           {favorites.length === 0 ? (
             <p className="text-sm text-zinc-500">No favorite trails yet.</p>
           ) : (
@@ -197,21 +229,20 @@ export default function RiderProfilePage() {
                   key={trail.id}
                   className="flex items-center justify-between py-3"
                 >
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-100">
+                  <div className="min-w-0">
+                    <p className="font-brand text-lg font-semibold uppercase leading-none text-zinc-100">
                       {trail.name}
                     </p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="mt-1 text-xs uppercase tracking-[0.12em] text-zinc-500">
                       {trail.system_name || ""}
                     </p>
                   </div>
 
                   <button
-                    type="button"
                     onClick={() =>
                       router.push(`/trails?view=map&selected=${trail.id}`)
                     }
-                    className="text-zinc-400 transition hover:text-zinc-200"
+                    className="ml-3 rounded-xl border border-zinc-800 bg-zinc-950/60 p-2 text-zinc-400 transition active:scale-95 hover:text-zinc-200"
                     aria-label={`View ${trail.name} on map`}
                     title="View on map"
                   >
@@ -222,7 +253,7 @@ export default function RiderProfilePage() {
             </div>
           )}
         </div>
-      </div>
+      </section>
     </main>
   );
 }
