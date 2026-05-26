@@ -144,7 +144,7 @@ export default function RiderProfilePage() {
 
           <div className="min-w-0">
             <h1 className="font-brand text-section-title font-semibold uppercase text-zinc-100">
-              Rider Profile
+              Public Profile
             </h1>
             <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
               Garage | Favorites

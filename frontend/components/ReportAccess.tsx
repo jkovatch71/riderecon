@@ -78,7 +78,7 @@ export function ReportAccess({
 
         <div className="space-y-4">
           <p className="text-sm text-zinc-400">
-            Finish setting up your rider profile before submitting reports.
+            Finish setting up your profile before submitting reports.
           </p>
 
           <Link
