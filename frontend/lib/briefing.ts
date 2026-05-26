@@ -599,7 +599,46 @@ export function buildBriefing(
   }
 
   if (conditionMix.dryRatio >= 0.6) {
-    if (recoveryMix.fastRatio >= 0.5) {
+    const hasHeroConditions = relevant.some((trail) => {
+      const condition = getDisplayCondition(trail).toLowerCase();
+      return condition === "hero";
+    });
+
+    const inferredRecoveryRideable =
+      !rainUnavailable &&
+      dryingStarted &&
+      effectiveDryingHours >= 6 &&
+      conditionMix.notReadyRatio > 0;
+
+    if (hasHeroConditions) {
+      return withHazardSupport(
+        {
+          headline: riderOrNeutral(
+            tone,
+            "Send it",
+            "Good to go"
+          ),
+          detail: applyDetailLevel(
+            weatherDetail
+              ? `${trailPhrase} have fresh hero-level conditions. ${weatherDetail}`
+              : `${trailPhrase} have fresh hero-level conditions`,
+            detailLevel
+          ),
+          supporting: buildSupportingText(
+            tone,
+            "rideable",
+            "prime",
+            "Fresh rider reports indicate excellent conditions."
+          ),
+          status: "rideable",
+        },
+        relevant,
+        tone,
+        usingFavorites
+      );
+    }
+
+    if (inferredRecoveryRideable) {
       return withHazardSupport(
         {
           headline: riderOrNeutral(
@@ -608,16 +647,14 @@ export function buildBriefing(
             "Looks rideable"
           ),
           detail: applyDetailLevel(
-            weatherDetail
-              ? `${trailPhrase} are mostly looking good. ${weatherDetail}`
-              : `${trailPhrase} are mostly looking good to go`,
+            `${trailPhrase} appear to be recovering well after recent rain`,
             detailLevel
           ),
           supporting: buildSupportingText(
             tone,
             "rideable",
             "rideable",
-            "Conditions look favorable for a ride."
+            "Conditions appear favorable, but some areas may still vary."
           ),
           status: "rideable",
         },
@@ -631,7 +668,7 @@ export function buildBriefing(
       {
         headline: riderOrNeutral(
           tone,
-          "Send it",
+          "Good to go",
           "Good to go"
         ),
         detail: applyDetailLevel(
