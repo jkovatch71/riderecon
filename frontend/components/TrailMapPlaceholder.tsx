@@ -24,6 +24,7 @@ import {
   useMap,
   Marker,
 } from "react-leaflet";
+import L from "leaflet";
 import type { Trail } from "@/lib/types";
 import { getConditionColor } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
@@ -306,14 +307,12 @@ function isPermanentlyClosedTrail(trail: Trail) {
   return resolvedCondition(trail).toLowerCase().includes("permanently closed");
 }
 
-const tombstoneIcon = divIcon({
-  className: "closed-trail-marker",
-  html: `
-    <span aria-hidden="true" class="closed-trail-marker__icon">🪦</span>
-  `,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-  popupAnchor: [0, -8],
+const tombstoneIcon = L.divIcon({
+  className: "ride-recon-tombstone-marker",
+  html: '<span aria-hidden="true">🪦</span>',
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  popupAnchor: [0, -12],
 });
 
 function getTrailCoords(trail: Trail): [number, number] | null {
@@ -712,7 +711,7 @@ export function TrailMapPlaceholder({
         >
           <TileLayer
             attribution='&copy; OpenStreetMap contributors &copy; CARTO'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png"
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           />
 
           <MapPanes />
@@ -736,8 +735,8 @@ export function TrailMapPlaceholder({
               radius={bucket.radius}
               pathOptions={{
                 color: "#38bdf8",
-                fillColor: "#38bdf8",
-                fillOpacity: rainFillOpacity(bucket.score),
+                fillColor: "#60a5fa",
+                fillOpacity: Math.min(rainFillOpacity(bucket.score), 0.14),
                 weight: 0,
               }}
             />

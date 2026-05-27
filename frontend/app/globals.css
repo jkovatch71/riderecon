@@ -147,6 +147,20 @@ body.app-text-large {
   letter-spacing: 0.05em;
 }
 
+.ride-recon-tombstone-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 22px;
+  line-height: 1;
+  filter:
+    drop-shadow(0 0 2px rgba(0, 0, 0, 0.95))
+    drop-shadow(0 0 6px rgba(248, 250, 252, 0.35));
+  opacity: 0.95;
+}
+
 .leaflet-popup-content-wrapper {
   padding: 6px 8px !important;
   border-radius: 12px;
