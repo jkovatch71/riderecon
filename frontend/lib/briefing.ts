@@ -80,6 +80,14 @@ function pickPhrase(phrases: string[], seed = "") {
 
 type SupportingIntent = keyof typeof RIDER_SUPPORTING;
 
+function pickHeadline(headlines: string[], seed = "") {
+  return pickPhrase(headlines, `headline-${seed}-${new Date().toDateString()}`);
+}
+
+function getRideableHeadline(seed: string) {
+  return pickHeadline(["Send it", "Good to go"], seed);
+}
+
 function getSafeSupportingIntent(
   status: BriefingResult["status"],
   intent: SupportingIntent
@@ -406,7 +414,7 @@ export function buildBriefing(
       return {
         headline: riderOrNeutral(
           tone,
-          "Hang it up for now",
+          "Stand down",
           "Not rideable right now"
         ),
         detail: applyDetailLevel(
@@ -428,7 +436,7 @@ export function buildBriefing(
     return {
       headline: riderOrNeutral(
         tone,
-        "Not worth it right now",
+        "Stand down",
         "Not rideable right now"
       ),
       detail: applyDetailLevel(
@@ -452,8 +460,8 @@ export function buildBriefing(
       return {
         headline: riderOrNeutral(
           tone,
-          "Still way too soft",
-          "Still too wet to ride"
+          "Stand down",
+          "Not rideable right now"
         ),
         detail: applyDetailLevel(
           `${trailPhrase} have not started recovering yet after the storm`,
@@ -472,8 +480,8 @@ export function buildBriefing(
     return {
       headline: riderOrNeutral(
         tone,
-        "Still too wet to ride",
-        "Still too wet to ride"
+        "Stand down",
+        "Not rideable right now"
       ),
       detail: applyDetailLevel(
         `${trailPhrase} haven't had time to dry yet`,
@@ -493,8 +501,8 @@ export function buildBriefing(
     return {
       headline: riderOrNeutral(
         tone,
-        "Needs more time",
-        "Needs more time"
+        "Stand down",
+        "Not rideable right now"
       ),
       detail: applyDetailLevel(
         `${trailPhrase} are drying, but reports and recovery data still point to muddy or unrideable conditions`,
@@ -520,8 +528,8 @@ export function buildBriefing(
         return {
           headline: riderOrNeutral(
             tone,
-            "Still needs time",
-            "Still not ready"
+            "Stand down",
+            "Not rideable right now"
           ),
           detail: applyDetailLevel(
             `${trailPhrase} are still mostly not ready, even if a few spots are improving`,
@@ -541,8 +549,8 @@ export function buildBriefing(
         return {
           headline: riderOrNeutral(
             tone,
-            "Needs more time",
-            "Needs more time"
+            "Stand down",
+            "Not rideable right now"
           ),
           detail: applyDetailLevel(
             `${trailPhrase} are still holding moisture and not ready yet`,
@@ -561,8 +569,8 @@ export function buildBriefing(
       return {
         headline: riderOrNeutral(
           tone,
-          "Needs more time",
-          "Needs more time"
+          "Stand down",
+          "Not rideable right now"
         ),
         detail: applyDetailLevel(
           `${trailPhrase} are drying out, but most are still not ready to ride`,
@@ -581,8 +589,8 @@ export function buildBriefing(
     return {
       headline: riderOrNeutral(
         tone,
-        "Still not ready",
-        "Still not ready"
+        "Stand down",
+        "Not rideable right now"
       ),
       detail: applyDetailLevel(
         `${trailPhrase} are still too wet in most spots`,
@@ -615,7 +623,7 @@ export function buildBriefing(
         {
           headline: riderOrNeutral(
             tone,
-            "Send it",
+            getRideableHeadline(`hero-${relevant.map((trail) => trail.id).join("-")}`),
             "Good to go"
           ),
           detail: applyDetailLevel(
@@ -668,7 +676,7 @@ export function buildBriefing(
       {
         headline: riderOrNeutral(
           tone,
-          "Good to go",
+          getRideableHeadline(`dry-${relevant.map((trail) => trail.id).join("-")}`),
           "Good to go"
         ),
         detail: applyDetailLevel(
@@ -700,8 +708,8 @@ export function buildBriefing(
         {
           headline: riderOrNeutral(
             tone,
-            "Mixed, but improving",
-            "Conditions are mixed"
+            "Use caution",
+            "Use caution"
           ),
           detail: applyDetailLevel(
             `${trailPhrase} are split right now—faster-drying trails may come around sooner than the rest`,
@@ -726,8 +734,8 @@ export function buildBriefing(
         {
           headline: riderOrNeutral(
             tone,
-            "Mixed, lean cautious",
-            "Conditions are mixed"
+            "Use caution",
+            "Use caution"
           ),
           detail: applyDetailLevel(
             `${trailPhrase} are mixed, but the slower-drying ones are still probably holding moisture`,
@@ -751,8 +759,8 @@ export function buildBriefing(
       {
         headline: riderOrNeutral(
           tone,
-          "Conditions are mixed",
-          "Conditions are mixed"
+          "Use caution",
+          "Use caution"
         ),
         detail: applyDetailLevel(
           `${trailPhrase} are split right now—some sections are getting there, others still need time`,
@@ -776,8 +784,8 @@ export function buildBriefing(
     {
       headline: riderOrNeutral(
         tone,
-        "Still sorting itself out",
-        "Conditions are still unclear"
+        "Use caution",
+        "Use caution"
       ),
       detail: applyDetailLevel(
         `${trailPhrase} don't look clearly rideable yet based on the latest mix of weather and reports`,
