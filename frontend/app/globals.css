@@ -155,10 +155,10 @@ body.app-text-large {
 /* Ride Recon tactical terrain map treatment */
 .ride-recon-map .leaflet-tile {
   filter:
-    brightness(0.46)
-    contrast(1.28)
-    saturate(0.78)
-    hue-rotate(18deg);
+    brightness(0.52)
+    contrast(1.18)
+    saturate(0.72)
+    hue-rotate(12deg);
 }
 
 .ride-recon-map .leaflet-container {

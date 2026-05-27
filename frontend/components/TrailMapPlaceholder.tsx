@@ -711,8 +711,8 @@ export function TrailMapPlaceholder({
           className="h-[calc(100vh-300px)] min-h-[300px]"
         >
           <TileLayer
-            attribution='&copy; OpenStreetMap contributors &copy; Stadia Maps'
-            url="https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png"
+            attribution='&copy; OpenStreetMap contributors &copy; CARTO'
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png"
           />
 
           <MapPanes />
