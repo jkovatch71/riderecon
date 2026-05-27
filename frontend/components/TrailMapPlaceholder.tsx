@@ -693,7 +693,7 @@ export function TrailMapPlaceholder({
 
   return (
     <div className="card overflow-hidden p-0">
-      <div className="relative">
+      <div className="ride-recon-map relative overflow-hidden rounded-2xl bg-[#07110d]">
         <button
           type="button"
           onClick={() => setLocateTrigger((prev) => prev + 1)}
@@ -708,11 +708,11 @@ export function TrailMapPlaceholder({
           center={DEFAULT_MAP_CENTER}
           zoom={DEFAULT_MAP_ZOOM}
           scrollWheelZoom={true}
-          className="h-[calc(100svh-23rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] min-h-[360px] max-h-[620px] w-full"
+          className="h-[calc(100vh-300px)] min-h-[300px]"
         >
           <TileLayer
-            attribution="&copy; OpenStreetMap contributors"
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; OpenStreetMap contributors &copy; Stadia Maps'
+            url="https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png"
           />
 
           <MapPanes />
@@ -780,9 +780,9 @@ export function TrailMapPlaceholder({
                       center={[request.latitude, request.longitude]}
                       radius={request.responder_username ? 14 : 16}
                       pathOptions={{
-                        color: meta.color,
+                        color: "#050505",
                         fillColor: meta.color,
-                        fillOpacity: 0.95,
+                        fillOpacity: 0.96,
                         weight: 3,
                       }}
                     >
@@ -881,7 +881,7 @@ export function TrailMapPlaceholder({
                     ]}
                     radius={9}
                     pathOptions={{
-                      color: "#ffffff",
+                      color: "#f8fafc",
                       fillColor: "#22c55e",
                       fillOpacity: 0.95,
                       weight: 3,
@@ -915,9 +915,9 @@ export function TrailMapPlaceholder({
                     center={[point.latitude, point.longitude]}
                     radius={12}
                     pathOptions={{
-                      color: "#f59e0b",
+                      color: "#050505",
                       fillColor: "#f59e0b",
-                      fillOpacity: 0.92,
+                      fillOpacity: 0.96,
                       weight: 3,
                     }}
                   >
@@ -975,10 +975,10 @@ export function TrailMapPlaceholder({
               center={userLocation}
               radius={8}
               pathOptions={{
-                color: "#e5e7eb",
-                fillColor: "#60a5fa",
-                fillOpacity: 0.95,
-                weight: 3,
+                color: "#f8fafc",
+                fillColor: "#34d399",
+                fillOpacity: 0.9,
+                weight: 4,
               }}
             />
           ) : null}
@@ -1062,8 +1062,8 @@ export function TrailMapPlaceholder({
                     pathOptions={{
                       color: "#f8fafc",
                       fillColor: "#f8fafc",
-                      fillOpacity: 0.12,
-                      weight: 3,
+                      fillOpacity: 0.1,
+                      weight: 4,
                     }}
                   />
                 ) : null}
@@ -1079,10 +1079,10 @@ export function TrailMapPlaceholder({
                     click: () => onTrailSelect?.(trail),
                   }}
                   pathOptions={{
-                    color: isSelected ? "#ffffff" : "#18181b",
+                    color: isSelected ? "#f8fafc" : "#050505",
                     fillColor: fill,
-                    fillOpacity: 0.95,
-                    weight: isSelected ? 4 : 2,
+                    fillOpacity: 0.96,
+                    weight: isSelected ? 4 : 3,
                   }}
                 >
                   <Popup>
